@@ -50,6 +50,13 @@ describe('runLogout (S10.8)', () => {
     assert.match(OFFLINE_LOGOUT_NOTICE.message, /30 días/);
   });
 
+  it('does not warn when the server already rejected the session (401)', async () => {
+    const { deps, calls, notices } = fakeDeps({ logout: { ok: false, error: 'UNAUTHORIZED', status: 401 } });
+    assert.strictEqual(await runLogout(deps), true);
+    assert.deepStrictEqual(calls, ['revoke', 'clear']);
+    assert.deepStrictEqual(notices, []);
+  });
+
   it('keeps the session when the user cancels with unsynced changes', async () => {
     const { deps, calls, confirms } = fakeDeps({ pending: 2, afterFlush: 2, confirmed: false });
     assert.strictEqual(await runLogout(deps), false);

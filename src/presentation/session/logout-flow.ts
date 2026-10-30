@@ -49,6 +49,7 @@ export async function runLogout(deps: LogoutDeps): Promise<boolean> {
 
   const revoked = await deps.revokeServerSession();
   deps.clearLocalSession();
-  if (!revoked.ok) void deps.notify(OFFLINE_LOGOUT_NOTICE);
+  // A 401 means the server session is already gone; any other failure may leave it active.
+  if (!revoked.ok && revoked.error !== 'UNAUTHORIZED') void deps.notify(OFFLINE_LOGOUT_NOTICE);
   return true;
 }

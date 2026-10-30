@@ -181,10 +181,11 @@ class Collection<T extends { id: string }> {
 
 /**
  * Full sync (first sync of a device, or after a server reset): the server
- * snapshot replaces the local data (the bundled demo seed is never pushed), then
- * every pending local change is re-applied over it and stays in the outbox to be
- * flushed. A pending record the server already has a newer or equal version of
- * is dropped (last-write-wins), exactly as in an incremental pull.
+ * snapshot replaces the local data, then every pending local change is
+ * re-applied over it and stays in the outbox to be flushed. Untouched bundled
+ * seed data is never pushed; a seed entity edited before the first sync is pushed
+ * as a whole record (last-write-wins). A pending record the server already has a
+ * newer or equal version of is dropped, exactly as in an incremental pull.
  */
 export function applyServerSnapshot(pulled: PulledChanges, outbox: Outbox = createEmptyOutbox()): MergeState {
   const empty: SyncableClubData = { divisions: [], teams: [], players: [], matches: [] };

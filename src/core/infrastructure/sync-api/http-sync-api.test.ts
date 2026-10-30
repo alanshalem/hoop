@@ -97,6 +97,21 @@ describe('http sync api', () => {
   });
 });
 
+describe('request timeout', () => {
+  it('bounds every API request with an abort signal so a hung server cannot block sync or logout', async () => {
+    const { fetchImpl, calls } = fakeFetch(() => json({ records: [], events: [], cursor: '0', hasMore: false }));
+    await createHttpSyncApi(fetchImpl).pull(null);
+    await createHttpAuthApi(fetchImpl).logout();
+    assert.strictEqual(calls.length, 2);
+    for (const call of calls) assert.ok(call.init?.signal instanceof AbortSignal, call.url);
+  });
+
+  it('maps an aborted request to NETWORK', async () => {
+    const { fetchImpl } = fakeFetch(() => Promise.reject(new DOMException('timed out', 'TimeoutError')));
+    assert.deepStrictEqual(await createHttpAuthApi(fetchImpl).logout(), { ok: false, error: 'NETWORK' });
+  });
+});
+
 describe('http auth api', () => {
   it('logs in with JSON credentials and returns the public user', async () => {
     const { fetchImpl, calls } = fakeFetch(() => json({ user: USER }));

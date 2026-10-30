@@ -12,6 +12,9 @@ import { parseAuthUser, parseErrorMessage, parsePullPage, parsePushResult } from
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' } as const;
 
+/** Upper bound for one API call, so a hung server cannot stall sync or logout. */
+const REQUEST_TIMEOUT_MS = 15_000;
+
 async function request<T>(
   fetchImpl: typeof fetch,
   url: string,
@@ -20,7 +23,12 @@ async function request<T>(
 ): Promise<ApiResult<T>> {
   let response: Response;
   try {
-    response = await fetchImpl(url, { cache: 'no-store', credentials: 'same-origin', ...init });
+    response = await fetchImpl(url, {
+      cache: 'no-store',
+      credentials: 'same-origin',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      ...init,
+    });
   } catch {
     return { ok: false, error: 'NETWORK' };
   }
