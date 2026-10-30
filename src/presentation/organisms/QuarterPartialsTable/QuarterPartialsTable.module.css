@@ -1,0 +1,76 @@
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.table th,
+.table td {
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.table thead th {
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.table abbr {
+  text-decoration: none;
+}
+
+.table td {
+  font-family: var(--font-athletic), var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.teamCol {
+  position: sticky;
+  left: 0;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  background-color: var(--bg-surface-1);
+}
+
+tbody .teamCol {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.ownRow .teamCol {
+  color: var(--color-orange);
+}
+
+.table td.periodWon {
+  color: var(--text-primary);
+}
+
+.finalCol {
+  border-left: 2px solid var(--border-strong);
+}
+
+.table td.finalCol {
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-black);
+  color: var(--text-primary);
+}
+
+.table td.finalWon {
+  color: var(--color-orange);
+}

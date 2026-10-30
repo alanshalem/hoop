@@ -1,0 +1,102 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1-5) var(--space-3);
+  background-color: var(--bg-surface-1);
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.navBtn {
+  min-height: var(--touch-lg);
+  flex-shrink: 0;
+}
+
+.rivalGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  margin: 0 auto;
+  padding: var(--space-1);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-red-subtle);
+  background-color: var(--bg-surface-2);
+  flex-shrink: 0;
+}
+
+.rivalLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: 0 var(--space-2);
+  color: var(--color-red);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rivalName {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rivalBtn,
+.rivalFoulBtn {
+  min-width: var(--touch-lg);
+  min-height: var(--touch-lg);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  font-family: var(--font-athletic), var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-black);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.rivalBtn {
+  background-color: var(--bg-surface-1);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+}
+
+.rivalBtn:hover {
+  background-color: var(--color-red-subtle);
+  border-color: var(--color-red);
+  color: var(--color-red);
+}
+
+.rivalFoulBtn {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  background-color: var(--color-amber-subtle);
+  border: 1px solid var(--color-amber);
+  color: var(--color-amber);
+}
+
+.rivalFoulBtn:hover {
+  background-color: var(--color-amber);
+  color: var(--text-inverse);
+}
+
+.rivalBtn:active,
+.rivalFoulBtn:active {
+  transform: scale(0.95);
+}
+
+.endGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.rivalGroup + .endGroup {
+  margin-left: 0;
+}

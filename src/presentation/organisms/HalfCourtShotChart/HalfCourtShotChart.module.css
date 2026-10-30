@@ -2,9 +2,10 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
   background-color: var(--color-court-floor);
   padding: var(--space-3);
-  gap: var(--space-3);
+  gap: var(--space-2);
   position: relative;
   overflow: hidden;
   user-select: none;
@@ -15,27 +16,64 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
-.activePlayerIndicator {
-  display: flex;
+.playerIndicator {
+  display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 4px 10px;
+  min-height: 36px;
+  padding: 0 var(--space-3);
   background-color: var(--bg-surface-1);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-amber);
   border-radius: var(--radius-full);
   font-size: var(--text-xs);
-  color: var(--text-primary);
+  color: var(--color-amber);
   font-weight: var(--font-weight-semibold);
 }
 
-.activeDot {
-  width: 8px;
-  height: 8px;
+.playerIndicatorActive {
+  border-color: var(--color-orange);
+  color: var(--text-primary);
+}
+
+.playerIndicatorActive svg,
+.playerIndicatorActive strong {
+  color: var(--color-orange);
+}
+
+.courtCaption {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.legend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.legendMade {
+  width: 12px;
+  height: 12px;
   border-radius: var(--radius-full);
-  background-color: var(--color-orange);
-  box-shadow: 0 0 8px var(--color-orange);
+  background-color: var(--color-green);
+  border: 1.5px solid var(--text-primary);
+}
+
+.legendMiss {
+  color: var(--color-red);
 }
 
 .courtWrapper {
@@ -55,7 +93,11 @@
   touch-action: manipulation;
 }
 
-/* COURT LINES SVG STYLING */
+.svgCourtReadOnly {
+  cursor: default;
+}
+
+/* COURT LINES */
 .courtLine {
   stroke: var(--color-court-line);
   stroke-width: 2.5;
@@ -75,14 +117,14 @@
 }
 
 .courtBackboard {
-  stroke: #FFFFFF;
+  stroke: var(--text-primary);
   stroke-width: 4;
 }
 
 /* SHOT MARKERS */
 .markerMade {
   fill: var(--color-green);
-  stroke: #FFFFFF;
+  stroke: var(--text-primary);
   stroke-width: 1.5;
 }
 
@@ -92,11 +134,33 @@
   stroke-linecap: round;
 }
 
-/* RADIAL PROMPT POPUP */
+.markerPending {
+  fill: var(--color-orange-subtle);
+  stroke: var(--color-orange);
+  stroke-width: 2.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pulseMarker 1s ease-in-out infinite;
+}
+
+@keyframes pulseMarker {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.7;
+  }
+}
+
+/* SHOT RESULT POPUP (anchored above the tapped point) */
 .radialPopup {
   position: absolute;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, calc(-100% - var(--space-3)));
   display: flex;
+  align-items: center;
   gap: var(--space-2);
   background-color: var(--bg-surface-1);
   border: 2px solid var(--border-strong);
@@ -107,91 +171,61 @@
   animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+.radialPopupBelow {
+  transform: translate(-50%, var(--space-3));
+}
+
 @keyframes popIn {
-  from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  from {
+    opacity: 0;
+    scale: 0.8;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+.actionMadeBtn,
+.actionMissBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-height: var(--touch-lg);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-lg);
+  color: var(--text-on-accent);
+  font-weight: var(--font-weight-black);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 .actionMadeBtn {
-  min-height: 48px;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-lg);
   background-color: var(--color-green);
-  color: #FFFFFF;
-  font-weight: var(--font-weight-black);
-  font-size: var(--text-xs);
-  cursor: pointer;
-  touch-action: manipulation;
-  border: none;
   box-shadow: 0 0 12px var(--color-green-glow);
 }
 
 .actionMissBtn {
-  min-height: 48px;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-lg);
   background-color: var(--color-red);
-  color: #FFFFFF;
-  font-weight: var(--font-weight-black);
-  font-size: var(--text-xs);
-  cursor: pointer;
-  touch-action: manipulation;
-  border: none;
   box-shadow: 0 0 12px var(--color-red-glow);
 }
 
-/* TIMELINE (BOTTOM 5 PLAYS + UNDO) */
-.timelineBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background-color: var(--bg-surface-1);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: var(--space-2) var(--space-3);
-  gap: var(--space-3);
-}
-
-.recentEventsList {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  overflow-x: auto;
-  flex: 1;
-}
-
-.eventPill {
+.actionCancelBtn {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: 3px 8px;
+  justify-content: center;
+  width: var(--touch-lg);
+  height: var(--touch-lg);
+  border-radius: var(--radius-lg);
   background-color: var(--bg-surface-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-2xs);
-  white-space: nowrap;
-  color: var(--text-primary);
-}
-
-.undoBtn {
-  min-height: 40px;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-md);
-  background-color: var(--bg-surface-2);
-  border: 1px solid var(--border-strong);
-  color: var(--color-amber);
-  font-size: var(--text-xs);
-  font-weight: var(--font-weight-bold);
-  display: flex;
-  align-items: center;
-  gap: var(--space-1-5);
+  color: var(--text-secondary);
   cursor: pointer;
   touch-action: manipulation;
-  transition: all var(--transition-fast);
 }
 
-.undoBtn:hover {
-  background-color: var(--color-amber-subtle);
-  border-color: var(--color-amber);
+.actionCancelBtn:hover {
+  background-color: var(--bg-surface-3);
+  color: var(--text-primary);
 }
-

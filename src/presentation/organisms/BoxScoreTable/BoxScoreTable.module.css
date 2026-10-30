@@ -10,36 +10,46 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   text-align: right;
   white-space: nowrap;
 }
 
 .th,
 .td {
-  padding: var(--space-3) var(--space-3);
+  padding: var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
   font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
 }
 
 .th {
   background-color: var(--bg-surface-2);
-  color: var(--text-secondary);
   font-weight: var(--font-weight-bold);
   text-transform: uppercase;
   font-size: var(--text-2xs);
   letter-spacing: 0.05em;
 }
 
+.th abbr {
+  text-decoration: none;
+  cursor: help;
+}
+
+.row:hover .td {
+  background-color: var(--bg-surface-2);
+}
+
 /* STICKY PLAYER COLUMN */
 .stickyCol {
   position: sticky;
   left: 0;
-  background-color: var(--bg-surface-1);
   z-index: 2;
+  min-width: 180px;
   text-align: left;
+  font-weight: var(--font-weight-normal);
+  background-color: var(--bg-surface-1);
   border-right: 2px solid var(--border-subtle);
-  min-width: 160px;
 }
 
 .th.stickyCol {
@@ -50,14 +60,23 @@
 .playerCell {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
+}
+
+.playerText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-0-5);
 }
 
 .dorsal {
+  min-width: 2ch;
   font-family: var(--font-athletic), var(--font-mono);
+  font-size: var(--text-base);
   font-weight: var(--font-weight-black);
   color: var(--color-orange);
-  width: 24px;
+  text-align: right;
 }
 
 .playerName {
@@ -65,29 +84,58 @@
   color: var(--text-primary);
 }
 
-.highlightVal {
-  color: var(--color-orange);
-  font-weight: var(--font-weight-black);
-  font-family: var(--font-athletic), var(--font-mono);
-  font-size: var(--text-sm);
+.percentage {
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+}
+
+.strong {
+  color: var(--text-primary);
 }
 
 .highlightPts {
   color: var(--text-primary);
   font-weight: var(--font-weight-black);
   font-family: var(--font-athletic), var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
 }
 
-.totalsRow {
+.highlightVal {
+  color: var(--color-orange);
+  font-weight: var(--font-weight-black);
+  font-family: var(--font-athletic), var(--font-mono);
+  font-size: var(--text-base);
+}
+
+.fouledOut {
+  color: var(--color-red);
+  font-weight: var(--font-weight-bold);
+}
+
+.plusMinusPositive {
+  color: var(--color-green);
+  font-weight: var(--font-weight-bold);
+}
+
+.plusMinusNegative {
+  color: var(--color-red);
+  font-weight: var(--font-weight-bold);
+}
+
+.plusMinusNeutral {
+  color: var(--text-muted);
+}
+
+.totalsRow .td {
   background-color: var(--bg-surface-2);
   font-weight: var(--font-weight-black);
+  color: var(--text-primary);
   border-top: 2px solid var(--border-strong);
+  border-bottom: none;
 }
 
 .totalsRow .stickyCol {
-  background-color: var(--bg-surface-2);
   color: var(--color-orange);
   text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
-

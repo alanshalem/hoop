@@ -1,156 +1,216 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import gsap from 'gsap';
-import { RefreshCw } from 'lucide-react';
-import { Player } from '@/core/domain/entities/club.types';
-import { PlayerCard } from '@/presentation/molecules/PlayerCard/PlayerCard';
+import { useGSAP } from '@gsap/react';
 import clsx from 'clsx';
+import { ArrowLeftRight, Ban, LogIn, LogOut, X } from 'lucide-react';
+import type { Player } from '@/core/domain/entities/club.types';
+import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { PlayerCard } from '@/presentation/molecules/PlayerCard/PlayerCard';
 import styles from './OnCourtLineup.module.css';
+
+gsap.registerPlugin(useGSAP);
+
+/** Substitution being assembled; it completes when both players are chosen. */
+export interface SubstitutionDraft {
+  playerOutId: string | null;
+  playerInId: string | null;
+}
+
+export const EMPTY_SUBSTITUTION: SubstitutionDraft = { playerOutId: null, playerInId: null };
 
 export interface OnCourtLineupProps {
   onCourtPlayers: Player[];
   benchPlayers: Player[];
+  playerLines: Record<string, { points: number; fouls: number }>;
+  fouledOutIds: ReadonlySet<string>;
   selectedPlayerId: string | null;
+  /** `null` = not in substitution mode. */
+  substitution: SubstitutionDraft | null;
+  readOnly?: boolean;
   onSelectPlayer: (playerId: string) => void;
+  onSubstitutionChange: (draft: SubstitutionDraft | null) => void;
   onSubstitute: (playerOutId: string, playerInId: string) => void;
-  playerStatsMap?: Record<string, { points: number; fouls: number }>;
 }
+
+const shortName = (player: Player | undefined) => (player ? `#${player.dorsal} ${player.lastName}` : '');
 
 export const OnCourtLineup: React.FC<OnCourtLineupProps> = ({
   onCourtPlayers,
   benchPlayers,
+  playerLines,
+  fouledOutIds,
   selectedPlayerId,
+  substitution,
+  readOnly = false,
   onSelectPlayer,
+  onSubstitutionChange,
   onSubstitute,
-  playerStatsMap = {},
 }) => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLElement | null>(null);
+  const previousOnCourt = useRef<string[]>(onCourtPlayers.map((p) => p.id));
+  const onCourtKey = onCourtPlayers.map((p) => p.id).join('|');
 
-  // Substitution state machine:
-  // 1. isSubMode: true
-  // 2. pendingPlayerOutId: player on court selected to leave
-  // 3. click on bench player -> trigger substitution + GSAP animation!
-  const [isSubMode, setIsSubMode] = useState(false);
-  const [pendingPlayerOutId, setPendingPlayerOutId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'court' | 'bench'>('court');
-
-  const handlePlayerClick = (player: Player, isOnCourt: boolean) => {
-    if (isSubMode) {
-      if (isOnCourt) {
-        // Select player to sub OUT
-        setPendingPlayerOutId(player.id);
-        setActiveTab('bench'); // auto-switch tab to pick replacement
-      } else {
-        // Bench player clicked while sub mode active
-        if (pendingPlayerOutId) {
-          // Animate and substitute
-          const outEl = document.getElementById(`player-card-${pendingPlayerOutId}`);
-          const inEl = document.getElementById(`player-card-${player.id}`);
-
-          if (outEl && inEl) {
-            gsap.to(outEl, {
-              scale: 0.9,
-              opacity: 0.5,
-              duration: 0.2,
-              onComplete: () => {
-                onSubstitute(pendingPlayerOutId, player.id);
-                setPendingPlayerOutId(null);
-                setIsSubMode(false);
-                setActiveTab('court');
-                gsap.to(outEl, { scale: 1, opacity: 1, duration: 0.2 });
-              },
-            });
-          } else {
-            onSubstitute(pendingPlayerOutId, player.id);
-            setPendingPlayerOutId(null);
-            setIsSubMode(false);
-            setActiveTab('court');
-          }
-        } else {
-          alert('Primero toca el jugador en cancha que sale.');
-        }
+  // Highlight the players that just entered the court.
+  useGSAP(
+    () => {
+      const entered = onCourtPlayers.filter((p) => !previousOnCourt.current.includes(p.id));
+      previousOnCourt.current = onCourtPlayers.map((p) => p.id);
+      for (const player of entered) {
+        gsap.fromTo(
+          `[data-player-id="${player.id}"]`,
+          { x: 24, opacity: 0, scale: 0.96 },
+          { x: 0, opacity: 1, scale: 1, duration: 0.35, ease: 'back.out(1.6)' }
+        );
       }
+    },
+    { dependencies: [onCourtKey], scope: containerRef }
+  );
+
+  const isSubMode = substitution !== null;
+  const playerOut = onCourtPlayers.find((p) => p.id === substitution?.playerOutId);
+  const playerIn = benchPlayers.find((p) => p.id === substitution?.playerInId);
+
+  const applyDraft = (draft: SubstitutionDraft) => {
+    if (draft.playerOutId && draft.playerInId) {
+      onSubstitute(draft.playerOutId, draft.playerInId);
       return;
     }
+    onSubstitutionChange(draft);
+  };
 
-    // Normal mode: select player for actions
-    onSelectPlayer(player.id);
+  const handleCourtClick = (player: Player) => {
+    if (!isSubMode) {
+      onSelectPlayer(player.id);
+      return;
+    }
+    const playerOutId = substitution.playerOutId === player.id ? null : player.id;
+    applyDraft({ ...substitution, playerOutId });
+  };
+
+  const handleBenchClick = (player: Player) => {
+    const draft = substitution ?? EMPTY_SUBSTITUTION;
+    const playerInId = draft.playerInId === player.id ? null : player.id;
+    applyDraft({ ...draft, playerInId });
+  };
+
+  const renderHint = () => {
+    if (playerOut && !playerIn) {
+      return (
+        <>
+          <LogIn size={ICON_SIZE.sm} aria-hidden="true" />
+          <span>
+            Sale <strong>{shortName(playerOut)}</strong>. Toca el jugador de la banca que entra.
+          </span>
+        </>
+      );
+    }
+    if (playerIn && !playerOut) {
+      return (
+        <>
+          <LogOut size={ICON_SIZE.sm} aria-hidden="true" />
+          <span>
+            Entra <strong>{shortName(playerIn)}</strong>. Toca el jugador en cancha que sale.
+          </span>
+        </>
+      );
+    }
+    return (
+      <>
+        <ArrowLeftRight size={ICON_SIZE.sm} aria-hidden="true" />
+        <span>Toca el jugador en cancha que sale y el de la banca que entra.</span>
+      </>
+    );
   };
 
   return (
     <aside ref={containerRef} className={clsx(styles.container, 'no-scrollbar')} aria-label="Quinteto y banca">
       <div className={styles.sectionHeader}>
-        <span className={styles.title}>Quinteto en Cancha (5)</span>
-        <button
-          type="button"
-          className={clsx(styles.subBtn, isSubMode && styles.subModeActive)}
-          onClick={() => {
-            setIsSubMode(!isSubMode);
-            setPendingPlayerOutId(null);
-          }}
-          aria-label="Modo sustitución"
-        >
-          <RefreshCw size={14} />
-          <span>{isSubMode ? 'Cancelar Cambio' : 'Cambio'}</span>
-        </button>
+        <h2 className={styles.title}>En cancha ({onCourtPlayers.length})</h2>
+        {!readOnly && (
+          <button
+            type="button"
+            className={clsx(styles.subBtn, isSubMode && styles.subModeActive)}
+            onClick={() => onSubstitutionChange(isSubMode ? null : EMPTY_SUBSTITUTION)}
+            aria-pressed={isSubMode}
+          >
+            {isSubMode ? <X size={ICON_SIZE.md} aria-hidden="true" /> : <ArrowLeftRight size={ICON_SIZE.md} aria-hidden="true" />}
+            <span>{isSubMode ? 'Cancelar' : 'Cambio'}</span>
+          </button>
+        )}
       </div>
 
       {isSubMode && (
-        <div style={{ padding: '6px', backgroundColor: 'var(--color-orange-subtle)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-2xs)', color: 'var(--color-orange)', fontWeight: 'bold', textAlign: 'center' }}>
-          {pendingPlayerOutId
-            ? '2. Toca el jugador de la banca que ENTRA'
-            : '1. Toca el jugador en cancha que SALE'}
-        </div>
+        <p className={styles.subHint} role="status">
+          {renderHint()}
+        </p>
       )}
 
-      {/* TABS (ESPECIALLY USEFUL ON COMPACT TABLET SCREENS) */}
-      <div className={styles.tabButtons}>
-        <button
-          type="button"
-          className={clsx(styles.tabBtn, activeTab === 'court' && styles.tabBtnActive)}
-          onClick={() => setActiveTab('court')}
-        >
-          En Cancha ({onCourtPlayers.length})
-        </button>
-        <button
-          type="button"
-          className={clsx(styles.tabBtn, activeTab === 'bench' && styles.tabBtnActive)}
-          onClick={() => setActiveTab('bench')}
-        >
-          Banca ({benchPlayers.length})
-        </button>
-      </div>
-
-      {/* PLAYERS LIST VIEW */}
-      <div className={styles.playersColumn}>
-        {(activeTab === 'court' ? onCourtPlayers : benchPlayers).map((player) => {
-          const isOnCourt = activeTab === 'court';
-          const isSelected = selectedPlayerId === player.id;
-          const isOutTarget = pendingPlayerOutId === player.id;
-          const stats = playerStatsMap[player.id] || { points: 0, fouls: 0 };
-
+      <ul className={styles.playersColumn}>
+        {onCourtPlayers.map((player) => {
+          const line = playerLines[player.id];
           return (
-            <div
+            <li
               key={player.id}
-              id={`player-card-${player.id}`}
-              className={clsx(
-                styles.playerItem,
-                isOutTarget && styles.playerOutTarget
-              )}
+              data-player-id={player.id}
+              className={clsx(styles.playerItem, substitution?.playerOutId === player.id && styles.playerOutTarget)}
             >
               <PlayerCard
                 player={player}
-                points={stats.points}
-                fouls={stats.fouls}
-                isOnCourt={isOnCourt}
-                isSelected={isSelected}
-                onClick={() => handlePlayerClick(player, isOnCourt)}
+                points={line?.points ?? 0}
+                fouls={line?.fouls ?? 0}
+                isOnCourt
+                isSelected={!isSubMode && selectedPlayerId === player.id}
+                onClick={readOnly ? undefined : () => handleCourtClick(player)}
               />
-            </div>
+            </li>
           );
         })}
+      </ul>
+
+      <div className={styles.sectionHeader}>
+        <h2 className={styles.title}>Banca ({benchPlayers.length})</h2>
       </div>
+      {!readOnly && !isSubMode && benchPlayers.length > 0 && (
+        <p className={styles.benchNote}>Toca un jugador de la banca para iniciar un cambio.</p>
+      )}
+
+      {benchPlayers.length === 0 ? (
+        <p className={styles.benchNote}>No hay suplentes convocados.</p>
+      ) : (
+        <ul className={styles.playersColumn}>
+          {benchPlayers.map((player) => {
+            const line = playerLines[player.id];
+            const isFouledOut = fouledOutIds.has(player.id);
+            return (
+              <li
+                key={player.id}
+                data-player-id={player.id}
+                className={clsx(
+                  styles.playerItem,
+                  substitution?.playerInId === player.id && styles.playerInTarget,
+                  isFouledOut && styles.playerDisabled
+                )}
+                inert={isFouledOut}
+              >
+                <PlayerCard
+                  player={player}
+                  points={line?.points ?? 0}
+                  fouls={line?.fouls ?? 0}
+                  onClick={isFouledOut || readOnly ? undefined : () => handleBenchClick(player)}
+                />
+                {isFouledOut && (
+                  <span className={styles.fouledOutTag}>
+                    <Ban size={ICON_SIZE.xs} aria-hidden="true" />
+                    Excluido
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </aside>
   );
 };

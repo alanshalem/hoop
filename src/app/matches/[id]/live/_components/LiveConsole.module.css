@@ -1,0 +1,109 @@
+/* Full-viewport courtside console: no page scroll, columns scroll internally. */
+.liveViewport {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-base);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.readOnlyBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background-color: var(--color-blue-subtle);
+  border-bottom: 1px solid var(--color-blue);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+}
+
+.readOnlyBanner svg {
+  flex-shrink: 0;
+  color: var(--color-blue);
+}
+
+/* MOBILE PORTRAIT: SECTION TABS */
+.mobileTabs {
+  display: flex;
+  flex-shrink: 0;
+  min-height: var(--touch-min);
+  background-color: var(--bg-surface-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.mobileTabBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1-5);
+  border-bottom: 2px solid transparent;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mobileTabActive {
+  background-color: var(--color-orange-subtle);
+  color: var(--color-orange);
+  border-bottom-color: var(--color-orange);
+}
+
+/* MAIN CONSOLE: lineup left, court + timeline center, action pad right */
+.mainConsole {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.columnSection {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.centerColumn {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-court-floor);
+}
+
+.court {
+  flex: 1;
+  min-height: 0;
+}
+
+.timeline {
+  flex-shrink: 0;
+  max-height: 34%;
+  margin: 0 var(--space-3) var(--space-3);
+}
+
+@media (max-width: 899px) {
+  .columnHidden {
+    display: none;
+  }
+}
+
+@media (min-width: 900px) {
+  .mobileTabs {
+    display: none;
+  }
+
+  .mainConsole {
+    display: grid;
+    grid-template-columns: minmax(260px, 300px) 1fr minmax(300px, 340px);
+    grid-template-rows: minmax(0, 1fr);
+  }
+}

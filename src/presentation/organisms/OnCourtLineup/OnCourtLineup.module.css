@@ -15,89 +15,114 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
 }
 
 .title {
   font-size: var(--text-xs);
   font-weight: var(--font-weight-black);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--text-secondary);
 }
 
 .subBtn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
+  gap: var(--space-1-5);
+  min-height: var(--touch-lg);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
   background-color: var(--color-orange-subtle);
   border: 1px solid var(--color-orange);
   color: var(--color-orange);
-  font-size: var(--text-2xs);
+  font-size: var(--text-sm);
   font-weight: var(--font-weight-bold);
   cursor: pointer;
   touch-action: manipulation;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.subBtn:hover {
+  background-color: var(--color-orange);
+  color: var(--text-on-accent);
 }
 
 .subModeActive {
   background-color: var(--color-orange);
-  color: #FFFFFF;
-  animation: pulseSub 1.5s infinite;
+  color: var(--text-on-accent);
+  box-shadow: 0 0 12px var(--color-orange-glow);
 }
 
-@keyframes pulseSub {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.04); }
-  100% { transform: scale(1); }
+.subHint {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-orange);
+  background-color: var(--color-orange-subtle);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
+.subHint svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--color-orange);
+}
+
+.subHint strong {
+  color: var(--color-orange);
+}
+
+.benchNote {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
 }
 
 .playersColumn {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  list-style: none;
 }
 
 .playerItem {
-  transition: transform var(--transition-fast);
+  position: relative;
+  border-radius: var(--radius-lg);
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+  transition: outline-color var(--transition-fast);
+  will-change: transform;
 }
 
 .playerOutTarget {
-  border-color: var(--color-red) !important;
-  background-color: var(--color-red-subtle) !important;
+  outline-color: var(--color-red);
 }
 
 .playerInTarget {
-  border-color: var(--color-green) !important;
-  background-color: var(--color-green-subtle) !important;
+  outline-color: var(--color-green);
 }
 
-.tabButtons {
-  display: flex;
+.playerDisabled {
+  opacity: 0.55;
+  filter: saturate(0.4);
+}
+
+.fouledOutTag {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-2);
+  display: inline-flex;
+  align-items: center;
   gap: var(--space-1);
-  background-color: var(--bg-surface-2);
-  padding: 2px;
-  border-radius: var(--radius-md);
-  margin-top: var(--space-2);
-}
-
-.tabBtn {
-  flex: 1;
-  padding: var(--space-1-5) 0;
-  text-align: center;
+  padding: 0 var(--space-1-5);
+  border-radius: var(--radius-xs);
+  background-color: var(--color-red);
+  color: var(--text-on-accent);
   font-size: var(--text-2xs);
   font-weight: var(--font-weight-bold);
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  cursor: pointer;
-  touch-action: manipulation;
-  border: none;
-  background: none;
+  text-transform: uppercase;
 }
-
-.tabBtnActive {
-  background-color: var(--bg-surface-1);
-  color: var(--text-primary);
-  box-shadow: var(--shadow-sm);
-}
-
