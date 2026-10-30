@@ -2,7 +2,7 @@ import { useCallback, useEffect, useEffectEvent, useReducer, useRef } from 'reac
 import type { Match } from '@/core/domain/entities/match.types';
 import { clampGameClock } from '@/core/domain/rules/game-clock';
 import { useClubStore } from '@/core/application/stores/useClubStore';
-import { createGameClockState, gameClockReducer } from './game-clock-state';
+import { createGameClockState, gameClockKey, gameClockReducer } from './game-clock-state';
 
 export interface GameClock {
   seconds: number;
@@ -22,12 +22,13 @@ export interface UseGameClockOptions {
   onExpire?: () => void;
 }
 
-type ClockMatch = Pick<Match, 'id' | 'currentQuarter' | 'quarterTimeRemainingSeconds'>;
+type ClockMatch = Pick<Match, 'id' | 'currentQuarter' | 'status' | 'quarterTimeRemainingSeconds'>;
 
 /**
  * Local ticking game clock for the live console. The store keeps the persisted
  * value (`setClock`): saved on pause, on adjust, at 00:00, when the page is
- * hidden and on unmount. A quarter change resets it to the stored value, paused.
+ * hidden and on unmount. A quarter or status change (halftime) resets it to the
+ * stored value, paused.
  * Mount it once per match (key the component by match ID).
  */
 export function useGameClock(
@@ -38,7 +39,7 @@ export function useGameClock(
   const matchId = match?.id;
   const quarter = match?.currentQuarter ?? 'Q1';
   const storedSeconds = match?.quarterTimeRemainingSeconds ?? 0;
-  const key = `${matchId ?? ''}:${quarter}`;
+  const key = gameClockKey(match);
 
   const [state, dispatch] = useReducer(gameClockReducer, undefined, () =>
     createGameClockState(key, storedSeconds)

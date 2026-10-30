@@ -1,3 +1,5 @@
+import type { Match } from '@/core/domain/entities/match.types';
+
 /**
  * =============================================================================
  * HOOP OS - LOCAL GAME CLOCK STATE
@@ -19,6 +21,15 @@ export type GameClockAction =
   | { type: 'TICK' }
   | { type: 'SET'; seconds: number }
   | { type: 'RESET'; key: string; seconds: number };
+
+/**
+ * Which match period a local clock belongs to. The status is part of it: entering
+ * halftime keeps the quarter (Q2) but the clock must adopt the stored 00:00, so a
+ * leftover running value is never saved onto the halftime record.
+ */
+export function gameClockKey(match: Pick<Match, 'id' | 'currentQuarter' | 'status'> | undefined): string {
+  return match ? `${match.id}:${match.currentQuarter}:${match.status}` : '';
+}
 
 export function createGameClockState(key: string, seconds: number): GameClockState {
   return { key, seconds, isRunning: false, expirations: 0 };

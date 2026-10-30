@@ -1,4 +1,4 @@
-/* Above modal sheets (--z-modal), below DialogHost dialogs (DialogHost.module.css). */
+/* Above modal sheets (--z-modal), below DialogHost dialogs (ModalSheet.module.css .overlayDialog: --z-modal + 100). */
 .root {
   position: fixed;
   inset: 0;

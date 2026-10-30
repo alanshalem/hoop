@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { createGameClockState, gameClockReducer } from './game-clock-state';
+import { createGameClockState, gameClockKey, gameClockReducer } from './game-clock-state';
 
 describe('gameClockReducer', () => {
   it('starts paused with the given seconds', () => {
@@ -53,5 +53,21 @@ describe('gameClockReducer', () => {
       gameClockReducer(expired, { type: 'RESET', key: 'm1:Q2', seconds: 600 }),
       { key: 'm1:Q2', seconds: 600, isRunning: false, expirations: 1 }
     );
+  });
+});
+
+describe('gameClockKey', () => {
+  it('changes when the match enters halftime, so the local clock adopts the stored 00:00', () => {
+    const live = gameClockKey({ id: 'm1', currentQuarter: 'Q2', status: 'LIVE' });
+    const halftime = gameClockKey({ id: 'm1', currentQuarter: 'Q2', status: 'HALFTIME' });
+    assert.notStrictEqual(live, halftime);
+  });
+
+  it('changes with the period and the match, and is stable otherwise', () => {
+    const base = { id: 'm1', currentQuarter: 'Q2', status: 'LIVE' } as const;
+    assert.strictEqual(gameClockKey(base), gameClockKey({ ...base }));
+    assert.notStrictEqual(gameClockKey(base), gameClockKey({ ...base, currentQuarter: 'Q3' }));
+    assert.notStrictEqual(gameClockKey(base), gameClockKey({ ...base, id: 'm2' }));
+    assert.strictEqual(gameClockKey(undefined), gameClockKey(undefined));
   });
 });
