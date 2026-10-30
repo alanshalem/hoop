@@ -1,0 +1,25 @@
+# Local PostgreSQL for HoopOS development (`npm run db:up` / `npm run db:down`).
+# Credentials come from the environment (or a `.env` file next to this one);
+# the defaults below are for local development only.
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hoop}
+      POSTGRES_USER: ${POSTGRES_USER:-hoop}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hoop}
+    ports:
+      # Bound to localhost only: the dev database is not exposed to the network.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - hoop-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  hoop-pgdata:

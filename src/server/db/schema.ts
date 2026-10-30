@@ -1,0 +1,111 @@
+import 'server-only';
+import { sql } from 'drizzle-orm';
+import {
+  bigint,
+  boolean,
+  check,
+  index,
+  jsonb,
+  pgEnum,
+  pgSequence,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
+// Relative imports (not `@/`): drizzle-kit loads this file outside the Next.js resolver.
+import { UserRoleSchema } from '../../core/domain/entities/club.types';
+import { SYNC_RECORD_KINDS } from '../sync/record-kinds';
+
+/**
+ * =============================================================================
+ * HOOP OS - DATABASE SCHEMA (PostgreSQL, Drizzle)
+ * Change it, then run `npm run db:generate` to create the next SQL migration.
+ * =============================================================================
+ */
+
+const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
+
+/**
+ * Single global change sequence. Every accepted write to `sync_records` or
+ * `match_events` takes the next value, so clients pull with one cursor.
+ */
+export const syncSeq = pgSequence('sync_seq');
+
+const seq = () =>
+  bigint('seq', { mode: 'number' })
+    .notNull()
+    .default(sql`nextval('sync_seq')`);
+
+export const userRole = pgEnum('user_role', UserRoleSchema.enum);
+export const syncRecordKind = pgEnum('sync_record_kind', SYNC_RECORD_KINDS);
+
+export const users = pgTable(
+  'users',
+  {
+    id: text('id').primaryKey(),
+    email: text('email').notNull(),
+    name: text('name').notNull(),
+    role: userRole('role').notNull(),
+    passwordHash: text('password_hash').notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('users_email_key').on(table.email),
+    check('users_email_lowercase', sql`${table.email} = lower(${table.email})`),
+  ]
+);
+
+export const sessions = pgTable(
+  'sessions',
+  {
+    /** SHA-256 (hex) of the session token; the raw token only lives in the cookie. */
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [index('sessions_user_id_idx').on(table.userId)]
+);
+
+export const syncRecords = pgTable(
+  'sync_records',
+  {
+    kind: syncRecordKind('kind').notNull(),
+    id: text('id').notNull(),
+    /** Entity validated with the domain zod schema. Matches never embed events. */
+    data: jsonb('data').$type<Record<string, unknown>>().notNull(),
+    /** Client change time; last-write-wins compares this value. */
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+    deleted: boolean('deleted').notNull().default(false),
+    seq: seq(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.kind, table.id] }),
+    index('sync_records_seq_idx').on(table.seq),
+  ]
+);
+
+export const matchEvents = pgTable(
+  'match_events',
+  {
+    id: text('id').primaryKey(),
+    matchId: text('match_id').notNull(),
+    /** Play-by-play event validated with PlayByPlayEventSchema. */
+    data: jsonb('data').$type<Record<string, unknown>>().notNull(),
+    deleted: boolean('deleted').notNull().default(false),
+    seq: seq(),
+  },
+  (table) => [
+    index('match_events_seq_idx').on(table.seq),
+    index('match_events_match_id_idx').on(table.matchId),
+  ]
+);
+
+export type UserRow = typeof users.$inferSelect;
+export type SyncRecordRow = typeof syncRecords.$inferSelect;
+export type MatchEventRow = typeof matchEvents.$inferSelect;
