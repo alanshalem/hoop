@@ -9,7 +9,9 @@ export type { HandoffEdit } from './tab-coordinator';
  * one key per tab (`hoop-sync-handoff:<tabId>`, so tabs never overwrite each
  * other's list). The next tab to lead drains every key of the same user and
  * enqueues those edits, so an edit made while no tab led is not lost when its
- * tab closes. Edits left by another user are discarded, never pushed.
+ * tab closes. Edits left by another user are discarded, never pushed. The
+ * leader forgets each edit it applies, so a tab that closes before receiving
+ * the acknowledgement does not leave it behind to be replayed later.
  * =============================================================================
  */
 
@@ -38,6 +40,7 @@ const isObject = (value: unknown): value is Record<string, unknown> => typeof va
 const isHandoffEdit = (value: unknown): value is HandoffEdit =>
   isObject(value) &&
   typeof value.id === 'string' &&
+  (value.madeAt === undefined || typeof value.madeAt === 'number') &&
   isObject(value.diff) &&
   Array.isArray(value.diff.records) &&
   Array.isArray(value.diff.events);
@@ -70,6 +73,16 @@ export function createEditHandoff({ storage, tabId, owner, now }: EditHandoffDep
       }
       const stored: StoredHandoff = { v: HANDOFF_VERSION, owner: owner(), savedAt: now(), edits: [...edits] };
       storage.setItem(ownKey, JSON.stringify(stored));
+    },
+
+    forget(editId) {
+      for (const key of storage.keys().filter((name) => name.startsWith(HANDOFF_KEY_PREFIX))) {
+        const stored = parseStoredHandoff(storage.getItem(key));
+        if (!stored || !stored.edits.some((entry) => entry.id === editId)) continue;
+        const edits = stored.edits.filter((entry) => entry.id !== editId);
+        if (edits.length === 0) storage.removeItem(key);
+        else storage.setItem(key, JSON.stringify({ ...stored, edits } satisfies StoredHandoff));
+      }
     },
 
     drain() {

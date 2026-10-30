@@ -1,12 +1,12 @@
-# Manual del sistema HoopOS · Club Atlético Monte Grande
+# Manual del sistema Hoop · Club Atlético Monte Grande
 
-HoopOS es el sistema de básquet del Club Atlético Monte Grande (CAMG): divisiones, planteles, calendario de partidos y estadísticas FIBA registradas en vivo desde una tablet al borde de la cancha. Este manual describe el sistema tal como está implementado hoy, primero para quien lo usa y después para quien lo mantiene.
+Hoop es el sistema de básquet del Club Atlético Monte Grande (CAMG): divisiones, planteles, calendario de partidos y estadísticas FIBA registradas en vivo desde una tablet al borde de la cancha. Este manual describe el sistema tal como está implementado hoy, primero para quien lo usa y después para quien lo mantiene.
 
 > Estado de esta versión: local primero con servidor. Cada cambio se guarda al instante en el navegador y se sincroniza con un servidor PostgreSQL cuando hay conexión. El acceso es con correo y contraseña, y los roles se validan en el servidor (ver [Datos, persistencia y sincronización](#7-datos-persistencia-y-sincronización) y [Servidor y base de datos](#8-servidor-y-base-de-datos)).
 
 ## Índice
 
-1. [Qué es HoopOS](#1-qué-es-hoopos)
+1. [Qué es Hoop](#1-qué-es-Hoop)
 2. [Inicio rápido](#2-inicio-rápido)
 3. [Roles y permisos](#3-roles-y-permisos)
 4. [Guía por pantalla](#4-guía-por-pantalla)
@@ -21,16 +21,16 @@ HoopOS es el sistema de básquet del Club Atlético Monte Grande (CAMG): divisio
 
 ---
 
-## 1. Qué es HoopOS
+## 1. Qué es Hoop
 
-| Rasgo | Qué significa en la práctica |
-|-------|------------------------------|
-| Del club | Marca, escudo y paleta del Club Atlético Monte Grande (fundado en 1922). Los datos de demostración corresponden al club. |
-| Offline-first | Cada acción se guarda al instante en el navegador. Un corte de WiFi o 4G en el estadio no interrumpe el registro del partido. |
-| Sincronizado | Con conexión, los cambios viajan al servidor del club y llegan en vivo a las demás tablets. Sin conexión quedan en una cola y se envían solos cuando vuelve la red. |
-| Tablet-first | Pensado para tablet (horizontal o vertical) y teléfono. Áreas táctiles de 48 px como mínimo y de 56 px en la consola en vivo. Registro de jugadas en dos toques. |
-| Reglas FIBA | Faltas, bonus, tiempos muertos, duración de períodos, convocatoria, PIR y +/- siguen el reglamento FIBA (detalle en la [sección 6](#6-reglas-fiba-aplicadas)). |
-| Sin alertas del navegador | Todos los avisos y confirmaciones son modales propios de la aplicación (`notify` y `confirm`). Nunca se usa `alert`, `confirm` ni `prompt` del navegador. |
+| Rasgo                     | Qué significa en la práctica                                                                                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Del club                  | Marca, escudo y paleta del Club Atlético Monte Grande (fundado en 1922). Los datos de demostración corresponden al club.                                            |
+| Offline-first             | Cada acción se guarda al instante en el navegador. Un corte de WiFi o 4G en el estadio no interrumpe el registro del partido.                                       |
+| Sincronizado              | Con conexión, los cambios viajan al servidor del club y llegan en vivo a las demás tablets. Sin conexión quedan en una cola y se envían solos cuando vuelve la red. |
+| Tablet-first              | Pensado para tablet (horizontal o vertical) y teléfono. Áreas táctiles de 48 px como mínimo y de 56 px en la consola en vivo. Registro de jugadas en dos toques.    |
+| Reglas FIBA               | Faltas, bonus, tiempos muertos, duración de períodos, convocatoria, PIR y +/- siguen el reglamento FIBA (detalle en la [sección 6](#6-reglas-fiba-aplicadas)).      |
+| Sin alertas del navegador | Todos los avisos y confirmaciones son modales propios de la aplicación (`notify` y `confirm`). Nunca se usa `alert`, `confirm` ni `prompt` del navegador.           |
 
 ---
 
@@ -54,19 +54,19 @@ HoopOS es el sistema de básquet del Club Atlético Monte Grande (CAMG): divisio
 
 ### Scripts disponibles
 
-| Comando | Qué hace |
-|---------|----------|
-| `npm run dev` | Servidor de desarrollo de Next.js. |
-| `npm run build` | Compilación de producción. |
-| `npm run start` | Sirve la compilación de producción (requiere `npm run build` antes). |
-| `npm run lint` | ESLint con la configuración de Next.js (`eslint.config.mjs`). |
-| `npm test` | Pruebas unitarias (runner `node:test` vía `tsx`): todos los `src/**/*.test.ts` salvo los `*.db.test.ts`. No necesitan base de datos. |
-| `npm run test:db` | Pruebas de integración contra PostgreSQL (`*.db.test.ts`). Usan una base aparte (ver [Variables de entorno](#variables-de-entorno)). |
-| `npm run db:up` | Levanta PostgreSQL 17 en Docker (`docker compose up -d --wait`). |
-| `npm run db:down` | Detiene el contenedor. Los datos quedan en el volumen `hoop-pgdata`. |
-| `npm run db:migrate` | Aplica las migraciones SQL versionadas de `drizzle/`. |
-| `npm run db:generate` | Genera una migración nueva a partir de `src/server/db/schema.ts` (solo al cambiar el esquema). |
-| `npm run db:seed` | Carga el club de demostración y las cuentas. Solo inserta lo que falta (ver [Datos de demostración en el servidor](#datos-de-demostración-en-el-servidor)). |
+| Comando               | Qué hace                                                                                                                                                    |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`         | Servidor de desarrollo de Next.js.                                                                                                                          |
+| `npm run build`       | Compilación de producción.                                                                                                                                  |
+| `npm run start`       | Sirve la compilación de producción (requiere `npm run build` antes).                                                                                        |
+| `npm run lint`        | ESLint con la configuración de Next.js (`eslint.config.mjs`).                                                                                               |
+| `npm test`            | Pruebas unitarias (runner `node:test` vía `tsx`): todos los `src/**/*.test.ts` salvo los `*.db.test.ts`. No necesitan base de datos.                        |
+| `npm run test:db`     | Pruebas de integración contra PostgreSQL (`*.db.test.ts`). Usan una base aparte (ver [Variables de entorno](#variables-de-entorno)).                        |
+| `npm run db:up`       | Levanta PostgreSQL 17 en Docker (`docker compose up -d --wait`).                                                                                            |
+| `npm run db:down`     | Detiene el contenedor. Los datos quedan en el volumen `hoop-pgdata`.                                                                                        |
+| `npm run db:migrate`  | Aplica las migraciones SQL versionadas de `drizzle/`.                                                                                                       |
+| `npm run db:generate` | Genera una migración nueva a partir de `src/server/db/schema.ts` (solo al cambiar el esquema).                                                              |
+| `npm run db:seed`     | Carga el club de demostración y las cuentas. Solo inserta lo que falta (ver [Datos de demostración en el servidor](#datos-de-demostración-en-el-servidor)). |
 
 Control de tipos (no tiene script propio): `npx tsc --noEmit`.
 
@@ -78,13 +78,13 @@ Hay tres roles. Cada usuario tiene uno, asignado en el servidor. Cada pantalla o
 
 ### Matriz de permisos
 
-| Permiso | Qué habilita | Administrador | Entrenador principal | Asistente planillero |
-|---------|--------------|:-------------:|:--------------------:|:--------------------:|
-| `MANAGE_DIVISIONS` | Crear, editar y eliminar divisiones; asignar entrenador | Sí | No | No |
-| `MANAGE_PLAYERS` | Crear, editar y eliminar jugadores; convocar juveniles a Primera | Sí | Sí | No |
-| `MANAGE_MATCHES` | Crear, editar y eliminar partidos programados | Sí | Sí | No |
-| `MANAGE_LINEUP` | Armar convocatoria y quinteto; iniciar el partido | Sí | Sí | No |
-| `RECORD_LIVE` | Usar la consola en vivo: reloj, períodos, jugadas, cambios, tiempos muertos, finalizar | Sí | Sí | Sí |
+| Permiso            | Qué habilita                                                                           | Administrador | Entrenador principal | Asistente planillero |
+| ------------------ | -------------------------------------------------------------------------------------- | :-----------: | :------------------: | :------------------: |
+| `MANAGE_DIVISIONS` | Crear, editar y eliminar divisiones; asignar entrenador                                |      Sí       |          No          |          No          |
+| `MANAGE_PLAYERS`   | Crear, editar y eliminar jugadores; convocar juveniles a Primera                       |      Sí       |          Sí          |          No          |
+| `MANAGE_MATCHES`   | Crear, editar y eliminar partidos programados                                          |      Sí       |          Sí          |          No          |
+| `MANAGE_LINEUP`    | Armar convocatoria y quinteto; iniciar el partido                                      |      Sí       |          Sí          |          No          |
+| `RECORD_LIVE`      | Usar la consola en vivo: reloj, períodos, jugadas, cambios, tiempos muertos, finalizar |      Sí       |          Sí          |          Sí          |
 
 Lo que cualquier rol puede ver: dashboard, listado de divisiones y su plantel ("Ver plantel"), jugadores, calendario, convocatorias (en modo lectura) y planillas estadísticas. Sin `RECORD_LIVE` la consola se abre en modo lectura con un aviso.
 
@@ -92,13 +92,13 @@ Lo que cualquier rol puede ver: dashboard, listado de divisiones y su plantel ("
 
 El rol sale de la cuenta con la que se inicia sesión. `npm run db:seed` crea estas cuentas, todas con la contraseña de `SEED_DEMO_PASSWORD` (por defecto `camg1922`):
 
-| Rol | Usuario | Correo |
-|-----|---------|--------|
-| Administrador | Alejandro Montecchia | `admin@camg.com.ar` |
-| Entrenador principal | Federico Balbi | `fbalbi@camg.com.ar` |
-| Entrenador principal | Sergio Hernández | `shernandez@camg.com.ar` |
-| Entrenador principal | Julio Lamas | `jlamas@camg.com.ar` |
-| Asistente planillero | Mariano Ginóbili | `mginobili@camg.com.ar` |
+| Rol                  | Usuario              | Correo                   |
+| -------------------- | -------------------- | ------------------------ |
+| Administrador        | Alejandro Montecchia | `admin@camg.com.ar`      |
+| Entrenador principal | Federico Balbi       | `fbalbi@camg.com.ar`     |
+| Entrenador principal | Sergio Hernández     | `shernandez@camg.com.ar` |
+| Entrenador principal | Julio Lamas          | `jlamas@camg.com.ar`     |
+| Asistente planillero | Mariano Ginóbili     | `mginobili@camg.com.ar`  |
 
 Para usar otro rol hay que cerrar sesión y entrar con otra cuenta. Si el rol de una cuenta cambia en el servidor, la aplicación lo toma la próxima vez que confirma la sesión con conexión.
 
@@ -110,25 +110,25 @@ Para usar otro rol hay que cerrar sesión y entrar con otra cuenta. Si el rol de
 
 ### Navegación general
 
-| Elemento | Dónde | Función |
-|----------|-------|---------|
-| Riel lateral (tablet) | Izquierda | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, botón **Partido en vivo** y, al pie, el menú de usuario: nombre, rol, botón de tema claro/oscuro, [estado de sincronización](#estado-de-sincronización) y **Cerrar sesión**. |
-| Barra superior (teléfono) | Arriba | Escudo y marca (vuelve al inicio) y el estado de sincronización compacto. |
-| Barra inferior (teléfono) | Abajo | Inicio, Equipos, botón central de partido en vivo (icono `Radio`), Plantel y Fechas. |
-| Menú de usuario (teléfono) | Cabecera del Dashboard | Nombre, rol, estado de sincronización y **Cerrar sesión**. |
-| Diálogos | Sobre la pantalla | Modales propios: avisos (`notify`, botón "Entendido") y confirmaciones (`confirm`, botones "Cancelar" y la acción). Se muestran de a uno, en cola. |
+| Elemento                   | Dónde                  | Función                                                                                                                                                                                                                                                     |
+| -------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Riel lateral (tablet)      | Izquierda              | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, botón **Partido en vivo** y, al pie, el menú de usuario: nombre, rol, botón de tema claro/oscuro, [estado de sincronización](#estado-de-sincronización) y **Cerrar sesión**. |
+| Barra superior (teléfono)  | Arriba                 | Escudo y marca (vuelve al inicio) y el estado de sincronización compacto.                                                                                                                                                                                   |
+| Barra inferior (teléfono)  | Abajo                  | Inicio, Equipos, botón central de partido en vivo (icono `Radio`), Plantel y Fechas.                                                                                                                                                                        |
+| Menú de usuario (teléfono) | Cabecera del Dashboard | Nombre, rol, estado de sincronización y **Cerrar sesión**.                                                                                                                                                                                                  |
+| Diálogos                   | Sobre la pantalla      | Modales propios: avisos (`notify`, botón "Entendido") y confirmaciones (`confirm`, botones "Cancelar" y la acción). Se muestran de a uno, en cola.                                                                                                          |
 
 ### Inicio de sesión (`/login`)
 
 Pantalla con el escudo del club, campos **Email** y **Contraseña** y el botón **Ingresar**.
 
-| Situación | Qué pasa |
-|-----------|----------|
-| Datos correctos | Entra y vuelve a la pantalla que se había pedido (o al Dashboard). |
-| Correo o contraseña incorrectos | Modal "No pudimos iniciar sesión" con el mensaje genérico "Email o contraseña incorrectos" (no revela si el correo existe). |
-| Sin conexión | Modal "Sin conexión": el primer ingreso en una tablet necesita llegar al servidor. |
-| Campos vacíos o correo mal escrito | El error aparece debajo del campo. |
-| Ya hay una sesión guardada en la tablet | Botón **Continuar como \<nombre\>** para volver sin escribir la contraseña. |
+| Situación                               | Qué pasa                                                                                                                    |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Datos correctos                         | Entra y vuelve a la pantalla que se había pedido (o al Dashboard).                                                          |
+| Correo o contraseña incorrectos         | Modal "No pudimos iniciar sesión" con el mensaje genérico "Email o contraseña incorrectos" (no revela si el correo existe). |
+| Sin conexión                            | Modal "Sin conexión": el primer ingreso en una tablet necesita llegar al servidor.                                          |
+| Campos vacíos o correo mal escrito      | El error aparece debajo del campo.                                                                                          |
+| Ya hay una sesión guardada en la tablet | Botón **Continuar como \<nombre\>** para volver sin escribir la contraseña.                                                 |
 
 Cualquier otra pantalla, sin una sesión guardada, redirige a `/login` y después vuelve a la pantalla pedida.
 
@@ -136,12 +136,12 @@ Cualquier otra pantalla, sin una sesión guardada, redirige a `/login` y despué
 
 Botón visible en el riel lateral (tablet), en la barra superior (teléfono), en el menú de usuario del Dashboard y en la barra de herramientas de la consola en vivo, junto a **Partidos** (la consola ocupa toda la pantalla sin el menú lateral, así que ese es su único indicador y queda a la vista también en el teléfono). Tocarlo sincroniza en ese momento; en una pestaña secundaria le pide a la pestaña principal que sincronice.
 
-| Estado | Icono | Significado |
-|--------|-------|-------------|
-| Sincronizado | `Cloud` | Todo está en el servidor. Muestra hace cuánto fue la última sincronización. |
-| Sincronizando | `RefreshCw` (gira) | Enviando o recibiendo cambios, o hay cambios pendientes por salir en instantes. |
-| Sin conexión | `CloudOff` | No hay red o el servidor no responde. Muestra cuántos cambios esperan en la cola ("3 pendientes"). La aplicación sigue funcionando igual. |
-| Error | `AlertTriangle` | El servidor rechazó cambios o respondió con un error. Muestra el motivo y "Toca para reintentar". |
+| Estado        | Icono              | Significado                                                                                                                               |
+| ------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Sincronizado  | `Cloud`            | Todo está en el servidor. Muestra hace cuánto fue la última sincronización.                                                               |
+| Sincronizando | `RefreshCw` (gira) | Enviando o recibiendo cambios, o hay cambios pendientes por salir en instantes.                                                           |
+| Sin conexión  | `CloudOff`         | No hay red o el servidor no responde. Muestra cuántos cambios esperan en la cola ("3 pendientes"). La aplicación sigue funcionando igual. |
+| Error         | `AlertTriangle`    | El servidor rechazó cambios o respondió con un error. Muestra el motivo y "Toca para reintentar".                                         |
 
 ### Ayuda (`/ayuda`)
 
@@ -149,7 +149,7 @@ Este manual, dentro de la aplicación. Se abre desde **Ayuda** en el menú later
 
 ### Tutorial guiado
 
-La primera vez que inicias sesión, HoopOS muestra un recorrido de bienvenida: la pantalla se oscurece, se resalta un elemento por vez y una tarjeta con una flecha explica para qué sirve, muchas veces con un ejemplo concreto (por ejemplo, "toca #7 Campagna y después +2").
+La primera vez que inicias sesión, Hoop muestra un recorrido de bienvenida: la pantalla se oscurece, se resalta un elemento por vez y una tarjeta con una flecha explica para qué sirve, muchas veces con un ejemplo concreto (por ejemplo, "toca #7 Campagna y después +2").
 
 - **Bienvenida**: presenta el menú (Dashboard, Divisiones, Jugadores, Partidos, Modo partido en vivo), el estado de sincronización, tu menú de usuario y la Ayuda. Cuando la terminas o la saltas, el recorrido de la pantalla en la que estás no empieza enseguida: aparece la próxima vez que abras esa pantalla.
 - **Recorridos por pantalla**: la primera vez que abres Dashboard, Divisiones, Jugadores, Partidos, Quinteto y convocatoria, Consola en vivo, Planilla o Ayuda, se muestra un recorrido corto de esa pantalla.
@@ -163,37 +163,37 @@ La primera vez que inicias sesión, HoopOS muestra un recorrido de bienvenida: l
 
 Resumen de la temporada de la división elegida.
 
-| Control o bloque | Qué hace |
-|------------------|----------|
-| Chips **División del tablero** | Cambian la división que alimentan los indicadores. Solo aparecen si hay más de una división. |
-| Tarjeta principal | Si hay un partido en juego: marcador, período y reloj, con botones **Convocatoria** y **Abrir consola en vivo**. Si no, el próximo partido programado con **Ver calendario** y **Armar quinteto** (o **Ver convocatoria** sin permiso de convocatoria). Considera los partidos de todas las divisiones. |
-| Indicadores | Récord (ganados-perdidos y % de victorias), puntos a favor (con diferencial), puntos en contra y efectividad de tiros de campo y de triples. Se calculan con los partidos finalizados del equipo. |
-| Líderes del equipo | Promedio por partido de puntos (PPG), rebotes (RPG), asistencias (APG) y valoración (PIR). Un jugador suma un partido cuando figura en la convocatoria. |
-| Últimos resultados | Hasta 5 partidos finalizados (G, P o E) con enlace a su planilla. |
-| Alertas médicas | Jugadores lesionados o suspendidos de todo el club, con su parte médico. |
+| Control o bloque               | Qué hace                                                                                                                                                                                                                                                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chips **División del tablero** | Cambian la división que alimentan los indicadores. Solo aparecen si hay más de una división.                                                                                                                                                                                                            |
+| Tarjeta principal              | Si hay un partido en juego: marcador, período y reloj, con botones **Convocatoria** y **Abrir consola en vivo**. Si no, el próximo partido programado con **Ver calendario** y **Armar quinteto** (o **Ver convocatoria** sin permiso de convocatoria). Considera los partidos de todas las divisiones. |
+| Indicadores                    | Récord (ganados-perdidos y % de victorias), puntos a favor (con diferencial), puntos en contra y efectividad de tiros de campo y de triples. Se calculan con los partidos finalizados del equipo.                                                                                                       |
+| Líderes del equipo             | Promedio por partido de puntos (PPG), rebotes (RPG), asistencias (APG) y valoración (PIR). Un jugador suma un partido cuando figura en la convocatoria.                                                                                                                                                 |
+| Últimos resultados             | Hasta 5 partidos finalizados (G, P o E) con enlace a su planilla.                                                                                                                                                                                                                                       |
+| Alertas médicas                | Jugadores lesionados o suspendidos de todo el club, con su parte médico.                                                                                                                                                                                                                                |
 
 ### Divisiones (`/divisions`)
 
 Cada tarjeta muestra nombre, categoría, descripción, cantidad de jugadores, temporada y entrenador principal.
 
-| Control | Qué hace | Permiso |
-|---------|----------|---------|
-| **Nueva división** | Abre el formulario de alta. | `MANAGE_DIVISIONS` |
-| **Ver plantel** | Modal de solo lectura con los jugadores del equipo (incluye juveniles convocados, marcados "Convocado") y sus partes médicos. | Todos |
-| Lápiz (`Pencil`) | Editar la división y su entrenador. | `MANAGE_DIVISIONS` |
-| Papelera (`Trash2`) | Eliminar la división, con confirmación. | `MANAGE_DIVISIONS` |
+| Control             | Qué hace                                                                                                                      | Permiso            |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| **Nueva división**  | Abre el formulario de alta.                                                                                                   | `MANAGE_DIVISIONS` |
+| **Ver plantel**     | Modal de solo lectura con los jugadores del equipo (incluye juveniles convocados, marcados "Convocado") y sus partes médicos. | Todos              |
+| Lápiz (`Pencil`)    | Editar la división y su entrenador.                                                                                           | `MANAGE_DIVISIONS` |
+| Papelera (`Trash2`) | Eliminar la división, con confirmación.                                                                                       | `MANAGE_DIVISIONS` |
 
 Campos del formulario: **Nombre** (mínimo 2 caracteres), **Categoría** (Primera, Sub-21, Sub-19, Sub-17, Sub-15, Sub-13, Mini básquet, Femenino, Otra categoría), **Entrenador principal** (usuarios con rol de entrenador principal, u opción "Sin entrenador asignado") y **Descripción o torneo** (máximo 120 caracteres).
 
 ### Jugadores (`/players`)
 
-| Control | Qué hace | Permiso |
-|---------|----------|---------|
-| **Buscar jugador** | Filtra por apellido, nombre o dorsal exacto. | Todos |
-| Chips **División**, **Posición**, **Estado** | Filtros combinables; cada chip muestra cuántos jugadores quedarían. Aparece "Sin equipo" si hay jugadores sin división. | Todos |
-| **Nuevo jugador** | Abre el formulario de alta. | `MANAGE_PLAYERS` |
-| Tocar la tarjeta | Abre el jugador para editarlo o eliminarlo. | `MANAGE_PLAYERS` |
-| **Convocar a Primera** | Suma un juvenil al plantel de Primera (ver [flujo](#convocar-un-juvenil-a-primera)). | `MANAGE_PLAYERS` |
+| Control                                      | Qué hace                                                                                                                | Permiso          |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| **Buscar jugador**                           | Filtra por apellido, nombre o dorsal exacto.                                                                            | Todos            |
+| Chips **División**, **Posición**, **Estado** | Filtros combinables; cada chip muestra cuántos jugadores quedarían. Aparece "Sin equipo" si hay jugadores sin división. | Todos            |
+| **Nuevo jugador**                            | Abre el formulario de alta.                                                                                             | `MANAGE_PLAYERS` |
+| Tocar la tarjeta                             | Abre el jugador para editarlo o eliminarlo.                                                                             | `MANAGE_PLAYERS` |
+| **Convocar a Primera**                       | Suma un juvenil al plantel de Primera (ver [flujo](#convocar-un-juvenil-a-primera)).                                    | `MANAGE_PLAYERS` |
 
 Cada tarjeta muestra dorsal, posición, estado, puntos de la temporada (partidos finalizados), altura, mano hábil, división y parte médico.
 
@@ -203,19 +203,19 @@ Campos del formulario: Nombre, Apellido, Dorsal (0 a 99), Posición (Base, Escol
 
 Orden fijo: primero los partidos en juego, después los programados (el más próximo primero) y al final los finalizados (el más reciente primero).
 
-| Control | Qué hace |
-|---------|----------|
-| Chips **Estado** | Todos, En vivo, Programados, Finalizados. |
+| Control            | Qué hace                                                                                        |
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+| Chips **Estado**   | Todos, En vivo, Programados, Finalizados.                                                       |
 | Chips **División** | Filtra por división. Los partidos de una división eliminada aparecen como "División eliminada". |
-| **Nuevo partido** | Abre el formulario (requiere `MANAGE_MATCHES`). |
+| **Nuevo partido**  | Abre el formulario (requiere `MANAGE_MATCHES`).                                                 |
 
 Acciones de cada tarjeta según su estado:
 
-| Estado | Acciones |
-|--------|----------|
-| En vivo | **Convocatoria** y **Consola en vivo**. |
+| Estado     | Acciones                                                                             |
+| ---------- | ------------------------------------------------------------------------------------ |
+| En vivo    | **Convocatoria** y **Consola en vivo**.                                              |
 | Programado | Editar y eliminar (con `MANAGE_MATCHES`); **Armar quinteto** o **Ver convocatoria**. |
-| Finalizado | **Planilla box score**. |
+| Finalizado | **Planilla box score**.                                                              |
 
 Campos del formulario: **División** (el equipo propio se deduce de ella), **Equipo rival**, **Fecha y hora**, **Condición** (Local o Visitante), **Torneo o competencia** y **Estadio o cancha** (opcional). Si al editar se cambia la división, se vacían la convocatoria y el quinteto del partido.
 
@@ -223,11 +223,11 @@ Campos del formulario: **División** (el equipo propio se deduce de ella), **Equ
 
 La pantalla tiene tres modos según el estado del partido:
 
-| Modo | Estado del partido | Qué se puede hacer |
-|------|--------------------|--------------------|
-| Preparación | Programado | Elegir convocados (máximo 12) y exactamente 5 titulares; **Iniciar partido**. |
-| En juego | En vivo | El quinteto inicial queda bloqueado. Solo se pueden sumar convocados y guardarlos con **Guardar convocatoria**; **Volver a la consola**. |
-| Finalizado | Finalizado | Solo lectura; **Ver box score**. |
+| Modo        | Estado del partido | Qué se puede hacer                                                                                                                       |
+| ----------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Preparación | Programado         | Elegir convocados (máximo 12) y exactamente 5 titulares; **Iniciar partido**.                                                            |
+| En juego    | En vivo            | El quinteto inicial queda bloqueado. Solo se pueden sumar convocados y guardarlos con **Guardar convocatoria**; **Volver a la consola**. |
+| Finalizado  | Finalizado         | Solo lectura; **Ver box score**.                                                                                                         |
 
 - Candidatos: los jugadores del equipo del partido más los juveniles convocados a ese equipo. Los suspendidos no se pueden convocar.
 - Contadores: `convocados/12` y `titulares/5`, en verde cuando son válidos.
@@ -242,14 +242,14 @@ Pantalla de registro del partido en cancha, a altura completa y sin desplazamien
 
 **Accesos.** Si el partido está programado, la consola muestra un aviso con el botón para armar el quinteto. Si está finalizado, muestra el resultado y un enlace a la planilla.
 
-| Zona | Controles |
-|------|-----------|
-| Tablero (arriba) | Por equipo (local a la izquierda, visitante a la derecha): nombre, marcador, cuatro luces de faltas de equipo con el contador `N F`, indicador **Bonus** y botón **TM** con los tiempos muertos que quedan. Al centro: selector de período (`1C` a `4C`, y `S1` a `S4` para suplementarios), reloj con **-10s**, **+10s** y **Iniciar/Pausar**. |
-| Barra de herramientas | **Partidos** (volver), acciones del rival (**+1**, **+2**, **+3**, **Falta**), estado de sincronización (compacto), **Planilla** y **Finalizar**. |
-| En cancha / Banca | Tarjetas de jugador con puntos y faltas. Tocar un jugador en cancha lo selecciona. Botón **Cambio** para sustituciones. Los excluidos por faltas aparecen en la banca marcados "Excluido". |
-| Media cancha | Tocar la posición registra un tiro del jugador seleccionado. Muestra los tiros con ubicación (círculo: convertido; cruz: fallado). |
-| Últimas jugadas | Las 6 jugadas más recientes, de la más nueva a la más vieja, con el botón **Deshacer**. |
-| Acciones rápidas | Grupos **Convertidos** (`+1 TL`, `+2`, `+3`), **Fallados** (`TL`, `2P`, `3P`), **Rebotes y juego** (Reb. ofensivo, Reb. defensivo, Asistencia, Robo, Tapa, Pérdida) y **Faltas** (Personal, Técnica, Antidep.). |
+| Zona                  | Controles                                                                                                                                                                                                                                                                                                                                       |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tablero (arriba)      | Por equipo (local a la izquierda, visitante a la derecha): nombre, marcador, cuatro luces de faltas de equipo con el contador `N F`, indicador **Bonus** y botón **TM** con los tiempos muertos que quedan. Al centro: selector de período (`1C` a `4C`, y `S1` a `S4` para suplementarios), reloj con **-10s**, **+10s** y **Iniciar/Pausar**. |
+| Barra de herramientas | **Partidos** (volver), acciones del rival (**+1**, **+2**, **+3**, **Falta**), estado de sincronización (compacto), **Planilla** y **Finalizar**.                                                                                                                                                                                               |
+| En cancha / Banca     | Tarjetas de jugador con puntos y faltas. Tocar un jugador en cancha lo selecciona. Botón **Cambio** para sustituciones. Los excluidos por faltas aparecen en la banca marcados "Excluido".                                                                                                                                                      |
+| Media cancha          | Tocar la posición registra un tiro del jugador seleccionado. Muestra los tiros con ubicación (círculo: convertido; cruz: fallado).                                                                                                                                                                                                              |
+| Últimas jugadas       | Las 6 jugadas más recientes, de la más nueva a la más vieja, con el botón **Deshacer**.                                                                                                                                                                                                                                                         |
+| Acciones rápidas      | Grupos **Convertidos** (`+1 TL`, `+2`, `+3`), **Fallados** (`TL`, `2P`, `3P`), **Rebotes y juego** (Reb. ofensivo, Reb. defensivo, Asistencia, Robo, Tapa, Pérdida) y **Faltas** (Personal, Técnica, Antidep.).                                                                                                                                 |
 
 **Entretiempo.** Al terminar el 2.º cuarto el partido pasa a **Entretiempo**: el tablero muestra "Entretiempo" en lugar del reloj, un aviso indica que no se registran jugadas ni tiempos muertos y el botón **Comenzar 3.er cuarto** reanuda el partido (3.er cuarto, reloj en 10:00, En vivo). Cualquier salto desde el 1.º o el 2.º cuarto a la segunda mitad o a un suplementario pasa primero por el entretiempo. Desde el entretiempo también se puede finalizar el partido; el reloj queda guardado en 00:00.
 
@@ -261,12 +261,12 @@ Atajo del botón **Partido en vivo**. Si hay un partido en juego, redirige a su 
 
 ### Planilla estadística (`/matches/[id]/stats`)
 
-| Bloque | Contenido |
-|--------|-----------|
-| Resultado | Marcador propio y rival. Si terminó: Victoria, Derrota o Empate. Si está en juego: estado y período, con acceso a la **Consola en vivo**. |
-| Parciales por período | Puntos por cuarto (1C a 4C) más los suplementarios que tuvieron jugadas. |
-| Box score | Una fila por convocado y una de totales: PTS, T2, T3, TL, TC (convertidos/intentados y %), REB (ofensivos-defensivos-totales), AST, ROB, TAP, PER, FAL, +/- y VAL (PIR). Los excluidos por faltas llevan el icono `Ban`. La tabla se desplaza en horizontal con la columna del jugador fija. |
-| Mapa de tiros | Filtros **Período** (Todos o un período) y **Jugador** (Todo el equipo o cada lanzador). Efectividad de dobles, triples y total de campo para el filtro elegido. Una nota indica cuántos tiros se cargaron desde el pad y no tienen ubicación en el mapa. |
+| Bloque                | Contenido                                                                                                                                                                                                                                                                                    |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Resultado             | Marcador propio y rival. Si terminó: Victoria, Derrota o Empate. Si está en juego: estado y período, con acceso a la **Consola en vivo**.                                                                                                                                                    |
+| Parciales por período | Puntos por cuarto (1C a 4C) más los suplementarios que tuvieron jugadas.                                                                                                                                                                                                                     |
+| Box score             | Una fila por convocado y una de totales: PTS, T2, T3, TL, TC (convertidos/intentados y %), REB (ofensivos-defensivos-totales), AST, ROB, TAP, PER, FAL, +/- y VAL (PIR). Los excluidos por faltas llevan el icono `Ban`. La tabla se desplaza en horizontal con la columna del jugador fija. |
+| Mapa de tiros         | Filtros **Período** (Todos o un período) y **Jugador** (Todo el equipo o cada lanzador). Efectividad de dobles, triples y total de campo para el filtro elegido. Una nota indica cuántos tiros se cargaron desde el pad y no tienen ubicación en el mapa.                                    |
 
 Un partido programado muestra "El partido todavía no comenzó".
 
@@ -276,7 +276,7 @@ Un partido programado muestra "El partido todavía no comenzó".
 
 ### Iniciar sesión
 
-1. Abrir HoopOS. Sin una sesión guardada aparece la pantalla de inicio de sesión.
+1. Abrir Hoop. Sin una sesión guardada aparece la pantalla de inicio de sesión.
 2. Escribir el correo y la contraseña de la cuenta y pulsar **Ingresar**.
 3. La primera vez en una tablet, la aplicación descarga todos los datos del servidor y reemplaza los datos de demostración que traía el navegador.
 
@@ -406,17 +406,17 @@ Con varias tablets en el mismo partido, **Deshacer** quita la última jugada de 
 
 ## 6. Reglas FIBA aplicadas
 
-| Regla | Implementación | Código |
-|-------|----------------|--------|
-| Exclusión por faltas | 5 faltas (personales, técnicas y antideportivas) excluyen al jugador. Con 4 se marca como advertencia. | `basketball-rules.ts` (`FIBA_MAX_PLAYER_FOULS`) |
-| Bonus de equipo | Con 4 o más faltas de equipo en el período se enciende **Bonus**. Las faltas de cualquier suplementario cuentan como parte del 4.º cuarto. | `basketball-rules.ts`, `event-rules.ts` (`isSameTeamFoulPeriod`) |
-| Tiempos muertos | 2 en la primera mitad, 3 en la segunda y 1 por cada suplementario. Los no usados no pasan a la mitad siguiente. Al entrar a un suplementario nuevo se repone 1. Con el reloj del 4.º cuarto en 2:00 o menos, como máximo 2 (Art. 18.2.5): si quedaban 3, uno se pierde. | `timeouts.ts` (`isLastTwoMinutesOfFourthQuarter`) |
-| Entretiempo | Al terminar el 2.º cuarto el partido pasa a `HALFTIME`: no se registran jugadas, cambios ni tiempos muertos hasta comenzar el 3.er cuarto. Cualquier salto de la primera mitad a un período posterior pasa por el entretiempo, y finalizar desde el entretiempo guarda el reloj en 00:00. | `match-use-cases.ts` (`startHalftime`, `startThirdQuarter`, `changeQuarter`, `finishMatch`), `game-clock.ts` (`crossesHalftime`) |
-| Duración de períodos | 10 minutos por cuarto, 5 por suplementario, hasta 4 suplementarios. | `game-clock.ts` |
-| Convocatoria | Entre 5 y 12 jugadores, exactamente 5 titulares y todos ellos convocados. | `lineup-rules.ts` |
-| Valoración (PIR) | `(PTS + REB + AST + ROB + TAP) - (tiros de campo fallados + tiros libres fallados + PER + faltas cometidas)`. Cuenta todas las faltas del jugador. | `calculateFibaPir` |
-| +/- | Diferencia de puntos mientras el jugador estuvo en cancha. Parte del quinteto inicial (`startingLineupOwn`) y sigue cada cambio propio en orden. | `calculatePlayerPlusMinus`, `getStartingLineup` |
-| Doble o triple | Arco de triple a 6,75 m del aro (radio de 235 unidades sobre una media cancha SVG de 500 x 470). En las esquinas, la zona de triple es la franja junto a la línea lateral cerca de la línea de fondo. | `HalfCourtShotChart.tsx` (`isThreePointSpot`) |
+| Regla                | Implementación                                                                                                                                                                                                                                                                            | Código                                                                                                                           |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Exclusión por faltas | 5 faltas (personales, técnicas y antideportivas) excluyen al jugador. Con 4 se marca como advertencia.                                                                                                                                                                                    | `basketball-rules.ts` (`FIBA_MAX_PLAYER_FOULS`)                                                                                  |
+| Bonus de equipo      | Con 4 o más faltas de equipo en el período se enciende **Bonus**. Las faltas de cualquier suplementario cuentan como parte del 4.º cuarto.                                                                                                                                                | `basketball-rules.ts`, `event-rules.ts` (`isSameTeamFoulPeriod`)                                                                 |
+| Tiempos muertos      | 2 en la primera mitad, 3 en la segunda y 1 por cada suplementario. Los no usados no pasan a la mitad siguiente. Al entrar a un suplementario nuevo se repone 1. Con el reloj del 4.º cuarto en 2:00 o menos, como máximo 2 (Art. 18.2.5): si quedaban 3, uno se pierde.                   | `timeouts.ts` (`isLastTwoMinutesOfFourthQuarter`)                                                                                |
+| Entretiempo          | Al terminar el 2.º cuarto el partido pasa a `HALFTIME`: no se registran jugadas, cambios ni tiempos muertos hasta comenzar el 3.er cuarto. Cualquier salto de la primera mitad a un período posterior pasa por el entretiempo, y finalizar desde el entretiempo guarda el reloj en 00:00. | `match-use-cases.ts` (`startHalftime`, `startThirdQuarter`, `changeQuarter`, `finishMatch`), `game-clock.ts` (`crossesHalftime`) |
+| Duración de períodos | 10 minutos por cuarto, 5 por suplementario, hasta 4 suplementarios.                                                                                                                                                                                                                       | `game-clock.ts`                                                                                                                  |
+| Convocatoria         | Entre 5 y 12 jugadores, exactamente 5 titulares y todos ellos convocados.                                                                                                                                                                                                                 | `lineup-rules.ts`                                                                                                                |
+| Valoración (PIR)     | `(PTS + REB + AST + ROB + TAP) - (tiros de campo fallados + tiros libres fallados + PER + faltas cometidas)`. Cuenta todas las faltas del jugador.                                                                                                                                        | `calculateFibaPir`                                                                                                               |
+| +/-                  | Diferencia de puntos mientras el jugador estuvo en cancha. Parte del quinteto inicial (`startingLineupOwn`) y sigue cada cambio propio en orden.                                                                                                                                          | `calculatePlayerPlusMinus`, `getStartingLineup`                                                                                  |
+| Doble o triple       | Arco de triple a 6,75 m del aro (radio de 235 unidades sobre una media cancha SVG de 500 x 470). En las esquinas, la zona de triple es la franja junto a la línea lateral cerca de la línea de fondo.                                                                                     | `HalfCourtShotChart.tsx` (`isThreePointSpot`)                                                                                    |
 
 Fuente única de verdad: el marcador, las faltas de equipo, los parciales y el box score se derivan siempre de la lista de jugadas del partido (`match-derivations.ts`). Los campos guardados en el partido son una copia que se recalcula en cada cambio.
 
@@ -426,19 +426,19 @@ Fuente única de verdad: el marcador, las faltas de equipo, los parciales y el b
 
 ### Dónde se guardan
 
-| Dato | Ubicación |
-|------|-----------|
-| Divisiones, equipos, jugadores, partidos y jugadas (copia del servidor) | PostgreSQL: tablas `sync_records` y `match_events` (ver [Servidor y base de datos](#8-servidor-y-base-de-datos)). |
-| Usuarios y sesiones | PostgreSQL: tablas `users` (contraseñas con hash scrypt) y `sessions` (solo el hash del token). |
-| Copia local del club: divisiones, equipos, jugadores, partidos y jugadas, usuario actual, división y partido activos | `localStorage`, clave `hoop-club-storage` (Zustand con el middleware `persist`). |
-| Cola de cambios pendientes (outbox), usuario dueño de esa cola, cursor de sincronización, versiones y hora de la última sincronización | `localStorage`, clave `hoop-sync-storage`. |
-| Perfil del último usuario (id, correo, nombre, rol) | `localStorage`, clave `hoop-auth-storage`. Nunca la contraseña ni el token. |
-| Sesión | Cookie `hoop_session` (httpOnly: el JavaScript de la página no puede leerla), 30 días. |
-| Tema claro u oscuro | `localStorage`, clave `hoop-theme`. |
-| Tutoriales vistos o saltados, por usuario | `localStorage`, clave `hoop-tour-storage`. |
-| Pestaña principal cuando el navegador no tiene Web Locks (http en la red local) | `localStorage`, clave `hoop-sync-leader-lease` (id de la pestaña y vencimiento). |
-| Cambios de una pestaña secundaria que la principal todavía no confirmó | `localStorage`, una clave por pestaña: `hoop-sync-handoff:<id de pestaña>`. |
-| Cola de diálogos, estado del reloj en marcha, estado de la sincronización en curso | Memoria (no se guarda). |
+| Dato                                                                                                                                   | Ubicación                                                                                                         |
+| -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Divisiones, equipos, jugadores, partidos y jugadas (copia del servidor)                                                                | PostgreSQL: tablas `sync_records` y `match_events` (ver [Servidor y base de datos](#8-servidor-y-base-de-datos)). |
+| Usuarios y sesiones                                                                                                                    | PostgreSQL: tablas `users` (contraseñas con hash scrypt) y `sessions` (solo el hash del token).                   |
+| Copia local del club: divisiones, equipos, jugadores, partidos y jugadas, usuario actual, división y partido activos                   | `localStorage`, clave `hoop-club-storage` (Zustand con el middleware `persist`).                                  |
+| Cola de cambios pendientes (outbox), usuario dueño de esa cola, cursor de sincronización, versiones y hora de la última sincronización | `localStorage`, clave `hoop-sync-storage`.                                                                        |
+| Perfil del último usuario (id, correo, nombre, rol)                                                                                    | `localStorage`, clave `hoop-auth-storage`. Nunca la contraseña ni el token.                                       |
+| Sesión                                                                                                                                 | Cookie `hoop_session` (httpOnly: el JavaScript de la página no puede leerla), 30 días.                            |
+| Tema claro u oscuro                                                                                                                    | `localStorage`, clave `hoop-theme`.                                                                               |
+| Tutoriales vistos o saltados, por usuario                                                                                              | `localStorage`, clave `hoop-tour-storage`.                                                                        |
+| Pestaña principal cuando el navegador no tiene Web Locks (http en la red local)                                                        | `localStorage`, clave `hoop-sync-leader-lease` (id de la pestaña y vencimiento).                                  |
+| Cambios de una pestaña secundaria que la principal todavía no confirmó                                                                 | `localStorage`, una clave por pestaña: `hoop-sync-handoff:<id de pestaña>`.                                       |
+| Cola de diálogos, estado del reloj en marcha, estado de la sincronización en curso                                                     | Memoria (no se guarda).                                                                                           |
 
 El reloj de juego se guarda en el partido al pausar, al corregirlo, al llegar a 00:00, con cada jugada, cambio, tiempo muerto o finalización, al ocultarse la página y al salir de la consola.
 
@@ -452,15 +452,15 @@ La cola de sincronización (`SYNC_STORE_VERSION`, en `useSyncStore.ts`) y el per
 
 Se generan en `src/core/infrastructure/mocks/seed-data.ts`, de forma determinística. Las fechas se calculan a partir del momento de la primera carga.
 
-| Elemento | Contenido |
-|----------|-----------|
-| Club | Club Atlético Monte Grande (`club-camg`), temporada 2025/2026. |
-| Usuarios | 5, con correos `@camg.com.ar`: Federico Balbi, Sergio Hernández y Julio Lamas (entrenadores principales), Mariano Ginóbili (asistente planillero) y Alejandro Montecchia (administrador). |
-| Divisiones y equipos | Primera División, Sub-19 (U19) y Sub-17 (U17), cada una con su equipo `Club Atlético Monte Grande - <división>` y su entrenador. |
-| Jugadores | 17: 12 de Primera (uno lesionado, con parte médico), 3 de Sub-19 y 2 de Sub-17. |
-| Partidos finalizados | 3, con jugada a jugada completa: contra Peñarol de Mar del Plata (local), Quimsa (visitante) y Ferro Carril Oeste (local), hace 20, 13 y 6 días. |
-| Partido en vivo | Contra Obras Sanitarias, hoy, en el Estadio CAMG: 2.º cuarto con 07:08 en el reloj y el rival en bonus. |
-| Partido programado | Contra Boca Juniors como visitante, dentro de 7 días, con convocatoria precargada. |
+| Elemento             | Contenido                                                                                                                                                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Club                 | Club Atlético Monte Grande (`club-camg`), temporada 2025/2026.                                                                                                                            |
+| Usuarios             | 5, con correos `@camg.com.ar`: Federico Balbi, Sergio Hernández y Julio Lamas (entrenadores principales), Mariano Ginóbili (asistente planillero) y Alejandro Montecchia (administrador). |
+| Divisiones y equipos | Primera División, Sub-19 (U19) y Sub-17 (U17), cada una con su equipo `Club Atlético Monte Grande - <división>` y su entrenador.                                                          |
+| Jugadores            | 17: 12 de Primera (uno lesionado, con parte médico), 3 de Sub-19 y 2 de Sub-17.                                                                                                           |
+| Partidos finalizados | 3, con jugada a jugada completa: contra Peñarol de Mar del Plata (local), Quimsa (visitante) y Ferro Carril Oeste (local), hace 20, 13 y 6 días.                                          |
+| Partido en vivo      | Contra Obras Sanitarias, hoy, en el Estadio CAMG: 2.º cuarto con 07:08 en el reloj y el rival en bonus.                                                                                   |
+| Partido programado   | Contra Boca Juniors como visitante, dentro de 7 días, con convocatoria precargada.                                                                                                        |
 
 Los mismos datos cargan el servidor con `npm run db:seed`. El navegador los usa solo hasta el primer ingreso: en la primera sincronización de una tablet, la copia del servidor reemplaza los datos locales de demostración (nunca se envían al servidor). Los cambios que alguien haya hecho antes de esa primera sincronización no se pierden: se vuelven a aplicar sobre la copia del servidor y se envían.
 
@@ -477,23 +477,23 @@ Como alternativa, en las herramientas de desarrollo del navegador se pueden borr
 
 Cómo funciona para quien usa la aplicación:
 
-| Situación | Qué hace HoopOS |
-|-----------|-----------------|
-| Cualquier cambio (crear un jugador, registrar una jugada, mover el reloj) | Se guarda al instante en la tablet y entra en la cola de salida. Medio segundo después se envía al servidor. |
-| Sin conexión | Todo sigue funcionando igual. El estado muestra **Sin conexión** y cuántos cambios esperan. La cola se guarda en el navegador y sobrevive a recargas y reinicios. |
-| Cambios antes de la primera sincronización (tablet nueva o sin conexión desde el primer ingreso) | También entran en la cola y el estado los cuenta como pendientes. Cuando llega la primera copia completa del servidor, reemplaza los datos locales y los cambios pendientes se vuelven a aplicar encima; después se envían. |
-| Vuelve la conexión | La cola se envía sola y la tablet descarga lo que cambiaron las demás. Si el servidor no responde, reintenta cada vez más espaciado (1 s, 2 s, 4 s... hasta 60 s). |
-| Otra tablet guarda un cambio | El servidor avisa en vivo (Server-Sent Events) y esta tablet lo descarga en segundos. |
-| Dos tablets editan el mismo jugador o división | Gana el cambio más reciente según la hora en que se hizo (last-write-wins) y el registro se reemplaza completo. |
-| Dos tablets editan el mismo partido | Se combinan campo por campo: cada dato del partido (tiempos muertos, quinteto, estadio, etc.) guarda la hora de su último cambio y gana el más reciente; con la misma hora queda el del servidor. Si una tablet maneja el reloj y otra corrige el estadio, se conservan los dos cambios. El estado, el período y el reloj forman un solo grupo (el estado de juego): gana completo el de la tablet que lo cambió último, así que nunca se mezcla el período de una tablet con el reloj de otra (por ejemplo, "2.º cuarto con 0:20" cuando una tablet pasó al 2.º cuarto y otra pausó el 1.º en 0:20). Los tiempos muertos de cada equipo también son un solo dato: si dos tablets piden a la vez un tiempo muerto del mismo equipo, queda el pedido más reciente. Eliminar un partido gana solo si es posterior a todos sus cambios. |
-| Varias pestañas abiertas en el mismo navegador | Solo una pestaña (la principal) sincroniza y guarda los datos en el navegador, también por http en la red local. Las demás muestran lo que guarda la principal y le envían sus cambios al instante. Si se cierra la principal, otra pestaña toma su lugar sola, sin perder cambios: lo que una pestaña secundaria cambió y la principal no llegó a confirmar queda guardado en el navegador, y la próxima pestaña principal lo envía aunque la secundaria ya se haya cerrado. |
-| Jugadas | Nunca se pisan: cada jugada tiene su propio ID y se suma a la lista, ordenada por hora y luego por ID. Dos tablets pueden cargar jugadas del mismo partido a la vez sin perder ninguna. El marcador y las faltas se recalculan con todas. |
-| **Deshacer** una jugada | La jugada queda marcada como eliminada en el servidor (no se borra) y desaparece en todas las tablets. Una jugada eliminada no vuelve. |
-| El servidor rechaza un cambio | Si el rol no tiene permiso o el dato no es válido, el cambio se descarta y el estado muestra **Error** con la cantidad de cambios rechazados. Si el servidor tiene una versión más nueva, se descarta el cambio local y se descarga la del servidor. |
-| Jugadas de un partido que el servidor no tiene | El servidor las rechaza: una jugada solo se acepta si su partido existe (o llega en el mismo envío) y no está eliminado. La tablet envía siempre el partido antes que sus jugadas. |
-| La sesión venció | La aplicación pide iniciar sesión de nuevo. Si vuelve a entrar la misma cuenta, la cola se conserva y se envía después del ingreso. |
-| Otra persona inicia sesión en la misma tablet | La cola guarda quién hizo los cambios. Si entra una cuenta distinta, los cambios pendientes de la anterior se descartan (nunca se envían con la identidad de otra persona), un aviso informa "Se descartaron N cambios sin sincronizar de <nombre>" y la tablet descarga todo de nuevo del servidor. |
-| Se reinició la base del servidor | Cuando la tablet detecta que el servidor volvió atrás (con el próximo envío o aviso en vivo), descarga todo de nuevo, reemplaza su copia y vuelve a aplicar encima los cambios pendientes, que se envían a continuación. |
+| Situación                                                                                        | Qué hace Hoop                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Cualquier cambio (crear un jugador, registrar una jugada, mover el reloj)                        | Se guarda al instante en la tablet y entra en la cola de salida. Medio segundo después se envía al servidor.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Sin conexión                                                                                     | Todo sigue funcionando igual. El estado muestra **Sin conexión** y cuántos cambios esperan. La cola se guarda en el navegador y sobrevive a recargas y reinicios.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Cambios antes de la primera sincronización (tablet nueva o sin conexión desde el primer ingreso) | También entran en la cola y el estado los cuenta como pendientes. Cuando llega la primera copia completa del servidor, reemplaza los datos locales y los cambios pendientes se vuelven a aplicar encima; después se envían.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Vuelve la conexión                                                                               | La cola se envía sola y la tablet descarga lo que cambiaron las demás. Si el servidor no responde, reintenta cada vez más espaciado (1 s, 2 s, 4 s... hasta 60 s).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Otra tablet guarda un cambio                                                                     | El servidor avisa en vivo (Server-Sent Events) y esta tablet lo descarga en segundos.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Dos tablets editan el mismo jugador o división                                                   | Gana el cambio más reciente según la hora en que se hizo (last-write-wins) y el registro se reemplaza completo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Dos tablets editan el mismo partido                                                              | Se combinan campo por campo: cada dato del partido (tiempos muertos, quinteto, estadio, etc.) guarda la hora de su último cambio y gana el más reciente; con la misma hora queda el del servidor. Si una tablet maneja el reloj y otra corrige el estadio, se conservan los dos cambios. El estado, el período y el reloj forman un solo grupo (el estado de juego): gana completo el de la tablet que lo cambió último, así que nunca se mezcla el período de una tablet con el reloj de otra (por ejemplo, "2.º cuarto con 0:20" cuando una tablet pasó al 2.º cuarto y otra pausó el 1.º en 0:20). Los tiempos muertos de cada equipo también son un solo dato: si dos tablets piden a la vez un tiempo muerto del mismo equipo, queda el pedido más reciente. Eliminar un partido gana solo si es posterior a todos sus cambios. |
+| Varias pestañas abiertas en el mismo navegador                                                   | Solo una pestaña (la principal) sincroniza y guarda los datos en el navegador, también por http en la red local. Las demás muestran lo que guarda la principal y le envían sus cambios al instante. Si se cierra la principal, otra pestaña toma su lugar sola, sin perder cambios: lo que una pestaña secundaria cambió y la principal no llegó a confirmar queda guardado en el navegador, y la próxima pestaña principal lo envía aunque la secundaria ya se haya cerrado.                                                                                                                                                                                                                                                                                                                                                        |
+| Jugadas                                                                                          | Nunca se pisan: cada jugada tiene su propio ID y se suma a la lista, ordenada por hora y luego por ID. Dos tablets pueden cargar jugadas del mismo partido a la vez sin perder ninguna. El marcador y las faltas se recalculan con todas.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **Deshacer** una jugada                                                                          | La jugada queda marcada como eliminada en el servidor (no se borra) y desaparece en todas las tablets. Una jugada eliminada no vuelve.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| El servidor rechaza un cambio                                                                    | Si el rol no tiene permiso o el dato no es válido, el cambio se descarta y el estado muestra **Error** con la cantidad de cambios rechazados. Si el servidor tiene una versión más nueva, se descarta el cambio local y se descarga la del servidor.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Jugadas de un partido que el servidor no tiene                                                   | El servidor las rechaza: una jugada solo se acepta si su partido existe (o llega en el mismo envío) y no está eliminado. La tablet envía siempre el partido antes que sus jugadas.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| La sesión venció                                                                                 | La aplicación pide iniciar sesión de nuevo. Si vuelve a entrar la misma cuenta, la cola se conserva y se envía después del ingreso.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Otra persona inicia sesión en la misma tablet                                                    | La cola guarda quién hizo los cambios. Si entra una cuenta distinta, los cambios pendientes de la anterior se descartan (nunca se envían con la identidad de otra persona), un aviso informa "Se descartaron N cambios sin sincronizar de <nombre>" y la tablet descarga todo de nuevo del servidor.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Se reinició la base del servidor                                                                 | Cuando la tablet detecta que el servidor volvió atrás (con el próximo envío o aviso en vivo), descarga todo de nuevo, reemplaza su copia y vuelve a aplicar encima los cambios pendientes, que se envían a continuación.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 Detalle técnico:
 
@@ -514,25 +514,25 @@ El servidor es la propia aplicación Next.js: las rutas `src/app/api/**` atiende
 
 ### Base de datos con Docker
 
-| Paso | Comando |
-|------|---------|
-| Levantar PostgreSQL (contenedor `db`, volumen `hoop-pgdata`, puerto solo en `127.0.0.1`) | `npm run db:up` |
-| Crear o actualizar las tablas | `npm run db:migrate` |
-| Cargar el club de demostración y las cuentas | `npm run db:seed` |
-| Correr las pruebas de integración | `npm run test:db` |
-| Detener el contenedor (los datos quedan en el volumen) | `npm run db:down` |
+| Paso                                                                                     | Comando              |
+| ---------------------------------------------------------------------------------------- | -------------------- |
+| Levantar PostgreSQL (contenedor `db`, volumen `hoop-pgdata`, puerto solo en `127.0.0.1`) | `npm run db:up`      |
+| Crear o actualizar las tablas                                                            | `npm run db:migrate` |
+| Cargar el club de demostración y las cuentas                                             | `npm run db:seed`    |
+| Correr las pruebas de integración                                                        | `npm run test:db`    |
+| Detener el contenedor (los datos quedan en el volumen)                                   | `npm run db:down`    |
 
 ### Variables de entorno
 
 Se definen en `.env.local` (no se sube al repositorio; `.env.example` documenta los valores por defecto). Las variables del sistema tienen prioridad.
 
-| Variable | Para qué | Valor por defecto o ejemplo |
-|----------|----------|-----------------------------|
-| `DATABASE_URL` | Conexión de la aplicación, las migraciones y el seed. Obligatoria. | `postgres://hoop:hoop@127.0.0.1:5432/hoop` |
-| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` | Base, usuario, contraseña y puerto local del contenedor de `docker-compose.yml`. Deben coincidir con `DATABASE_URL`. | `hoop`, `hoop`, `hoop`, `5432` |
-| `SEED_DEMO_PASSWORD` | Contraseña de las cuentas de demostración que crea `npm run db:seed`. | `camg1922` |
-| `TEST_DATABASE_URL` | Base de `npm run test:db`. Si falta, se usa `DATABASE_URL` con `_test` al final del nombre (por ejemplo `hoop_test`), que se crea sola. Nunca toca los datos de desarrollo. | `postgres://hoop:hoop@127.0.0.1:5432/hoop_test` |
-| `SESSION_COOKIE_SECURE` | Fuerza el atributo `Secure` de la cookie de sesión: `true` o `false`. Sin definir, es seguro en producción y no en desarrollo. Poner `false` cuando las tablets entran a una compilación de producción por `http` en la red del club (por ejemplo `http://192.168.0.10:3000`): el navegador descarta las cookies `Secure` en `http` y el inicio de sesión no quedaría guardado. Solo en una red de confianza; detrás de HTTPS dejar el valor por defecto. | sin definir |
+| Variable                                                             | Para qué                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Valor por defecto o ejemplo                     |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `DATABASE_URL`                                                       | Conexión de la aplicación, las migraciones y el seed. Obligatoria.                                                                                                                                                                                                                                                                                                                                                                                        | `postgres://hoop:hoop@127.0.0.1:5432/hoop`      |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` | Base, usuario, contraseña y puerto local del contenedor de `docker-compose.yml`. Deben coincidir con `DATABASE_URL`.                                                                                                                                                                                                                                                                                                                                      | `hoop`, `hoop`, `hoop`, `5432`                  |
+| `SEED_DEMO_PASSWORD`                                                 | Contraseña de las cuentas de demostración que crea `npm run db:seed`.                                                                                                                                                                                                                                                                                                                                                                                     | `camg1922`                                      |
+| `TEST_DATABASE_URL`                                                  | Base de `npm run test:db`. Si falta, se usa `DATABASE_URL` con `_test` al final del nombre (por ejemplo `hoop_test`), que se crea sola. Nunca toca los datos de desarrollo.                                                                                                                                                                                                                                                                               | `postgres://hoop:hoop@127.0.0.1:5432/hoop_test` |
+| `SESSION_COOKIE_SECURE`                                              | Fuerza el atributo `Secure` de la cookie de sesión: `true` o `false`. Sin definir, es seguro en producción y no en desarrollo. Poner `false` cuando las tablets entran a una compilación de producción por `http` en la red del club (por ejemplo `http://192.168.0.10:3000`): el navegador descarta las cookies `Secure` en `http` y el inicio de sesión no quedaría guardado. Solo en una red de confianza; detrás de HTTPS dejar el valor por defecto. | sin definir                                     |
 
 ### Datos de demostración en el servidor
 
@@ -540,14 +540,14 @@ Se definen en `.env.local` (no se sube al repositorio; `.env.example` documenta 
 
 ### API
 
-| Ruta | Qué hace |
-|------|----------|
-| `POST /api/auth/login` | `{ email, password }` en JSON. Responde `{ user }` y crea la cookie de sesión, o 401 con "Email o contraseña incorrectos". |
-| `POST /api/auth/logout` | Cierra la sesión y borra la cookie. Exige `Content-Type: application/json` (cuerpo `{}`); sin él responde 415. |
-| `GET /api/auth/me` | El usuario de la sesión (`id`, `email`, `name`, `role`) o 401. |
-| `POST /api/sync/push` | Recibe registros (los partidos con `fieldVersions` opcional: campo -> hora de su último cambio) y jugadas; responde `{ accepted, rejected: [{ id, reason }], cursor }`. |
-| `GET /api/sync/pull?since=<cursor>` | Cambios posteriores al cursor (incluye eliminaciones), de a páginas (`hasMore`). Sin `since`, todo. |
-| `GET /api/sync/stream` | Server-Sent Events: `event: changed` con el cursor nuevo tras cada escritura aceptada, y un latido cada 25 s. |
+| Ruta                                | Qué hace                                                                                                                                                                |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/auth/login`              | `{ email, password }` en JSON. Responde `{ user }` y crea la cookie de sesión, o 401 con "Email o contraseña incorrectos".                                              |
+| `POST /api/auth/logout`             | Cierra la sesión y borra la cookie. Exige `Content-Type: application/json` (cuerpo `{}`); sin él responde 415.                                                          |
+| `GET /api/auth/me`                  | El usuario de la sesión (`id`, `email`, `name`, `role`) o 401.                                                                                                          |
+| `POST /api/sync/push`               | Recibe registros (los partidos con `fieldVersions` opcional: campo -> hora de su último cambio) y jugadas; responde `{ accepted, rejected: [{ id, reason }], cursor }`. |
+| `GET /api/sync/pull?since=<cursor>` | Cambios posteriores al cursor (incluye eliminaciones), de a páginas (`hasMore`). Sin `since`, todo.                                                                     |
+| `GET /api/sync/stream`              | Server-Sent Events: `event: changed` con el cursor nuevo tras cada escritura aceptada, y un latido cada 25 s.                                                           |
 
 Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el esquema del dominio, un `updatedAt` más de 5 minutos adelantado respecto del reloj del servidor, una versión de campo posterior a su `updatedAt`, o una jugada cuyo partido no existe en el servidor ni llega aceptado en el mismo envío), `FORBIDDEN` (el rol no tiene el permiso) y `STALE` (el servidor ya tiene una versión igual o más nueva de todos los campos, o la jugada fue eliminada).
 
@@ -562,17 +562,17 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 
 ### Solución de problemas
 
-| Síntoma | Causa probable | Qué hacer |
-|---------|----------------|-----------|
-| Después de ingresar, la tablet vuelve a la pantalla de inicio de sesión | Compilación de producción servida por `http`: el navegador descarta la cookie `Secure`. | Definir `SESSION_COOKIE_SECURE=false` (solo en la red del club) o servir por HTTPS. |
-| El estado queda en **Sin conexión** con conexión | El servidor no responde o no llega a la base. | Revisar que la aplicación esté corriendo, `npm run db:up` y `DATABASE_URL`. |
-| "Sin conexión" al iniciar sesión | El primer ingreso necesita el servidor. | Conectar la tablet a la red del club. |
-| Después de ingresar no hay divisiones ni partidos | La base está vacía. | `npm run db:migrate` y `npm run db:seed`. |
-| **Error**: "El servidor rechazó N cambios" | El rol no tiene permiso, el dato no es válido o el reloj de la tablet está más de 5 minutos adelantado. | Revisar el rol de la cuenta y activar la fecha y hora automáticas en la tablet. |
-| 403 "Solicitud rechazada: el origen no está permitido." | Un proxy cambia el `Host` sin enviar `X-Forwarded-Host`. | Configurar el proxy para conservar el host original. |
-| Una tablet no ve cambios de otra | El canal en vivo se cortó. | Tocar el estado de sincronización para descargar; el canal se reabre solo. |
-| Después de reiniciar la base, una tablet muestra datos viejos | Todavía no detectó el reinicio (lo hace con el próximo envío o aviso en vivo). | Cerrar sesión y volver a ingresar. |
-| `npm run test:db` no conecta | Falta `TEST_DATABASE_URL` o `DATABASE_URL`, o el contenedor no está levantado. | `npm run db:up` y revisar `.env.local`. |
+| Síntoma                                                                 | Causa probable                                                                                          | Qué hacer                                                                           |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Después de ingresar, la tablet vuelve a la pantalla de inicio de sesión | Compilación de producción servida por `http`: el navegador descarta la cookie `Secure`.                 | Definir `SESSION_COOKIE_SECURE=false` (solo en la red del club) o servir por HTTPS. |
+| El estado queda en **Sin conexión** con conexión                        | El servidor no responde o no llega a la base.                                                           | Revisar que la aplicación esté corriendo, `npm run db:up` y `DATABASE_URL`.         |
+| "Sin conexión" al iniciar sesión                                        | El primer ingreso necesita el servidor.                                                                 | Conectar la tablet a la red del club.                                               |
+| Después de ingresar no hay divisiones ni partidos                       | La base está vacía.                                                                                     | `npm run db:migrate` y `npm run db:seed`.                                           |
+| **Error**: "El servidor rechazó N cambios"                              | El rol no tiene permiso, el dato no es válido o el reloj de la tablet está más de 5 minutos adelantado. | Revisar el rol de la cuenta y activar la fecha y hora automáticas en la tablet.     |
+| 403 "Solicitud rechazada: el origen no está permitido."                 | Un proxy cambia el `Host` sin enviar `X-Forwarded-Host`.                                                | Configurar el proxy para conservar el host original.                                |
+| Una tablet no ve cambios de otra                                        | El canal en vivo se cortó.                                                                              | Tocar el estado de sincronización para descargar; el canal se reabre solo.          |
+| Después de reiniciar la base, una tablet muestra datos viejos           | Todavía no detectó el reinicio (lo hace con el próximo envío o aviso en vivo).                          | Cerrar sesión y volver a ingresar.                                                  |
+| `npm run test:db` no conecta                                            | Falta `TEST_DATABASE_URL` o `DATABASE_URL`, o el contenedor no está levantado.                          | `npm run db:up` y revisar `.env.local`.                                             |
 
 ---
 
@@ -580,18 +580,18 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 
 ### Paleta (tokens de `src/app/globals.css`)
 
-| Token | Valor (tema oscuro) | Uso |
-|-------|---------------------|-----|
-| `--brand-primary` | `#E31B23` | Rojo del club: rellenos, botones principales, escudo. |
-| `--brand-primary-hover` / `-active` | `#B31419` / `#8F1014` | Estados del rojo. |
-| `--brand-primary-ink` | `#FF3B43` | Texto rojo sobre fondo oscuro (contraste). |
-| `--brand-black` | `#111111` | Negro del club. |
-| `--bg-base` | `#0A0A0A` | Fondo base. |
-| `--bg-surface-2` / `--bg-surface-3` | `#18181B` / `#27272A` | Superficies. |
-| `--color-success` | `#34D399` | Conversión, estados correctos. |
-| `--color-warning` | `#FBBF24` | Advertencias (por ejemplo, 4 faltas). |
-| `--color-danger` | `#F87171` | Peligro en coral, siempre con icono para no confundirse con el rojo del club. |
-| `--color-info` | `#60A5FA` | Información. |
+| Token                               | Valor (tema oscuro)   | Uso                                                                           |
+| ----------------------------------- | --------------------- | ----------------------------------------------------------------------------- |
+| `--brand-primary`                   | `#E31B23`             | Rojo del club: rellenos, botones principales, escudo.                         |
+| `--brand-primary-hover` / `-active` | `#B31419` / `#8F1014` | Estados del rojo.                                                             |
+| `--brand-primary-ink`               | `#FF3B43`             | Texto rojo sobre fondo oscuro (contraste).                                    |
+| `--brand-black`                     | `#111111`             | Negro del club.                                                               |
+| `--bg-base`                         | `#0A0A0A`             | Fondo base.                                                                   |
+| `--bg-surface-2` / `--bg-surface-3` | `#18181B` / `#27272A` | Superficies.                                                                  |
+| `--color-success`                   | `#34D399`             | Conversión, estados correctos.                                                |
+| `--color-warning`                   | `#FBBF24`             | Advertencias (por ejemplo, 4 faltas).                                         |
+| `--color-danger`                    | `#F87171`             | Peligro en coral, siempre con icono para no confundirse con el rojo del club. |
+| `--color-info`                      | `#60A5FA`             | Información.                                                                  |
 
 ### Tipografía
 
@@ -621,10 +621,10 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 
 ### Tamaños
 
-| Concepto | Valores |
-|----------|---------|
+| Concepto                            | Valores                                                                                                 |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Iconos `lucide-react` (`ICON_SIZE`) | 14, 16 (en línea con texto), 20 (navegación y botones), 24 (cabeceras), 32 (estados vacíos y diálogos). |
-| Áreas táctiles | `--touch-min` 48 px, `--touch-lg` 56 px (consola en vivo), `--touch-xl` 64 px. |
+| Áreas táctiles                      | `--touch-min` 48 px, `--touch-lg` 56 px (consola en vivo), `--touch-xl` 64 px.                          |
 
 ---
 
@@ -632,18 +632,18 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 
 Resueltas en esta versión: los partidos se combinan campo por campo entre tablets (con el estado, el período y el reloj como un solo grupo), el servidor rechaza jugadas de partidos inexistentes, una sola pestaña sincroniza por navegador (también por http en la red local), la consola en vivo muestra el estado de sincronización, y el entretiempo y la regla de tiempos muertos de los últimos 2 minutos del 4.º cuarto están implementados.
 
-| Limitación | Detalle |
-|------------|---------|
-| Sin pruebas E2E de navegador | Las pruebas cubren el núcleo (dominio, casos de uso, hooks puros, sincronización, coordinación de pestañas, datos de demostración) y el servidor. La interfaz no tiene pruebas automatizadas en navegador. |
-| Reinicio de la base | La tablet detecta un reinicio de la base del servidor recién con su próximo envío o aviso en vivo. |
-| Cambios rechazados | Un cambio que el servidor rechaza por permiso o validez se descarta y solo se informa la cantidad, no cuál fue. |
-| Correcciones en el entretiempo | Durante el entretiempo no se puede deshacer la última jugada del 2.º cuarto: hay que comenzar el 3.er cuarto primero. |
-| Empate tras el 4.º suplementario | Si el reloj llega a 00:00 con empate al final del 4.º suplementario, solo se muestra un aviso. |
-| Dorsal repetido | No se impide que dos jugadores del mismo equipo usen el mismo dorsal. |
-| Usuarios sin pantalla de gestión | Las cuentas se crean con `npm run db:seed`. No hay pantalla para crear usuarios ni cambiar contraseñas. |
-| Cambio de usuario sin conexión | Si otra cuenta entra en la tablet sin conexión, se descarta la cola de la anterior, pero sus cambios siguen a la vista hasta que llega la copia completa del servidor. |
-| Cierre de sesión sin conexión | La sesión del servidor sigue válida hasta que vence (30 días) o hasta el próximo ingreso en esa tablet. La aplicación lo avisa al cerrar sesión. |
-| Cierre de sesión con varias pestañas | Cerrar sesión en una pestaña no cierra las demás al instante: la pestaña principal pide iniciar sesión con su próximo envío al servidor. |
+| Limitación                           | Detalle                                                                                                                                                                                                    |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sin pruebas E2E de navegador         | Las pruebas cubren el núcleo (dominio, casos de uso, hooks puros, sincronización, coordinación de pestañas, datos de demostración) y el servidor. La interfaz no tiene pruebas automatizadas en navegador. |
+| Reinicio de la base                  | La tablet detecta un reinicio de la base del servidor recién con su próximo envío o aviso en vivo.                                                                                                         |
+| Cambios rechazados                   | Un cambio que el servidor rechaza por permiso o validez se descarta y solo se informa la cantidad, no cuál fue.                                                                                            |
+| Correcciones en el entretiempo       | Durante el entretiempo no se puede deshacer la última jugada del 2.º cuarto: hay que comenzar el 3.er cuarto primero.                                                                                      |
+| Empate tras el 4.º suplementario     | Si el reloj llega a 00:00 con empate al final del 4.º suplementario, solo se muestra un aviso.                                                                                                             |
+| Dorsal repetido                      | No se impide que dos jugadores del mismo equipo usen el mismo dorsal.                                                                                                                                      |
+| Usuarios sin pantalla de gestión     | Las cuentas se crean con `npm run db:seed`. No hay pantalla para crear usuarios ni cambiar contraseñas.                                                                                                    |
+| Cambio de usuario sin conexión       | Si otra cuenta entra en la tablet sin conexión, se descarta la cola de la anterior, pero sus cambios siguen a la vista hasta que llega la copia completa del servidor.                                     |
+| Cierre de sesión sin conexión        | La sesión del servidor sigue válida hasta que vence (30 días) o hasta el próximo ingreso en esa tablet. La aplicación lo avisa al cerrar sesión.                                                           |
+| Cierre de sesión con varias pestañas | Cerrar sesión en una pestaña no cierra las demás al instante: la pestaña principal pide iniciar sesión con su próximo envío al servidor.                                                                   |
 
 ---
 
@@ -651,13 +651,13 @@ Resueltas en esta versión: los partidos se combinan campo por campo entre table
 
 ### Capas (Clean Architecture)
 
-| Capa | Carpeta | Contenido |
-|------|---------|-----------|
-| Dominio | `src/core/domain/` | Entidades y esquemas Zod (`entities/`), objetos de valor (`value-objects/coordinates.ts`) y reglas puras (`rules/`): FIBA, derivaciones del partido, reloj, tiempos muertos, convocatoria, analítica de temporada y permisos. Sin React ni Zustand. |
-| Aplicación | `src/core/application/` | Casos de uso puros (`use-cases/`: entra un estado, sale uno nuevo o un rechazo tipado), los stores persistidos `useClubStore`, `useSyncStore` y `useAuthStore` (`stores/`), el motor de sincronización y sus reglas puras (`sync/`: diferencias, cola de salida, fusión de lo descargado), la sesión del cliente (`auth/`) y hooks (`hooks/`): `useLiveMatchConsole`, `useGameClock` y su lógica pura testeable. |
-| Infraestructura | `src/core/infrastructure/` | Datos de demostración determinísticos (`mocks/`: semilla, generador de jugadas, PRNG) y adaptadores de la API (`sync-api/`: `fetch` y `EventSource`, con respuestas validadas por Zod). |
-| Presentación | `src/presentation/` y `src/app/` | Diseño atómico (`atoms/`, `molecules/`, `organisms/`, `templates/`), movimiento (`motion/`), diálogos (`organisms/DialogHost/`), sesión (`session/`: `SessionProvider` montado en el layout, arranque del motor y cierre de sesión), marca (`brand.ts`) y tamaños de icono (`icon-sizes.ts`). Las rutas viven en `src/app/` (App Router de Next.js). |
-| Servidor | `src/server/` y `src/app/api/` | Base de datos (Drizzle + `pg`), autenticación y sesiones, RBAC del servidor y sincronización (push, pull, SSE). Marcado `server-only`: nunca se importa desde componentes del cliente. Reutiliza los esquemas y permisos del dominio. |
+| Capa            | Carpeta                          | Contenido                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dominio         | `src/core/domain/`               | Entidades y esquemas Zod (`entities/`), objetos de valor (`value-objects/coordinates.ts`) y reglas puras (`rules/`): FIBA, derivaciones del partido, reloj, tiempos muertos, convocatoria, analítica de temporada y permisos. Sin React ni Zustand.                                                                                                                                                              |
+| Aplicación      | `src/core/application/`          | Casos de uso puros (`use-cases/`: entra un estado, sale uno nuevo o un rechazo tipado), los stores persistidos `useClubStore`, `useSyncStore` y `useAuthStore` (`stores/`), el motor de sincronización y sus reglas puras (`sync/`: diferencias, cola de salida, fusión de lo descargado), la sesión del cliente (`auth/`) y hooks (`hooks/`): `useLiveMatchConsole`, `useGameClock` y su lógica pura testeable. |
+| Infraestructura | `src/core/infrastructure/`       | Datos de demostración determinísticos (`mocks/`: semilla, generador de jugadas, PRNG) y adaptadores de la API (`sync-api/`: `fetch` y `EventSource`, con respuestas validadas por Zod).                                                                                                                                                                                                                          |
+| Presentación    | `src/presentation/` y `src/app/` | Diseño atómico (`atoms/`, `molecules/`, `organisms/`, `templates/`), movimiento (`motion/`), diálogos (`organisms/DialogHost/`), sesión (`session/`: `SessionProvider` montado en el layout, arranque del motor y cierre de sesión), marca (`brand.ts`) y tamaños de icono (`icon-sizes.ts`). Las rutas viven en `src/app/` (App Router de Next.js).                                                             |
+| Servidor        | `src/server/` y `src/app/api/`   | Base de datos (Drizzle + `pg`), autenticación y sesiones, RBAC del servidor y sincronización (push, pull, SSE). Marcado `server-only`: nunca se importa desde componentes del cliente. Reutiliza los esquemas y permisos del dominio.                                                                                                                                                                            |
 
 ### Regla de dependencias
 
@@ -719,30 +719,30 @@ public/brand/               escudo del club
 
 ## 12. Glosario
 
-| Término | Significado |
-|---------|-------------|
-| PIR / VAL | Valoración FIBA (Performance Index Rating). Fórmula en la [sección 6](#6-reglas-fiba-aplicadas). |
-| +/- | Diferencia de puntos del equipo mientras el jugador estuvo en cancha. |
-| Bonus | Situación de penalización del equipo con 4 o más faltas de equipo en el período. |
-| TL | Tiro libre (1 punto). |
-| T2 | Tiro de campo de 2 puntos (doble). |
-| T3 | Tiro de campo de 3 puntos (triple). |
-| TC | Tiros de campo totales (T2 + T3). |
-| REB, AST, ROB, TAP, PER, FAL | Rebotes, asistencias, robos, tapas, pérdidas y faltas. |
-| PPG, RPG, APG | Puntos, rebotes y asistencias por partido. |
-| TM | Tiempo muerto. |
-| 1C a 4C, S1 a S4 | Cuartos y suplementarios. |
-| Convocatoria / lista de buena fe | Jugadores habilitados para un partido (5 a 12). |
-| Quinteto inicial | Los 5 titulares que empiezan el partido; base del cálculo de +/-. |
-| Convocado | Juvenil sumado al plantel de otro equipo (por ejemplo, Primera) sin dejar su división. |
-| Jugada a jugada (play-by-play) | Lista ordenada de jugadas del partido; fuente única del marcador y las estadísticas. |
-| Offline-first | Diseño en el que la aplicación funciona sin conexión y guarda todo localmente. |
-| Outbox (cola de salida) | Cola persistente de cambios pendientes de enviar al servidor (`hoop-sync-storage`). |
-| LWW (last-write-wins) | Estrategia de fusión en la que gana el cambio más reciente según `updatedAt`. |
+| Término                          | Significado                                                                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| PIR / VAL                        | Valoración FIBA (Performance Index Rating). Fórmula en la [sección 6](#6-reglas-fiba-aplicadas).                   |
+| +/-                              | Diferencia de puntos del equipo mientras el jugador estuvo en cancha.                                              |
+| Bonus                            | Situación de penalización del equipo con 4 o más faltas de equipo en el período.                                   |
+| TL                               | Tiro libre (1 punto).                                                                                              |
+| T2                               | Tiro de campo de 2 puntos (doble).                                                                                 |
+| T3                               | Tiro de campo de 3 puntos (triple).                                                                                |
+| TC                               | Tiros de campo totales (T2 + T3).                                                                                  |
+| REB, AST, ROB, TAP, PER, FAL     | Rebotes, asistencias, robos, tapas, pérdidas y faltas.                                                             |
+| PPG, RPG, APG                    | Puntos, rebotes y asistencias por partido.                                                                         |
+| TM                               | Tiempo muerto.                                                                                                     |
+| 1C a 4C, S1 a S4                 | Cuartos y suplementarios.                                                                                          |
+| Convocatoria / lista de buena fe | Jugadores habilitados para un partido (5 a 12).                                                                    |
+| Quinteto inicial                 | Los 5 titulares que empiezan el partido; base del cálculo de +/-.                                                  |
+| Convocado                        | Juvenil sumado al plantel de otro equipo (por ejemplo, Primera) sin dejar su división.                             |
+| Jugada a jugada (play-by-play)   | Lista ordenada de jugadas del partido; fuente única del marcador y las estadísticas.                               |
+| Offline-first                    | Diseño en el que la aplicación funciona sin conexión y guarda todo localmente.                                     |
+| Outbox (cola de salida)          | Cola persistente de cambios pendientes de enviar al servidor (`hoop-sync-storage`).                                |
+| LWW (last-write-wins)            | Estrategia de fusión en la que gana el cambio más reciente según `updatedAt`.                                      |
 | Tombstone (marca de eliminación) | Registro o jugada marcado como eliminado en lugar de borrarse, para que la eliminación llegue a todas las tablets. |
-| Cursor | Posición de la última descarga: la siguiente trae solo lo que cambió después. |
-| SSE (Server-Sent Events) | Canal del servidor al navegador para avisar cambios en vivo. |
-| RBAC | Control de acceso basado en roles. |
-| Versión por campo | Hora del último cambio de cada dato de un partido; permite combinar ediciones de distintas tablets sin pisarse. |
-| Pestaña principal | La única pestaña del navegador que sincroniza y guarda los datos; las demás le envían sus cambios. |
-| Entretiempo | Descanso tras el 2.º cuarto (`HALFTIME`): sin jugadas ni tiempos muertos hasta comenzar el 3.er cuarto. |
+| Cursor                           | Posición de la última descarga: la siguiente trae solo lo que cambió después.                                      |
+| SSE (Server-Sent Events)         | Canal del servidor al navegador para avisar cambios en vivo.                                                       |
+| RBAC                             | Control de acceso basado en roles.                                                                                 |
+| Versión por campo                | Hora del último cambio de cada dato de un partido; permite combinar ediciones de distintas tablets sin pisarse.    |
+| Pestaña principal                | La única pestaña del navegador que sincroniza y guarda los datos; las demás le envían sus cambios.                 |
+| Entretiempo                      | Descanso tras el 2.º cuarto (`HALFTIME`): sin jugadas ni tiempos muertos hasta comenzar el 3.er cuarto.            |

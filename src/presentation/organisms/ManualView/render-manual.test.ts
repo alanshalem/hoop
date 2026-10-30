@@ -9,7 +9,7 @@ const SAMPLE = [
   '',
   '> Nota inicial.',
   '',
-  '## 1. Qué es HoopOS',
+  '## 1. Qué es Hoop',
   '',
   'Ver [sección 2](#2-inicio-rápido).',
   '',
@@ -49,7 +49,7 @@ describe('renderManual', () => {
   it('gives every heading a stable id and lists h2/h3 in the table of contents', () => {
     const manual = renderManual(SAMPLE);
     assert.deepStrictEqual(manual.toc, [
-      { id: '1-qué-es-hoopos', text: '1. Qué es HoopOS', depth: 2 },
+      { id: '1-que-es-hoop', text: '1. Qué es Hoop', depth: 2 },
       { id: '2-inicio-rápido', text: '2. Inicio rápido', depth: 2 },
       { id: 'inicio-de-sesión-login', text: 'Inicio de sesión (/login)', depth: 3 },
       { id: 'preguntas--respuestas', text: 'Preguntas & respuestas', depth: 3 },

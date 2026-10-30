@@ -14,11 +14,11 @@ const RECORD_LIVE = rolesWith('RECORD_LIVE');
 
 const WELCOME: TourDefinition = {
   id: 'welcome',
-  title: 'Bienvenida a HoopOS',
+  title: 'Bienvenida a Hoop',
   steps: [
     {
       target: null,
-      title: 'Bienvenido a HoopOS',
+      title: 'Bienvenido a Hoop',
       body: 'El sistema de básquet del Club Atlético Monte Grande. En un minuto te mostramos dónde está cada cosa. Puedes saltar el recorrido cuando quieras.',
     },
     {

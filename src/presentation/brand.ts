@@ -1,6 +1,6 @@
-/** Club Atlético Monte Grande identity shown across HoopOS. */
+/** Club Atlético Monte Grande identity shown across Hoop. */
 export const CLUB_BRAND = {
-  productName: 'HoopOS',
+  productName: 'Hoop',
   clubName: 'Club Atlético Monte Grande',
   clubShortName: 'CAMG',
   foundedYear: 1922,

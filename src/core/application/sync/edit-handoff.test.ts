@@ -69,4 +69,19 @@ describe('edit handoff between tabs (S13.3, T14)', () => {
     assert.deepStrictEqual(leader.drain(), []);
     assert.deepStrictEqual([...items.keys()].sort(), ['hoop-club-storage', `${HANDOFF_KEY_PREFIX}tab-bad`, `${HANDOFF_KEY_PREFIX}tab-old`]);
   });
+
+  it('forgets an edit the leader already applied, in whichever tab key holds it', () => {
+    const { storage, items } = memoryStorage();
+    const follower = createEditHandoff({ storage, tabId: 'tab-f', owner: () => 'user-1', now: () => 1_000 });
+    const leader = createEditHandoff({ storage, tabId: 'tab-l', owner: () => 'user-1', now: () => 2_000 });
+    follower.save([edit('e1', 5), edit('e2', 6)]);
+    leader.forget('e1');
+    const left = JSON.parse(items.get(`${HANDOFF_KEY_PREFIX}tab-f`) ?? 'null') as { savedAt: number; edits: HandoffEdit[] };
+    assert.deepStrictEqual(left.edits, [edit('e2', 6)]);
+    assert.strictEqual(left.savedAt, 1_000, 'keeps the original save time');
+    leader.forget('e2');
+    assert.ok(!items.has(`${HANDOFF_KEY_PREFIX}tab-f`), 'an emptied list is removed');
+    leader.forget('missing');
+    assert.deepStrictEqual([...items.keys()], []);
+  });
 });

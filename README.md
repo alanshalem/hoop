@@ -1,6 +1,6 @@
-# HoopOS · Club Atlético Monte Grande
+# Hoop · Club Atlético Monte Grande
 
-HoopOS es el sistema de básquet del Club Atlético Monte Grande: gestiona divisiones, planteles y calendario, arma convocatorias y quintetos, y registra los partidos en vivo con reglas FIBA desde una tablet al borde de la cancha. Es local primero con servidor: cada cambio se guarda al instante en el navegador (Zustand + `localStorage`) y se sincroniza con PostgreSQL cuando hay conexión (cola de salida persistente, last-write-wins para registros, jugadas solo agregadas y avisos en vivo por SSE). Sin conexión sigue funcionando igual. El acceso es con correo y contraseña, y los roles se validan en el servidor. El marcador, las faltas y el box score se derivan del jugada a jugada.
+Hoop es el sistema de básquet del Club Atlético Monte Grande: gestiona divisiones, planteles y calendario, arma convocatorias y quintetos, y registra los partidos en vivo con reglas FIBA desde una tablet al borde de la cancha. Es local primero con servidor: cada cambio se guarda al instante en el navegador (Zustand + `localStorage`) y se sincroniza con PostgreSQL cuando hay conexión (cola de salida persistente, last-write-wins para registros, jugadas solo agregadas y avisos en vivo por SSE). Sin conexión sigue funcionando igual. El acceso es con correo y contraseña, y los roles se validan en el servidor. El marcador, las faltas y el box score se derivan del jugada a jugada.
 
 Manual completo (uso, reglas, datos y arquitectura): [docs/MANUAL.md](docs/MANUAL.md).
 
@@ -23,32 +23,32 @@ Abrir `http://localhost:3000` e iniciar sesión, por ejemplo con `admin@camg.com
 
 ## Scripts
 
-| Comando | Qué hace |
-|---------|----------|
-| `npm run dev` | Servidor de desarrollo. |
-| `npm run build` | Compilación de producción. |
-| `npm run start` | Sirve la compilación de producción. |
-| `npm run lint` | ESLint (configuración de Next.js). |
-| `npm test` | Pruebas unitarias (`node:test` vía `tsx`), sin base de datos. |
-| `npm run test:db` | Pruebas de integración contra PostgreSQL (base `_test` aparte). |
-| `npm run db:up` / `npm run db:down` | Levanta o detiene PostgreSQL en Docker. |
-| `npm run db:migrate` | Aplica las migraciones de `drizzle/`. |
-| `npm run db:seed` | Carga el club de demostración y las cuentas. Nunca sobrescribe datos del club, pero restablece las cuentas de demostración (nombre, correo, rol y contraseña). |
+| Comando                             | Qué hace                                                                                                                                                       |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                       | Servidor de desarrollo.                                                                                                                                        |
+| `npm run build`                     | Compilación de producción.                                                                                                                                     |
+| `npm run start`                     | Sirve la compilación de producción.                                                                                                                            |
+| `npm run lint`                      | ESLint (configuración de Next.js).                                                                                                                             |
+| `npm test`                          | Pruebas unitarias (`node:test` vía `tsx`), sin base de datos.                                                                                                  |
+| `npm run test:db`                   | Pruebas de integración contra PostgreSQL (base `_test` aparte).                                                                                                |
+| `npm run db:up` / `npm run db:down` | Levanta o detiene PostgreSQL en Docker.                                                                                                                        |
+| `npm run db:migrate`                | Aplica las migraciones de `drizzle/`.                                                                                                                          |
+| `npm run db:seed`                   | Carga el club de demostración y las cuentas. Nunca sobrescribe datos del club, pero restablece las cuentas de demostración (nombre, correo, rol y contraseña). |
 
 ## Stack
 
-| Área | Tecnología |
-|------|------------|
-| Framework | Next.js 16 (App Router), React 19, TypeScript estricto |
-| Estado y persistencia local | Zustand con `persist` sobre `localStorage` (club, cola de sincronización, perfil) |
-| Servidor | Route Handlers de Next.js, PostgreSQL 17 (Docker), Drizzle ORM + `pg`, sesiones con cookie httpOnly y scrypt |
-| Sincronización | Outbox persistente, `fetch` + Server-Sent Events, respuestas validadas con Zod |
-| Formularios y validación | react-hook-form + Zod |
-| Estilos | CSS Modules + tokens CSS en `src/app/globals.css` |
-| Animación | GSAP + `@gsap/react` (respeta `prefers-reduced-motion`) |
-| Iconos | lucide-react |
-| Tipografía | Archivo y Archivo Narrow (`next/font`) |
-| Pruebas | `node:test` + `tsx` |
+| Área                        | Tecnología                                                                                                   |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Framework                   | Next.js 16 (App Router), React 19, TypeScript estricto                                                       |
+| Estado y persistencia local | Zustand con `persist` sobre `localStorage` (club, cola de sincronización, perfil)                            |
+| Servidor                    | Route Handlers de Next.js, PostgreSQL 17 (Docker), Drizzle ORM + `pg`, sesiones con cookie httpOnly y scrypt |
+| Sincronización              | Outbox persistente, `fetch` + Server-Sent Events, respuestas validadas con Zod                               |
+| Formularios y validación    | react-hook-form + Zod                                                                                        |
+| Estilos                     | CSS Modules + tokens CSS en `src/app/globals.css`                                                            |
+| Animación                   | GSAP + `@gsap/react` (respeta `prefers-reduced-motion`)                                                      |
+| Iconos                      | lucide-react                                                                                                 |
+| Tipografía                  | Archivo y Archivo Narrow (`next/font`)                                                                       |
+| Pruebas                     | `node:test` + `tsx`                                                                                          |
 
 `@tanstack/react-query` está instalada pero no se usa: la sincronización tiene su propio motor (`src/core/application/sync/`).
 

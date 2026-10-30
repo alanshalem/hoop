@@ -22,12 +22,12 @@ const archivoNarrow = Archivo_Narrow({
 
 export const metadata: Metadata = {
   title: {
-    default: "HoopOS",
-    template: "%s | HoopOS",
+    default: "Hoop",
+    template: "%s | Hoop",
   },
   description:
-    "HoopOS · CAMG: el sistema de básquet del Club Atlético Monte Grande. Divisiones, planteles, partidos y estadísticas FIBA en vivo desde la tablet.",
-  applicationName: "HoopOS",
+    "Hoop · CAMG: el sistema de básquet del Club Atlético Monte Grande. Divisiones, planteles, partidos y estadísticas FIBA en vivo desde la tablet.",
+  applicationName: "Hoop",
 };
 
 export const viewport: Viewport = {
