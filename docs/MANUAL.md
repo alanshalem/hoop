@@ -6,7 +6,7 @@ Hoop es el sistema de básquet del Club Atlético Monte Grande (CAMG): divisione
 
 ## Índice
 
-1. [Qué es Hoop](#1-qué-es-Hoop)
+1. [Qué es Hoop](#1-qué-es-hoop)
 2. [Inicio rápido](#2-inicio-rápido)
 3. [Roles y permisos](#3-roles-y-permisos)
 4. [Guía por pantalla](#4-guía-por-pantalla)
