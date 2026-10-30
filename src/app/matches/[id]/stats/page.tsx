@@ -33,6 +33,7 @@ import {
   isMatchInPlay,
   type MatchOutcome,
 } from '@/presentation/organisms/MatchCard/match-display';
+import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import styles from './page.module.css';
 
 const OUTCOME_LABELS: Record<MatchOutcome, string> = {
@@ -104,6 +105,8 @@ function MatchStats({ match }: { match: Match }) {
   const players = useClubStore((state) => state.players);
   const [quarterFilter, setQuarterFilter] = useState<Quarter | typeof ALL_SHOTS>(ALL_SHOTS);
   const [playerFilter, setPlayerFilter] = useState<string>(ALL_SHOTS);
+  // A scheduled match shows a gate without the sheet, so it declares no tour.
+  useScreenTour('stats', { enabled: match.status !== 'SCHEDULED' });
 
   const { own, rival, outcome } = getMatchOutcome(match);
   const inPlay = isMatchInPlay(match);
@@ -171,7 +174,7 @@ function MatchStats({ match }: { match: Match }) {
       <div className="page-container">
         {header}
 
-        <section className={styles.scoreHero} data-surface="board" aria-label="Resultado">
+        <section className={styles.scoreHero} data-surface="board" aria-label="Resultado" data-tour="stats-score">
           <div className={clsx(styles.heroTeam, styles.heroOwn)}>
             <span className={styles.heroName}>{match.ownTeamName}</span>
             <span className={styles.heroScore}>{own}</span>
@@ -186,13 +189,14 @@ function MatchStats({ match }: { match: Match }) {
           </div>
         </section>
 
-        <SectionCard title="Parciales por período" icon={Table2}>
+        <SectionCard title="Parciales por período" icon={Table2} data-tour="stats-partials">
           <QuarterPartialsTable partials={partials} ownName={match.ownTeamName} rivalName={match.rivalTeamName} />
         </SectionCard>
 
         <SectionCard
           title="Box score"
           icon={BarChart3}
+          data-tour="stats-boxscore"
           description="Estadísticas FIBA del equipo. El +/- se mide desde el quinteto inicial."
         >
           {boxRows.length === 0 ? (
@@ -204,7 +208,7 @@ function MatchStats({ match }: { match: Match }) {
 
         <SectionCard title="Mapa de tiros" icon={Target} description="Tiros de campo del equipo filtrados por período y jugador.">
           <div className={styles.shotSection}>
-            <div className={styles.shotFilters}>
+            <div className={styles.shotFilters} data-tour="stats-filters">
               <FilterChipGroup label="Período">
                 <FilterChip
                   label="Todos"
@@ -251,7 +255,7 @@ function MatchStats({ match }: { match: Match }) {
               )}
             </div>
 
-            <div className={styles.chartContainer}>
+            <div className={styles.chartContainer} data-tour="stats-chart">
               <HalfCourtShotChart events={shots} readOnly />
             </div>
           </div>

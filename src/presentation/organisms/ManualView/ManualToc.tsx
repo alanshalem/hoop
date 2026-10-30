@@ -136,7 +136,7 @@ export const ManualToc: React.FC<ManualTocProps> = ({ entries }) => {
 
   return (
     <>
-      <details ref={detailsRef} className={styles.tocPanel}>
+      <details ref={detailsRef} className={styles.tocPanel} data-tour="help-toc">
         <summary className={styles.tocSummary}>
           <ListTree size={ICON_SIZE.md} aria-hidden="true" />
           <span className={styles.tocSummaryText}>
@@ -156,7 +156,7 @@ export const ManualToc: React.FC<ManualTocProps> = ({ entries }) => {
         </nav>
       </details>
 
-      <aside ref={asideRef} className={styles.tocColumn}>
+      <aside ref={asideRef} className={styles.tocColumn} data-tour="help-toc">
         <nav aria-label="Contenido del manual">
           <p className={styles.tocTitle}>
             <ListTree size={ICON_SIZE.sm} aria-hidden="true" />

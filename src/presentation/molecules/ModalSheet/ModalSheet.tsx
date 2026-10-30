@@ -17,6 +17,8 @@ export interface ModalSheetProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
+  /** `dialog`: notices and confirmations, stacked above sheets and the guided tour. */
+  layer?: 'sheet' | 'dialog';
   size?: ModalSheetSize;
   /** Called once the exit animation finished and the sheet is unmounted. */
   onExited?: () => void;
@@ -54,6 +56,7 @@ export const ModalSheet: React.FC<ModalSheetProps> = ({
   children,
   footer,
   className,
+  layer = 'sheet',
   size = 'md',
   onExited,
   ariaDescribedBy,
@@ -176,7 +179,7 @@ export const ModalSheet: React.FC<ModalSheetProps> = ({
   return (
     <div
       ref={overlayRef}
-      className={styles.overlay}
+      className={clsx(styles.overlay, layer === 'dialog' && styles.overlayDialog)}
       onClick={(event) => {
         if (isOpen && event.target === overlayRef.current) onClose();
       }}

@@ -55,6 +55,7 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ compac
       onClick={() => void requestSyncNow()}
       aria-label={`Sincronización: ${view.label}, ${view.detail}. ${action}.`}
       title={view.detail}
+      data-tour="sync-status"
     >
       <Icon
         size={ICON_SIZE.md}

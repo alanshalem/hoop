@@ -40,7 +40,12 @@ export const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
     </LinkButton>
 
     {!readOnly && !recordingLocked && (
-      <div className={styles.rivalGroup} role="group" aria-label={`Acciones del rival ${rivalName}`}>
+      <div
+        className={styles.rivalGroup}
+        role="group"
+        aria-label={`Acciones del rival ${rivalName}`}
+        data-tour="live-rival"
+      >
         <span className={styles.rivalLabel}>
           <ShieldAlert size={ICON_SIZE.sm} aria-hidden="true" />
           <span className={styles.rivalName}>{rivalName}</span>
@@ -78,7 +83,13 @@ export const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
         Planilla
       </LinkButton>
       {!readOnly && (
-        <TouchButton variant="danger" leftIcon={<Flag size={ICON_SIZE.md} />} className={styles.navBtn} onClick={onFinish}>
+        <TouchButton
+          variant="danger"
+          leftIcon={<Flag size={ICON_SIZE.md} />}
+          className={styles.navBtn}
+          onClick={onFinish}
+          data-tour="live-finish"
+        >
           Finalizar
         </TouchButton>
       )}

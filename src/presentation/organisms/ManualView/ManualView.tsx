@@ -17,7 +17,11 @@ export const ManualView: React.FC<ManualViewProps> = ({ manual, actions }) => (
     <div className={styles.layout}>
       <ManualToc entries={manual.toc} />
       {/* Trusted repository content; render-manual escapes any raw HTML. */}
-      <article className={styles.prose} dangerouslySetInnerHTML={{ __html: manual.html }} />
+      <article
+        className={styles.prose}
+        data-tour="help-content"
+        dangerouslySetInnerHTML={{ __html: manual.html }}
+      />
     </div>
   </div>
 );

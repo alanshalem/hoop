@@ -80,7 +80,7 @@ export const PlayByPlayTimeline: React.FC<PlayByPlayTimelineProps> = ({
   };
 
   return (
-    <section className={clsx(styles.timeline, className)} aria-label="Últimas jugadas">
+    <section className={clsx(styles.timeline, className)} aria-label="Últimas jugadas" data-tour="live-timeline">
       <div className={styles.header}>
         <h2 className={styles.title}>
           <History size={ICON_SIZE.sm} aria-hidden="true" />

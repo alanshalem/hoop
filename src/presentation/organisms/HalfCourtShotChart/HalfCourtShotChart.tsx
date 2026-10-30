@@ -22,6 +22,8 @@ export interface HalfCourtShotChartProps {
   readOnly?: boolean;
   onRecordShot?: (coordinates: CourtCoordinates, is3pt: boolean, isMade: boolean) => void;
   className?: string;
+  /** Guided tour anchor. */
+  'data-tour'?: string;
 }
 
 interface PendingShot {
@@ -61,6 +63,7 @@ export const HalfCourtShotChart: React.FC<HalfCourtShotChartProps> = ({
   readOnly = false,
   onRecordShot,
   className,
+  'data-tour': tourTarget,
 }) => {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -129,7 +132,7 @@ export const HalfCourtShotChart: React.FC<HalfCourtShotChartProps> = ({
   const madeCount = shots.filter((ev) => isFieldGoalMade(ev.type)).length;
 
   return (
-    <div className={clsx(styles.container, className)}>
+    <div className={clsx(styles.container, className)} data-tour={tourTarget}>
       <div className={styles.chartHeader}>
         {readOnly ? (
           <span className={styles.legend}>

@@ -14,6 +14,8 @@ export interface SectionCardProps {
   children: React.ReactNode;
   className?: string;
   bodyClassName?: string;
+  /** Guided tour anchor. */
+  'data-tour'?: string;
 }
 
 export const SectionCard: React.FC<SectionCardProps> = ({
@@ -24,8 +26,9 @@ export const SectionCard: React.FC<SectionCardProps> = ({
   children,
   className,
   bodyClassName,
+  'data-tour': tourTarget,
 }) => (
-  <section className={clsx(styles.sectionCard, className)}>
+  <section className={clsx(styles.sectionCard, className)} data-tour={tourTarget}>
     <div className={styles.header}>
       <div className={styles.heading}>
         {Icon && (

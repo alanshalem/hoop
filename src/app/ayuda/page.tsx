@@ -4,6 +4,8 @@ import type { Metadata } from 'next';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
 import { ManualView } from '@/presentation/organisms/ManualView/ManualView';
 import { renderManual } from '@/presentation/organisms/ManualView/render-manual';
+import { ScreenTour } from '@/presentation/tour/ScreenTour';
+import { TourReplayButton } from '@/presentation/tour/TourReplayButton';
 
 export const metadata: Metadata = {
   title: 'Ayuda',
@@ -19,7 +21,8 @@ export default function HelpPage() {
 
   return (
     <TabletAppShell>
-      <ManualView manual={manual} />
+      <ManualView manual={manual} actions={<TourReplayButton />} />
+      <ScreenTour tourId="help" />
     </TabletAppShell>
   );
 }

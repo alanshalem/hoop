@@ -27,6 +27,7 @@ import {
 import { HalfCourtShotChart } from '@/presentation/organisms/HalfCourtShotChart/HalfCourtShotChart';
 import { QuickActionPad } from '@/presentation/organisms/QuickActionPad/QuickActionPad';
 import { PlayByPlayTimeline } from '@/presentation/organisms/PlayByPlayTimeline/PlayByPlayTimeline';
+import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import { ConsoleToolbar } from './ConsoleToolbar';
 import {
   REFUSAL_MESSAGES,
@@ -60,6 +61,8 @@ export function LiveConsole({ matchId }: { matchId: string }) {
   const [mobileTab, setMobileTab] = useState<MobileTab>('chart');
 
   const { match, teams, clock } = live;
+  // Never interrupt a running clock: the tour waits until it is paused (or is replayed explicitly).
+  useScreenTour('live', { blocked: clock.isRunning });
   const readOnly = !live.canRecord;
   // FIBA halftime: no plays and no timeouts until the 3rd quarter starts.
   const recordingLocked = readOnly || live.isHalftime;
@@ -286,7 +289,7 @@ export function LiveConsole({ matchId }: { matchId: string }) {
         </p>
       )}
 
-      <div className={styles.mobileTabs} role="tablist" aria-label="Secciones de la consola">
+      <div className={styles.mobileTabs} role="tablist" aria-label="Secciones de la consola" data-tour="live-tabs">
         {mobileTabs.map((tab) => (
           <button
             key={tab.value}
@@ -321,6 +324,7 @@ export function LiveConsole({ matchId }: { matchId: string }) {
         <div className={clsx(styles.columnSection, styles.centerColumn, mobileTab !== 'chart' && styles.columnHidden)}>
           <HalfCourtShotChart
             className={styles.court}
+            data-tour="live-court"
             events={match.events}
             selectedPlayer={selectedPlayer}
             readOnly={recordingLocked}

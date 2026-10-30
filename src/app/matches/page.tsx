@@ -22,6 +22,7 @@ import {
   sortMatchesForCalendar,
 } from '@/presentation/organisms/MatchCard/match-display';
 import { MatchFormModal } from '@/presentation/organisms/MatchFormModal/MatchFormModal';
+import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import styles from './page.module.css';
 
 const ALL = 'ALL';
@@ -52,6 +53,7 @@ export default function MatchesPage() {
 
   const canManageMatches = can(role, 'MANAGE_MATCHES');
   const canManageLineup = can(role, 'MANAGE_LINEUP');
+  useScreenTour('matches');
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(ALL);
   const [divisionFilter, setDivisionFilter] = useState<string>(ALL);
@@ -100,10 +102,15 @@ export default function MatchesPage() {
             href={`/matches/${match.id}/lineup`}
             variant="secondary"
             leftIcon={<Users size={ICON_SIZE.md} />}
+            data-tour="match-lineup"
           >
             Convocatoria
           </LinkButton>
-          <LinkButton href={`/matches/${match.id}/live`} leftIcon={<Radio size={ICON_SIZE.md} />}>
+          <LinkButton
+            href={`/matches/${match.id}/live`}
+            leftIcon={<Radio size={ICON_SIZE.md} />}
+            data-tour="match-live"
+          >
             Consola en vivo
           </LinkButton>
         </>
@@ -116,6 +123,7 @@ export default function MatchesPage() {
           href={`/matches/${match.id}/stats`}
           variant="secondary"
           leftIcon={<BarChart3 size={ICON_SIZE.md} />}
+          data-tour="match-stats"
         >
           Planilla box score
         </LinkButton>
@@ -144,6 +152,7 @@ export default function MatchesPage() {
           href={`/matches/${match.id}/lineup`}
           variant={canManageLineup ? 'primary' : 'secondary'}
           leftIcon={<ClipboardList size={ICON_SIZE.md} />}
+          data-tour="match-lineup"
         >
           {canManageLineup ? 'Armar quinteto' : 'Ver convocatoria'}
         </LinkButton>
@@ -159,14 +168,18 @@ export default function MatchesPage() {
           subtitle="Partidos en juego primero, luego los próximos por fecha y al final los finalizados, del más reciente al más antiguo."
           actions={
             canManageMatches && (
-              <TouchButton leftIcon={<Plus size={ICON_SIZE.md} />} onClick={() => openForm(null)}>
+              <TouchButton
+                leftIcon={<Plus size={ICON_SIZE.md} />}
+                onClick={() => openForm(null)}
+                data-tour="matches-create"
+              >
                 Nuevo partido
               </TouchButton>
             )
           }
         />
 
-        <section className={styles.filterPanel} aria-label="Filtros">
+        <section className={styles.filterPanel} aria-label="Filtros" data-tour="matches-filters">
           <FilterChipGroup label="Estado">
             {STATUS_CHIPS.map((chip) => (
               <FilterChip
@@ -212,7 +225,7 @@ export default function MatchesPage() {
         ) : (
           <ul className={styles.list}>
             {visibleMatches.map((match) => (
-              <li key={match.id} data-reveal>
+              <li key={match.id} data-reveal data-tour="match-card">
                 <MatchCard match={match} divisionName={divisionNameOf(match)} actions={renderActions(match)} />
               </li>
             ))}

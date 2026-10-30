@@ -28,6 +28,7 @@ import {
   PlayerFormModal,
 } from '@/presentation/organisms/PlayerFormModal/PlayerFormModal';
 import { isYouthCategory } from '@/presentation/organisms/DivisionFormModal/division-labels';
+import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import styles from './page.module.css';
 
 const ALL = 'ALL';
@@ -47,6 +48,7 @@ export default function PlayersPage() {
   const callUpPlayerToTeam = useClubStore((state) => state.callUpPlayerToTeam);
 
   const canManage = can(role, 'MANAGE_PLAYERS');
+  useScreenTour('players');
 
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<Filters>({ division: ALL, position: ALL, status: ALL });
@@ -166,14 +168,18 @@ export default function PlayersPage() {
           subtitle="Plantel del club, ficha física y médica, y convocatoria de juveniles."
           actions={
             canManage && (
-              <TouchButton leftIcon={<Plus size={ICON_SIZE.md} />} onClick={() => openForm(null)}>
+              <TouchButton
+                leftIcon={<Plus size={ICON_SIZE.md} />}
+                onClick={() => openForm(null)}
+                data-tour="players-create"
+              >
                 Nuevo jugador
               </TouchButton>
             )
           }
         />
 
-        <section className={styles.filterPanel} aria-label="Búsqueda y filtros">
+        <section className={styles.filterPanel} aria-label="Búsqueda y filtros" data-tour="players-filters">
           <TextField
             label="Buscar jugador"
             type="search"
@@ -206,7 +212,7 @@ export default function PlayersPage() {
               const isCalledUp = firstTeam?.playerIds.includes(player.id) && player.teamId !== firstTeam.id;
 
               return (
-                <li key={player.id} className={styles.playerItem} data-reveal>
+                <li key={player.id} className={styles.playerItem} data-reveal data-tour="player-card">
                   <PlayerCard
                     player={player}
                     points={seasonPoints.get(player.id) ?? 0}
@@ -248,6 +254,7 @@ export default function PlayersPage() {
                           variant="secondary"
                           leftIcon={<UserPlus size={ICON_SIZE.md} />}
                           onClick={() => handleCallUp(player)}
+                          data-tour="player-callup"
                         >
                           Convocar a Primera
                         </TouchButton>

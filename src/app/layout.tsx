@@ -4,6 +4,7 @@ import { Archivo, Archivo_Narrow } from "next/font/google";
 import { DialogHost } from "@/presentation/organisms/DialogHost/DialogHost";
 import { SessionProvider } from "@/presentation/session/SessionProvider";
 import { THEME_INIT_SCRIPT } from "@/presentation/molecules/ThemeToggle/theme";
+import { TourHost } from "@/presentation/tour/TourHost";
 import "./globals.css";
 
 // Variable fonts: every weight in one file. Wired into --font-sans / --font-display in globals.css.
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Suspense fallback={null}>
           <SessionProvider />
         </Suspense>
+        <TourHost />
         <DialogHost />
       </body>
     </html>

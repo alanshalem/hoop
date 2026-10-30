@@ -37,6 +37,7 @@ import { StatusPill } from '@/presentation/atoms/StatusPill/StatusPill';
 import { UserMenu } from '@/presentation/organisms/UserMenu/UserMenu';
 import { ClubHero } from '@/presentation/organisms/ClubHero/ClubHero';
 import { MatchStatusBadge } from '@/presentation/organisms/MatchCard/MatchStatusBadge';
+import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import {
   type MatchOutcome,
   formatMatchDate,
@@ -92,6 +93,7 @@ const HeroMatch: React.FC<HeroMatchProps> = ({ match, canManageLineup }) => {
       className={clsx(styles.hero, inPlay && styles.heroLive)}
       aria-label={inPlay ? 'Partido en vivo' : 'Próximo partido'}
       data-surface="board"
+      data-tour="dashboard-hero"
     >
       <div className={styles.heroTop}>
         {inPlay ? (
@@ -207,6 +209,7 @@ export default function DashboardPage() {
   const activeDivisionId = useClubStore((state) => state.activeDivisionId);
   const role = useClubStore((state) => state.currentUser.role);
   const setActiveDivision = useClubStore((state) => state.setActiveDivision);
+  useScreenTour('dashboard');
 
   const activeDivision = divisions.find((d) => d.id === activeDivisionId) ?? divisions[0];
   const activeTeam = teams.find((t) => t.divisionId === activeDivision?.id);
@@ -244,7 +247,7 @@ export default function DashboardPage() {
         />
 
         {divisions.length > 1 && (
-          <div>
+          <div data-tour="dashboard-divisions">
             <FilterChipGroup label="División del tablero">
               {divisions.map((division) => (
                 <FilterChip
@@ -276,7 +279,7 @@ export default function DashboardPage() {
         )}
 
         {summary ? (
-          <section className={styles.kpiGrid} aria-label="Resumen de temporada">
+          <section className={styles.kpiGrid} aria-label="Resumen de temporada" data-tour="dashboard-kpis">
             <div className={styles.kpiCard} data-reveal>
               <span className={styles.kpiLabel}>Récord</span>
               <span className={clsx(styles.kpiValue, 'tabular-nums')}>
@@ -335,7 +338,7 @@ export default function DashboardPage() {
 
         <div className={styles.sectionGrid}>
           {leaders && (
-            <div data-reveal>
+            <div data-reveal data-tour="dashboard-leaders">
               <SectionCard title="Líderes del equipo" icon={Flame} description="Promedio por partido en la temporada">
                 <ul className={styles.leadersGrid}>
                   {LEADER_CATEGORIES.map((category) => (
@@ -398,7 +401,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          <div className={styles.fullWidth} data-reveal>
+          <div className={styles.fullWidth} data-reveal data-tour="dashboard-medical">
             <SectionCard
               title="Alertas médicas"
               icon={HeartPulse}

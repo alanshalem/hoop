@@ -155,6 +155,7 @@ const TeamPanel: React.FC<TeamPanelProps> = ({ team, conditionLabel, isAway, rea
       <button
         type="button"
         className={clsx(styles.timeoutBtn, team.timeoutsLeft === 0 && styles.timeoutBtnEmpty)}
+        data-tour="live-timeout"
         onClick={() => onTimeout(team.side)}
         disabled={readOnly}
         aria-label={`Tiempo muerto para ${team.name}. Quedan ${team.timeoutsLeft} en el período`}
@@ -183,7 +184,7 @@ export const ScoreboardHeader: React.FC<ScoreboardHeaderProps> = ({
 }) => {
   const locked = readOnly || isHalftime;
   return (
-    <header className={styles.headerContainer} data-surface="board" aria-label="Tablero electrónico del partido">
+    <header className={styles.headerContainer} data-surface="board" aria-label="Tablero electrónico del partido" data-tour="live-scoreboard">
       <TeamPanel team={home} conditionLabel="Local" isAway={false} readOnly={locked} onTimeout={onTimeout} />
 
       <div className={styles.centerGameControl}>
@@ -240,6 +241,7 @@ export const ScoreboardHeader: React.FC<ScoreboardHeaderProps> = ({
               <button
                 type="button"
                 className={clsx(styles.clockToggleBtn, isClockRunning && styles.clockToggleRunning)}
+                data-tour="live-clock"
                 onClick={onToggleClock}
                 disabled={!isClockRunning && clockSeconds === 0}
                 aria-label={isClockRunning ? 'Pausar reloj' : 'Iniciar reloj'}

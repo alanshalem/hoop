@@ -33,6 +33,7 @@ import { LineupPlayerRow } from '@/presentation/organisms/LineupPlayerRow/Lineup
 import { MatchStatusBadge } from '@/presentation/organisms/MatchCard/MatchStatusBadge';
 import { formatMatchDate, isMatchInPlay } from '@/presentation/organisms/MatchCard/match-display';
 import { getTeamRosterPlayers } from '@/presentation/organisms/DivisionRosterModal/team-roster';
+import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import styles from './page.module.css';
 
 /** SETUP: before tip-off. IN_PLAY: starters locked, roster can grow. FINISHED: read-only. */
@@ -98,6 +99,7 @@ function LineupEditor({ match }: { match: Match }) {
   const setActiveMatch = useClubStore((state) => state.setActiveMatch);
 
   const mode = getMode(match);
+  useScreenTour('lineup');
   const canEdit = can(role, 'MANAGE_LINEUP') && mode !== 'FINISHED';
   const committedRoster = match.rosterOwnPlayerIds;
 
@@ -234,7 +236,7 @@ function LineupEditor({ match }: { match: Match }) {
     }
     return (
       canEdit && (
-        <TouchButton size="lg" leftIcon={<Play size={ICON_SIZE.md} />} onClick={handleStart}>
+        <TouchButton size="lg" leftIcon={<Play size={ICON_SIZE.md} />} onClick={handleStart} data-tour="lineup-start">
           Iniciar partido
         </TouchButton>
       )
@@ -254,7 +256,7 @@ function LineupEditor({ match }: { match: Match }) {
           actions={headerActions}
         />
 
-        <section className={styles.statusPanel} aria-label="Estado de la convocatoria">
+        <section className={styles.statusPanel} aria-label="Estado de la convocatoria" data-tour="lineup-status">
           <div className={styles.statusTop}>
             <MatchStatusBadge
               status={match.status}
@@ -330,6 +332,7 @@ function LineupEditor({ match }: { match: Match }) {
           <SectionCard
             title="Convocatoria"
             icon={ClipboardList}
+            data-tour="lineup-roster"
             description={
               mode === 'FINISHED'
                 ? 'Jugadores que integraron la lista de buena fe.'
@@ -371,6 +374,7 @@ function LineupEditor({ match }: { match: Match }) {
           <SectionCard
             title="Quinteto inicial"
             icon={Play}
+            data-tour="lineup-starters"
             description={
               mode === 'SETUP'
                 ? `Elige exactamente ${FIBA_STARTERS} titulares entre los convocados.`

@@ -123,7 +123,7 @@ export const OnCourtLineup: React.FC<OnCourtLineupProps> = ({
   };
 
   return (
-    <aside ref={containerRef} className={clsx(styles.container, 'no-scrollbar')} aria-label="Quinteto y banca">
+    <aside ref={containerRef} className={clsx(styles.container, 'no-scrollbar')} aria-label="Quinteto y banca" data-tour="live-lineup">
       <div className={styles.sectionHeader}>
         <h2 className={styles.title}>En cancha ({onCourtPlayers.length})</h2>
         {!readOnly && (

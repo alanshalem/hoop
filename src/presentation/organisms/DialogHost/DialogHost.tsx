@@ -86,6 +86,7 @@ export const DialogHost: React.FC = () => {
       onExited={handleExited}
       title={options.title}
       size="sm"
+      layer="dialog"
       ariaDescribedBy={messageId}
       footer={
         <>

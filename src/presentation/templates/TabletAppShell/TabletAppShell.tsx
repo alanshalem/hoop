@@ -32,16 +32,24 @@ interface NavItem {
   shortLabel: string;
   href: string;
   icon: LucideIcon;
+  /** `data-tour` anchor of the welcome tour (rail and bottom bar share it). */
+  tourTarget: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', shortLabel: 'Inicio', href: '/', icon: LayoutDashboard },
-  { label: 'Divisiones', shortLabel: 'Equipos', href: '/divisions', icon: Shield },
-  { label: 'Jugadores', shortLabel: 'Plantel', href: '/players', icon: Users },
-  { label: 'Partidos', shortLabel: 'Fechas', href: '/matches', icon: CalendarDays },
+  { label: 'Dashboard', shortLabel: 'Inicio', href: '/', icon: LayoutDashboard, tourTarget: 'nav-dashboard' },
+  { label: 'Divisiones', shortLabel: 'Equipos', href: '/divisions', icon: Shield, tourTarget: 'nav-divisions' },
+  { label: 'Jugadores', shortLabel: 'Plantel', href: '/players', icon: Users, tourTarget: 'nav-players' },
+  { label: 'Partidos', shortLabel: 'Fechas', href: '/matches', icon: CalendarDays, tourTarget: 'nav-matches' },
 ];
 
-const HELP_ITEM: NavItem = { label: 'Ayuda', shortLabel: 'Ayuda', href: '/ayuda', icon: LifeBuoy };
+const HELP_ITEM: NavItem = {
+  label: 'Ayuda',
+  shortLabel: 'Ayuda',
+  href: '/ayuda',
+  icon: LifeBuoy,
+  tourTarget: 'nav-help',
+};
 
 // The rail closes with the manual; on phones it lives in the top bar so the bottom bar stays balanced.
 const RAIL_ITEMS: NavItem[] = [...NAV_ITEMS, HELP_ITEM];
@@ -81,6 +89,7 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
         href={item.href}
         className={clsx(styles.bottomItem, isActive && styles.bottomItemActive)}
         aria-current={isActive ? 'page' : undefined}
+        data-tour={item.tourTarget}
       >
         <Icon size={ICON_SIZE.lg} aria-hidden="true" />
         <span>{item.shortLabel}</span>
@@ -117,6 +126,7 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
                   className={clsx(styles.navItem, isActive && styles.navItemActive)}
                   aria-current={isActive ? 'page' : undefined}
                   data-nav-key={item.href}
+                  data-tour={item.tourTarget}
                 >
                   <Icon size={ICON_SIZE.md} aria-hidden="true" />
                   <span>{item.label}</span>
@@ -129,6 +139,7 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
             href={LIVE_HREF}
             className={clsx(styles.liveButtonRail, isLiveActive && styles.liveButtonActive)}
             aria-current={isLiveActive ? 'page' : undefined}
+            data-tour="nav-live"
           >
             <Radio size={ICON_SIZE.md} aria-hidden="true" />
             <span>Partido en vivo</span>
@@ -151,6 +162,7 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
             className={clsx(styles.mobileHelpLink, isHelpActive && styles.mobileHelpLinkActive)}
             aria-label={HELP_ITEM.label}
             aria-current={isHelpActive ? 'page' : undefined}
+            data-tour={HELP_ITEM.tourTarget}
           >
             <LifeBuoy size={ICON_SIZE.lg} aria-hidden="true" />
           </Link>
@@ -169,6 +181,7 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
           className={clsx(styles.bottomLiveAction, isLiveActive && styles.bottomLiveActive)}
           aria-label="Partido en vivo"
           aria-current={isLiveActive ? 'page' : undefined}
+          data-tour="nav-live"
         >
           <Radio size={ICON_SIZE.lg} aria-hidden="true" />
         </Link>

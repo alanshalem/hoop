@@ -164,7 +164,7 @@ export const QuickActionPad: React.FC<QuickActionPadProps> = ({
   };
 
   return (
-    <aside className={clsx(styles.container, 'no-scrollbar')} aria-label="Pad de acciones rápidas">
+    <aside className={clsx(styles.container, 'no-scrollbar')} aria-label="Pad de acciones rápidas" data-tour="live-pad">
       <div className={styles.padHeader}>
         <h2 className={styles.title}>Acciones rápidas</h2>
         {selectedPlayer && !readOnly && (

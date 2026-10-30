@@ -18,6 +18,11 @@
   }
 }
 
+/* Above sheets and the guided tour overlay (GuidedTour.module.css: --z-modal + 50). */
+.overlayDialog {
+  z-index: calc(var(--z-modal) + 100);
+}
+
 .sheet {
   background-color: var(--bg-surface-1);
   border: 1px solid var(--border-strong);

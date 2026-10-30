@@ -143,6 +143,22 @@ Botón visible en el riel lateral (tablet), en la barra superior (teléfono), en
 | Sin conexión | `CloudOff` | No hay red o el servidor no responde. Muestra cuántos cambios esperan en la cola ("3 pendientes"). La aplicación sigue funcionando igual. |
 | Error | `AlertTriangle` | El servidor rechazó cambios o respondió con un error. Muestra el motivo y "Toca para reintentar". |
 
+### Ayuda (`/ayuda`)
+
+Este manual, dentro de la aplicación. Se abre desde **Ayuda** en el menú lateral, desde el icono de ayuda de la barra superior en el teléfono y desde **Ayuda y manual** en el menú de usuario. El índice de la izquierda resalta la sección que se está leyendo (en pantallas angostas se pliega arriba). La página queda disponible sin conexión una vez cargada. El botón **Ver tutorial** abre la lista de recorridos guiados.
+
+### Tutorial guiado
+
+La primera vez que inicias sesión, HoopOS muestra un recorrido de bienvenida: la pantalla se oscurece, se resalta un elemento por vez y una tarjeta con una flecha explica para qué sirve, muchas veces con un ejemplo concreto (por ejemplo, "toca #7 Campagna y después +2").
+
+- **Bienvenida**: presenta el menú (Dashboard, Divisiones, Jugadores, Partidos, Modo partido en vivo), el estado de sincronización, tu menú de usuario y la Ayuda.
+- **Recorridos por pantalla**: la primera vez que abres Dashboard, Divisiones, Jugadores, Partidos, Quinteto y convocatoria, Consola en vivo, Planilla o Ayuda, se muestra un recorrido corto de esa pantalla.
+- **Según tu rol**: los pasos de acciones que tu rol no puede realizar (por ejemplo, crear divisiones) no se muestran.
+- **Controles**: Siguiente, Atrás y Saltar tutorial (Finalizar en el último paso). Con teclado: Enter o flecha derecha avanza, flecha izquierda retrocede y Escape salta el tutorial. Tocar la zona oscura no cierra el recorrido y el elemento resaltado no se puede tocar mientras dura.
+- **Consola en vivo**: el recorrido nunca empieza solo con el reloj de juego en marcha; espera a que lo pauses.
+- **Volver a verlo**: en Ayuda, el botón **Ver tutorial** lista todos los recorridos con su estado (Visto, Saltado, Pendiente). Puedes abrir cualquiera o usar **Reiniciar todos** para que vuelvan a mostrarse automáticamente. En tu menú de usuario, **Ver tutorial de esta pantalla** repite el de la pantalla abierta.
+- Lo que ya viste se guarda en el dispositivo para cada usuario: otra persona que inicie sesión en la misma tablet verá sus propios tutoriales.
+
 ### Dashboard (`/`)
 
 Resumen de la temporada de la división elegida.
@@ -419,6 +435,7 @@ Fuente única de verdad: el marcador, las faltas de equipo, los parciales y el b
 | Perfil del último usuario (id, correo, nombre, rol) | `localStorage`, clave `hoop-auth-storage`. Nunca la contraseña ni el token. |
 | Sesión | Cookie `hoop_session` (httpOnly: el JavaScript de la página no puede leerla), 30 días. |
 | Tema claro u oscuro | `localStorage`, clave `hoop-theme`. |
+| Tutoriales vistos o saltados, por usuario | `localStorage`, clave `hoop-tour-storage`. |
 | Cola de diálogos, estado del reloj en marcha, estado de la sincronización en curso | Memoria (no se guarda). |
 
 El reloj de juego se guarda en el partido al pausar, al corregirlo, al llegar a 00:00, con cada jugada, cambio, tiempo muerto o finalización, al ocultarse la página y al salir de la consola.

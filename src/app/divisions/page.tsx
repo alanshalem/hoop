@@ -18,6 +18,7 @@ import { DivisionFormModal } from '@/presentation/organisms/DivisionFormModal/Di
 import { DIVISION_CATEGORY_LABELS } from '@/presentation/organisms/DivisionFormModal/division-labels';
 import { DivisionRosterModal } from '@/presentation/organisms/DivisionRosterModal/DivisionRosterModal';
 import { getTeamRosterPlayers } from '@/presentation/organisms/DivisionRosterModal/team-roster';
+import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import styles from './page.module.css';
 
 export default function DivisionsPage() {
@@ -29,6 +30,7 @@ export default function DivisionsPage() {
   const deleteDivision = useClubStore((state) => state.deleteDivision);
 
   const canManage = can(role, 'MANAGE_DIVISIONS');
+  useScreenTour('divisions');
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [divisionToEdit, setDivisionToEdit] = useState<Division | null>(null);
@@ -67,7 +69,11 @@ export default function DivisionsPage() {
           subtitle={`Estructura deportiva del club, planteles y cuerpo técnico · Temporada ${CLUB_PROFILE.season}`}
           actions={
             canManage && (
-              <TouchButton leftIcon={<Plus size={ICON_SIZE.md} />} onClick={() => openForm(null)}>
+              <TouchButton
+                leftIcon={<Plus size={ICON_SIZE.md} />}
+                onClick={() => openForm(null)}
+                data-tour="divisions-create"
+              >
                 Nueva división
               </TouchButton>
             )
@@ -99,7 +105,7 @@ export default function DivisionsPage() {
               const coach = users.find((u) => u.id === team?.headCoachId);
 
               return (
-                <li key={division.id} className={styles.divisionCard} data-reveal>
+                <li key={division.id} className={styles.divisionCard} data-reveal data-tour="division-card">
                   <div className={styles.cardTop}>
                     <h2 className={styles.divisionName}>{division.name}</h2>
                     <span className={styles.categoryTag}>{DIVISION_CATEGORY_LABELS[division.category]}</span>
@@ -136,6 +142,7 @@ export default function DivisionsPage() {
                       leftIcon={<Users size={ICON_SIZE.md} />}
                       className={styles.rosterButton}
                       onClick={() => openRoster(division.id)}
+                      data-tour="division-roster"
                     >
                       Ver plantel
                     </TouchButton>
@@ -146,6 +153,7 @@ export default function DivisionsPage() {
                           variant="secondary"
                           icon={<Pencil size={ICON_SIZE.md} />}
                           onClick={() => openForm(division)}
+                          data-tour="division-edit"
                         />
                         <IconButton
                           aria-label={`Eliminar ${division.name}`}
