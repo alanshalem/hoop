@@ -6,9 +6,7 @@ import gsap from 'gsap';
 import {
   Radio,
   Flame,
-  TrendingUp,
   AlertTriangle,
-  Play,
   ArrowRight,
 } from 'lucide-react';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';

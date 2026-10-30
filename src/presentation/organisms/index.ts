@@ -4,3 +4,4 @@ export * from './ScoreboardHeader/ScoreboardHeader';
 export * from './OnCourtLineup/OnCourtLineup';
 export * from './HalfCourtShotChart/HalfCourtShotChart';
 export * from './QuickActionPad/QuickActionPad';
+export * from './BoxScoreTable/BoxScoreTable';

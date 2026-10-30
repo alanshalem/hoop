@@ -5,12 +5,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
-  BasketballPosition,
   BasketballPositionSchema,
-  DominantHand,
   DominantHandSchema,
   Player,
-  PlayerPhysicalStatus,
   PlayerPhysicalStatusSchema,
 } from '@/core/domain/entities/club.types';
 import { ModalSheet } from '@/presentation/molecules/ModalSheet/ModalSheet';

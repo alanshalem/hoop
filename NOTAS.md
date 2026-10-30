@@ -61,3 +61,19 @@
   - Columna derecha con teclado ergonómico de 56px (`--touch-lg`).
   - Botones de tiros convertidos/fallados, rebotes ofensivos/defensivos, asistencias, robos, bloqueos y pérdidas.
   - Alerta inmediata de exclusión reglamentaria (5ta falta personal/técnica) con bloqueo de acciones y requerimiento de cambio forzoso.
+
+## Fase 6: Planilla Estadística Post-Partido (Box Score FIBA), Shot Chart Analítico y Build
+- **Box Score Oficial FIBA (`BoxScoreTable`)**:
+  - Tabla completa con scroll horizontal y columna de jugador fija (`sticky`).
+  - Métricas: `Dorsal`, `Jugador`, `PTS`, `T2 (C/I y %)`, `T3 (C/I y %)`, `TL (C/I y %)`, `TC (C/I y %)`, `REB (O-D-TOT)`, `AST`, `STL`, `BLK`, `TOV`, `PF` (Faltas), `+/-` y `VAL (PIR)`.
+  - Fila final con totales acumulados y porcentajes de equipo.
+- **Shot Chart Analítico**:
+  - Filtro por cuarto (`Q1` a `Q4`) y por jugador individual.
+  - Cálculo automático de efectividad por zona (T2, T3 y TC).
+- **Comparativa de Parciales**:
+  - Desglose por cuartos (`Q1`, `Q2`, `Q3`, `Q4`, `FINAL`) para Local y Visitante.
+- **Auditoría de Calidad y Verificación de Build**:
+  - `npx tsc --noEmit`: 0 errores de TypeScript (`strict: true`, sin `any`).
+  - `npm run lint`: 0 errores, 0 advertencias de ESLint.
+  - `npm test`: 12/12 pruebas unitarias de dominio FIBA aprobadas.
+  - `npm run build`: Compilación en producción con Turbopack exitosa (11 rutas generadas entre estáticas y Partial Prerender).

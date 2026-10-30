@@ -2,17 +2,17 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Plus, Radio, Users, BarChart2, Calendar } from 'lucide-react';
+import { Plus, Radio, Users, BarChart2 } from 'lucide-react';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
 import { ModalSheet } from '@/presentation/molecules/ModalSheet/ModalSheet';
 import { useClubStore } from '@/core/application/stores/useClubStore';
-import { MatchStatus, MatchCondition } from '@/core/domain/entities/match.types';
+import { MatchCondition } from '@/core/domain/entities/match.types';
 import clsx from 'clsx';
 import styles from './page.module.css';
 
 export default function MatchesPage() {
-  const { matches, divisions, teams, addMatch } = useClubStore();
+  const { matches, divisions, addMatch } = useClubStore();
 
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [divisionFilter, setDivisionFilter] = useState<string>('ALL');
@@ -127,6 +127,32 @@ export default function MatchesPage() {
           >
             Finalizados
           </button>
+
+          <span style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-subtle)', margin: '0 4px' }} />
+
+          <button
+            type="button"
+            className={clsx(
+              styles.filterBtn,
+              divisionFilter === 'ALL' && styles.filterBtnActive
+            )}
+            onClick={() => setDivisionFilter('ALL')}
+          >
+            Todas las Divisiones
+          </button>
+          {divisions.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              className={clsx(
+                styles.filterBtn,
+                divisionFilter === d.id && styles.filterBtnActive
+              )}
+              onClick={() => setDivisionFilter(d.id)}
+            >
+              {d.name}
+            </button>
+          ))}
         </div>
 
         {/* MATCHES LIST */}

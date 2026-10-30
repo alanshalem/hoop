@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
-import { Play, Pause, Clock, AlertCircle } from 'lucide-react';
+import { Play, Pause, Clock } from 'lucide-react';
 import { Match, Quarter } from '@/core/domain/entities/match.types';
 import { isTeamInBonus } from '@/core/domain/rules/basketball-rules';
 import clsx from 'clsx';
@@ -109,6 +109,14 @@ export const ScoreboardHeader: React.FC<ScoreboardHeaderProps> = ({
               ))}
             </div>
             {homeBonus && <span className={styles.bonusBadge}>BONUS</span>}
+            <button
+              type="button"
+              className={styles.timeoutBtn}
+              onClick={onTimeoutOwn}
+              title="Pedir tiempo muerto propio"
+            >
+              <Clock size={12} /> TM
+            </button>
           </div>
         </div>
 

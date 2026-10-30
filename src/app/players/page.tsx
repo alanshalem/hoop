@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, UserPlus, ArrowUpRight } from 'lucide-react';
+import { Plus, Search, UserPlus } from 'lucide-react';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
 import { PlayerCard } from '@/presentation/molecules/PlayerCard/PlayerCard';

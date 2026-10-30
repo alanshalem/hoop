@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import gsap from 'gsap';
-import { RefreshCw, Users } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { Player } from '@/core/domain/entities/club.types';
 import { PlayerCard } from '@/presentation/molecules/PlayerCard/PlayerCard';
 import clsx from 'clsx';

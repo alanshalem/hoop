@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Users, Award, Shield } from 'lucide-react';
+import { Plus, Award } from 'lucide-react';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
 import { ModalSheet } from '@/presentation/molecules/ModalSheet/ModalSheet';
@@ -10,7 +10,7 @@ import { DivisionCategory } from '@/core/domain/entities/club.types';
 import styles from './page.module.css';
 
 export default function DivisionsPage() {
-  const { divisions, teams, players, addDivision, addTeam } = useClubStore();
+  const { divisions, teams, players, addDivision } = useClubStore();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newDivName, setNewDivName] = useState('');

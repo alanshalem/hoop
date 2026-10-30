@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Users, Crosshair, Zap, ArrowLeft, BarChart2 } from 'lucide-react';
+import React, { useState, useMemo, Suspense } from 'react';
+import { useParams } from 'next/navigation';
+import { Users, Crosshair, Zap } from 'lucide-react';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { ScoreboardHeader } from '@/presentation/organisms/ScoreboardHeader/ScoreboardHeader';
 import { OnCourtLineup } from '@/presentation/organisms/OnCourtLineup/OnCourtLineup';
@@ -13,8 +13,7 @@ import { calculatePlayerBoxScore } from '@/core/domain/rules/basketball-rules';
 import clsx from 'clsx';
 import styles from './page.module.css';
 
-export default function MatchLiveConsolePage() {
-  const router = useRouter();
+function MatchLiveConsoleContent() {
   const params = useParams();
   const matchId = (params?.id as string) || 'match-live-today';
 
@@ -36,7 +35,7 @@ export default function MatchLiveConsolePage() {
   const [mobileTab, setMobileTab] = useState<'lineup' | 'chart' | 'pad'>('chart');
 
   // Active Lineup (5 on court) and Bench (rest of roster)
-  const onCourtIds = match?.activeLineupOwn || [];
+  const onCourtIds = useMemo(() => match?.activeLineupOwn || [], [match?.activeLineupOwn]);
   const onCourtPlayers = useMemo(() => {
     return onCourtIds
       .map((id) => players.find((p) => p.id === id))
@@ -67,7 +66,7 @@ export default function MatchLiveConsolePage() {
       map[pid] = { points: box.points, fouls: box.fouls.total };
     }
     return map;
-  }, [match?.events, onCourtIds, benchPlayers, match?.ownTeamId]);
+  }, [match, onCourtIds, benchPlayers]);
 
   const selectedPlayer = players.find((p) => p.id === selectedPlayerId) || null;
   const selectedPlayerFouls = selectedPlayerId
@@ -204,7 +203,7 @@ export default function MatchLiveConsolePage() {
         </button>
       </div>
 
-      {/* 2. THREE COLUMN LAYOUT FOR TABLET (LEFT: LINEUP, CENTER: SHOT CHART, RIGHT: QUICK PAD) */}
+      {/* 2. THREE COLUMN LAYOUT FOR TABLET */}
       <div className={styles.mainConsole}>
         {/* COLUMN 1: QUINTETO EN CANCHA + BANCA */}
         <div
@@ -259,5 +258,13 @@ export default function MatchLiveConsolePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MatchLiveConsolePage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, color: '#fff' }}>Cargando consola en vivo...</div>}>
+      <MatchLiveConsoleContent />
+    </Suspense>
   );
 }

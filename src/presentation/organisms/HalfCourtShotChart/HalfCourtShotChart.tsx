@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import gsap from 'gsap';
-import { RotateCcw, Check, X, ShieldAlert } from 'lucide-react';
+import { RotateCcw, Check, X } from 'lucide-react';
 import { PlayByPlayEvent } from '@/core/domain/entities/match.types';
 import { Player } from '@/core/domain/entities/club.types';
 import clsx from 'clsx';

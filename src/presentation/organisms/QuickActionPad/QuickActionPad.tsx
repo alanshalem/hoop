@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import { AlertOctagon, Flame } from 'lucide-react';
+import { AlertOctagon } from 'lucide-react';
 import { Player } from '@/core/domain/entities/club.types';
 import { PlayByPlayEventType } from '@/core/domain/entities/match.types';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Users, CheckCircle2, AlertCircle, Play, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Play, ArrowLeft } from 'lucide-react';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
 import { JerseyBadge } from '@/presentation/atoms/JerseyBadge/JerseyBadge';
@@ -11,7 +11,7 @@ import { useClubStore } from '@/core/application/stores/useClubStore';
 import clsx from 'clsx';
 import styles from './page.module.css';
 
-export default function MatchLineupPage() {
+function MatchLineupContent() {
   const router = useRouter();
   const params = useParams();
   const matchId = params?.id as string;
@@ -20,57 +20,57 @@ export default function MatchLineupPage() {
   const match = matches.find((m) => m.id === matchId) || matches[0];
 
   // Eligible players
-  const availablePlayers = players.filter((p) => p.status !== 'SUSPENDED');
+  const availablePlayers = useMemo(
+    () => players.filter((p) => p.status !== 'SUSPENDED'),
+    [players]
+  );
 
-  // Selected Roster (10-12 players) and Starters (exactly 5)
-  const [rosterIds, setRosterIds] = useState<string[]>([]);
-  const [starterIds, setStarterIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (match) {
-      if (match.rosterOwnPlayerIds && match.rosterOwnPlayerIds.length > 0) {
-        setRosterIds(match.rosterOwnPlayerIds);
-      } else {
-        // Default first 12 players
-        setRosterIds(availablePlayers.slice(0, 12).map((p) => p.id));
-      }
-
-      if (match.activeLineupOwn && match.activeLineupOwn.length === 5) {
-        setStarterIds(match.activeLineupOwn);
-      } else {
-        // Default first 5 players
-        setStarterIds(availablePlayers.slice(0, 5).map((p) => p.id));
-      }
+  // Derived initial selections
+  const defaultRoster = useMemo(() => {
+    if (match?.rosterOwnPlayerIds && match.rosterOwnPlayerIds.length > 0) {
+      return match.rosterOwnPlayerIds;
     }
-  }, [match]);
+    return availablePlayers.slice(0, 12).map((p) => p.id);
+  }, [match, availablePlayers]);
+
+  const defaultStarters = useMemo(() => {
+    if (match?.activeLineupOwn && match.activeLineupOwn.length === 5) {
+      return match.activeLineupOwn;
+    }
+    return availablePlayers.slice(0, 5).map((p) => p.id);
+  }, [match, availablePlayers]);
+
+  const [userRosterIds, setUserRosterIds] = useState<string[] | null>(null);
+  const [userStarterIds, setUserStarterIds] = useState<string[] | null>(null);
+
+  const rosterIds = userRosterIds ?? defaultRoster;
+  const starterIds = userStarterIds ?? defaultStarters;
 
   const toggleRoster = (playerId: string) => {
     if (rosterIds.includes(playerId)) {
-      // Remove from roster and starters
-      setRosterIds((prev) => prev.filter((id) => id !== playerId));
-      setStarterIds((prev) => prev.filter((id) => id !== playerId));
+      setUserRosterIds(rosterIds.filter((id) => id !== playerId));
+      setUserStarterIds(starterIds.filter((id) => id !== playerId));
     } else {
       if (rosterIds.length >= 12) {
         alert('El reglamento FIBA permite un máximo de 12 jugadores en la planilla.');
         return;
       }
-      setRosterIds((prev) => [...prev, playerId]);
+      setUserRosterIds([...rosterIds, playerId]);
     }
   };
 
   const toggleStarter = (playerId: string) => {
     if (starterIds.includes(playerId)) {
-      setStarterIds((prev) => prev.filter((id) => id !== playerId));
+      setUserStarterIds(starterIds.filter((id) => id !== playerId));
     } else {
       if (starterIds.length >= 5) {
         alert('Debe haber exactamente 5 jugadores titulares en el quinteto inicial.');
         return;
       }
-      // Ensure player is in roster
       if (!rosterIds.includes(playerId)) {
-        setRosterIds((prev) => [...prev, playerId]);
+        setUserRosterIds([...rosterIds, playerId]);
       }
-      setStarterIds((prev) => [...prev, playerId]);
+      setUserStarterIds([...starterIds, playerId]);
     }
   };
 
@@ -265,5 +265,13 @@ export default function MatchLineupPage() {
         </div>
       </div>
     </TabletAppShell>
+  );
+}
+
+export default function MatchLineupPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, color: '#fff' }}>Cargando quinteto...</div>}>
+      <MatchLineupContent />
+    </Suspense>
   );
 }
