@@ -4,6 +4,7 @@ import {
   generateSessionToken,
   getSessionExpiry,
   hashSessionToken,
+  resolveSessionCookieSecure,
   SESSION_COOKIE_NAME,
   sessionCookieOptions,
 } from './session';
@@ -51,5 +52,34 @@ describe('session cookie', () => {
 
   it('is secure in production', () => {
     assert.strictEqual(sessionCookieOptions(getSessionExpiry(NOW), true).secure, true);
+  });
+});
+
+describe('SESSION_COOKIE_SECURE override', () => {
+  it('defaults to secure in production only', () => {
+    assert.strictEqual(resolveSessionCookieSecure({ NODE_ENV: 'production' }), true);
+    assert.strictEqual(resolveSessionCookieSecure({ NODE_ENV: 'development' }), false);
+    assert.strictEqual(resolveSessionCookieSecure({ NODE_ENV: 'test' }), false);
+    assert.strictEqual(resolveSessionCookieSecure({}), false);
+  });
+
+  it('lets "false" turn Secure off in production (plain http on the LAN)', () => {
+    assert.strictEqual(resolveSessionCookieSecure({ NODE_ENV: 'production', SESSION_COOKIE_SECURE: 'false' }), false);
+  });
+
+  it('lets "true" force Secure outside production', () => {
+    assert.strictEqual(resolveSessionCookieSecure({ NODE_ENV: 'development', SESSION_COOKIE_SECURE: 'true' }), true);
+  });
+
+  it('ignores case and surrounding spaces', () => {
+    assert.strictEqual(resolveSessionCookieSecure({ NODE_ENV: 'production', SESSION_COOKIE_SECURE: ' FALSE ' }), false);
+    assert.strictEqual(resolveSessionCookieSecure({ NODE_ENV: 'development', SESSION_COOKIE_SECURE: 'True' }), true);
+  });
+
+  it('falls back to the default for empty or unknown values', () => {
+    for (const value of ['', '0', 'no', 'off', 'yes']) {
+      assert.strictEqual(resolveSessionCookieSecure({ NODE_ENV: 'production', SESSION_COOKIE_SECURE: value }), true, value);
+      assert.strictEqual(resolveSessionCookieSecure({ NODE_ENV: 'development', SESSION_COOKIE_SECURE: value }), false, value);
+    }
   });
 });

@@ -1,0 +1,412 @@
+import { after, before, describe, it } from 'node:test';
+import assert from 'node:assert';
+import { randomUUID } from 'node:crypto';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+import type { UserRole } from '@/core/domain/entities/club.types';
+import { createSeedState } from '@/core/infrastructure/mocks/seed-data';
+import type { DatabaseConnection } from '../db/client';
+import { matchEvents, syncRecords } from '../db/schema';
+import { openTestDatabase } from '../testing/test-database';
+import type { PushBody, PushEventInput, PushRecordInput } from './api-schema';
+import { createSyncChangeListener, SYNC_CHANNEL, type SyncChangeListener } from './listener';
+import { pullChanges } from './pull';
+import { applyPush } from './push';
+import { readCurrentCursor } from './repository';
+
+const ADMIN = { role: 'ADMIN' as UserRole };
+const COACH = { role: 'HEAD_COACH' as UserRole };
+const STATISTICIAN = { role: 'ASSISTANT_STATISTICIAN' as UserRole };
+
+const seed = createSeedState(new Date('2026-10-30T12:00:00.000Z'));
+const seedMatch = seed.matches.find((match) => match.events.length > 0);
+if (!seedMatch) throw new Error('The seed must contain a match with events');
+const { events: seedEvents, ...seedMatchRecord } = seedMatch;
+
+const at = (minute: number) => new Date(Date.UTC(2026, 9, 30, 10, minute));
+const uid = (prefix: string) => `t9-${prefix}-${randomUUID()}`;
+
+function playerRecord(id: string, updatedAt: Date, overrides: Record<string, unknown> = {}, deleted = false): PushRecordInput {
+  return { kind: 'player', id, data: { ...seed.players[0], id, ...overrides }, updatedAt, deleted };
+}
+
+function matchRecord(id: string, updatedAt: Date, overrides: Record<string, unknown> = {}, deleted = false): PushRecordInput {
+  return { kind: 'match', id, data: { ...seedMatchRecord, id, ...overrides }, updatedAt, deleted };
+}
+
+function eventInput(id: string, matchId: string, deleted = false, overrides: Record<string, unknown> = {}): PushEventInput {
+  return { id, matchId, data: { ...seedEvents[0], id, matchId, ...overrides }, deleted };
+}
+
+function body(records: PushRecordInput[] = [], events: PushEventInput[] = []): PushBody {
+  return { records, events };
+}
+
+describe('sync push / pull (database)', () => {
+  let connection: DatabaseConnection;
+  const createdRecordIds: string[] = [];
+  const createdEventIds: string[] = [];
+
+  const push = async (user: { role: UserRole }, payload: PushBody) => {
+    createdRecordIds.push(...payload.records.map((record) => record.id));
+    createdEventIds.push(...payload.events.map((event) => event.id));
+    return applyPush(connection.db, user, payload);
+  };
+
+  const storedRecord = async (kind: 'player' | 'match' | 'division', id: string) => {
+    const [row] = await connection.db
+      .select()
+      .from(syncRecords)
+      .where(and(eq(syncRecords.kind, kind), eq(syncRecords.id, id)));
+    return row;
+  };
+
+  const storedEvent = async (id: string) => {
+    const [row] = await connection.db.select().from(matchEvents).where(eq(matchEvents.id, id));
+    return row;
+  };
+
+  before(async () => {
+    connection = await openTestDatabase();
+  });
+
+  after(async () => {
+    if (createdRecordIds.length > 0) {
+      await connection.db.delete(syncRecords).where(inArray(syncRecords.id, createdRecordIds));
+    }
+    if (createdEventIds.length > 0) {
+      await connection.db.delete(matchEvents).where(inArray(matchEvents.id, createdEventIds));
+    }
+    await connection.pool.end();
+  });
+
+  it('accepts a new record and pulls it back once, advancing the cursor', async () => {
+    const id = uid('player');
+    const start = await readCurrentCursor(connection.db);
+
+    const result = await push(ADMIN, body([playerRecord(id, at(1), { firstName: 'Lucia' })]));
+    assert.deepStrictEqual(result.accepted, [id]);
+    assert.deepStrictEqual(result.rejected, []);
+    assert.match(result.cursor, /^\d+$/);
+    assert.ok(Number(result.cursor) > Number(start));
+
+    const pulled = await pullChanges(connection.db, Number(start));
+    assert.deepStrictEqual(pulled.events, []);
+    assert.strictEqual(pulled.records.length, 1);
+    const [record] = pulled.records;
+    assert.strictEqual(record.kind, 'player');
+    assert.strictEqual(record.id, id);
+    assert.strictEqual(record.updatedAt, at(1).toISOString());
+    assert.strictEqual(record.deleted, false);
+    assert.strictEqual(record.data.firstName, 'Lucia');
+    assert.strictEqual(record.data.id, id);
+    assert.strictEqual(pulled.cursor, result.cursor);
+    assert.strictEqual(pulled.hasMore, false);
+
+    assert.deepStrictEqual(await pullChanges(connection.db, Number(pulled.cursor)), {
+      records: [],
+      events: [],
+      cursor: pulled.cursor,
+      hasMore: false,
+    });
+  });
+
+  it('returns everything (including seed data) on a full snapshot from 0', async () => {
+    const pulled = await pullChanges(connection.db, 0, 5);
+    assert.strictEqual(pulled.records.length + pulled.events.length, 5);
+    assert.strictEqual(pulled.hasMore, true);
+  });
+
+  it('applies last-write-wins: newer replaces, equal or older is STALE and changes nothing', async () => {
+    const id = uid('player');
+    await push(ADMIN, body([playerRecord(id, at(5), { firstName: 'Original' })]));
+    const afterFirst = await storedRecord('player', id);
+
+    const newer = await push(COACH, body([playerRecord(id, at(6), { firstName: 'Newer' })]));
+    assert.deepStrictEqual(newer.accepted, [id]);
+    const afterNewer = await storedRecord('player', id);
+    assert.strictEqual(afterNewer.data.firstName, 'Newer');
+    assert.strictEqual(afterNewer.updatedAt.toISOString(), at(6).toISOString());
+    assert.ok(afterNewer.seq > afterFirst.seq);
+
+    const cursorBefore = await readCurrentCursor(connection.db);
+    for (const updatedAt of [at(6), at(4)]) {
+      const stale = await push(ADMIN, body([playerRecord(id, updatedAt, { firstName: 'Stale' })]));
+      assert.deepStrictEqual(stale.accepted, []);
+      assert.deepStrictEqual(stale.rejected, [{ id, reason: 'STALE' }]);
+      assert.strictEqual(stale.cursor, cursorBefore);
+    }
+    assert.deepStrictEqual(await storedRecord('player', id), afterNewer);
+  });
+
+  it('stores deletions as tombstones that pull returns, and LWW still applies to them', async () => {
+    const id = uid('player');
+    await push(ADMIN, body([playerRecord(id, at(10))]));
+    const cursor = await readCurrentCursor(connection.db);
+
+    const deletion = await push(COACH, body([playerRecord(id, at(11), {}, true)]));
+    assert.deepStrictEqual(deletion.accepted, [id]);
+
+    const pulled = await pullChanges(connection.db, Number(cursor));
+    assert.deepStrictEqual(
+      pulled.records.map((record) => [record.id, record.deleted, record.updatedAt]),
+      [[id, true, at(11).toISOString()]]
+    );
+
+    const olderEdit = await push(COACH, body([playerRecord(id, at(10), { firstName: 'Revived' })]));
+    assert.deepStrictEqual(olderEdit.rejected, [{ id, reason: 'STALE' }]);
+    assert.strictEqual((await storedRecord('player', id)).deleted, true);
+
+    const newerEdit = await push(COACH, body([playerRecord(id, at(12), { firstName: 'Revived' })]));
+    assert.deepStrictEqual(newerEdit.accepted, [id]);
+    const revived = await storedRecord('player', id);
+    assert.strictEqual(revived.deleted, false);
+    assert.strictEqual(revived.data.firstName, 'Revived');
+  });
+
+  it('rejects writes the role may not make as FORBIDDEN, per item, without storing them', async () => {
+    const playerId = uid('player');
+    const matchId = uid('match');
+    const newMatchId = uid('match');
+    const divisionId = uid('division');
+    await push(ADMIN, body([matchRecord(matchId, at(20))]));
+
+    const statistician = await push(
+      STATISTICIAN,
+      body([
+        playerRecord(playerId, at(21)),
+        matchRecord(matchId, at(21), { homeScore: 12 }),
+        matchRecord(newMatchId, at(21)),
+      ])
+    );
+    assert.deepStrictEqual(statistician.accepted, [matchId]);
+    assert.deepStrictEqual(statistician.rejected, [
+      { id: playerId, reason: 'FORBIDDEN' },
+      { id: newMatchId, reason: 'FORBIDDEN' },
+    ]);
+    assert.strictEqual(await storedRecord('player', playerId), undefined);
+    assert.strictEqual(await storedRecord('match', newMatchId), undefined);
+    assert.strictEqual((await storedRecord('match', matchId)).data.homeScore, 12);
+
+    const statisticianDelete = await push(STATISTICIAN, body([matchRecord(matchId, at(22), {}, true)]));
+    assert.deepStrictEqual(statisticianDelete.rejected, [{ id: matchId, reason: 'FORBIDDEN' }]);
+    assert.strictEqual((await storedRecord('match', matchId)).deleted, false);
+
+    const coachDivision = await push(COACH, body([{ ...playerRecord(divisionId, at(23)), kind: 'division', data: { ...seed.divisions[0], id: divisionId } }]));
+    assert.deepStrictEqual(coachDivision.rejected, [{ id: divisionId, reason: 'FORBIDDEN' }]);
+    assert.strictEqual(await storedRecord('division', divisionId), undefined);
+  });
+
+  it('rejects data that fails the domain schema as INVALID and never stores match events in records', async () => {
+    const badPlayer = uid('player');
+    const mismatched = uid('player');
+    const matchId = uid('match');
+    const result = await push(
+      ADMIN,
+      body(
+        [
+          playerRecord(badPlayer, at(30), { dorsal: 120 }),
+          { ...playerRecord(mismatched, at(30)), data: { ...seed.players[0], id: 'another-id' } },
+          { ...matchRecord(matchId, at(30)), data: { ...seedMatchRecord, id: matchId, events: seedEvents } },
+        ],
+        [
+          eventInput(uid('event'), matchId, false, { matchId: 'another-match' }),
+          eventInput(uid('event'), matchId, false, { quarterTimeRemainingSeconds: -1 }),
+        ]
+      )
+    );
+    assert.deepStrictEqual(result.accepted, [matchId]);
+    assert.deepStrictEqual(
+      result.rejected.map((item) => item.reason),
+      ['INVALID', 'INVALID', 'INVALID', 'INVALID']
+    );
+    assert.strictEqual(await storedRecord('player', badPlayer), undefined);
+    const match = await storedRecord('match', matchId);
+    assert.ok(!('events' in match.data));
+  });
+
+  it('dedupes a batch by (kind, id), keeping the newest updatedAt', async () => {
+    const id = uid('player');
+    const result = await push(
+      ADMIN,
+      body([
+        playerRecord(id, at(41), { firstName: 'Newest' }),
+        playerRecord(id, at(40), { firstName: 'Older' }),
+      ])
+    );
+    assert.deepStrictEqual(result.accepted, [id]);
+    assert.deepStrictEqual(result.rejected, []);
+    const stored = await storedRecord('player', id);
+    assert.strictEqual(stored.data.firstName, 'Newest');
+    assert.strictEqual(stored.updatedAt.toISOString(), at(41).toISOString());
+  });
+
+  it('merges events append-only: insert once, immutable data, permanent tombstones', async () => {
+    const matchId = uid('match');
+    const eventId = uid('event');
+    const unknownTombstone = uid('event');
+
+    const inserted = await push(STATISTICIAN, body([], [eventInput(eventId, matchId)]));
+    assert.deepStrictEqual(inserted.accepted, [eventId]);
+    const original = await storedEvent(eventId);
+    assert.strictEqual(original.matchId, matchId);
+    assert.strictEqual(original.deleted, false);
+
+    const resent = await push(STATISTICIAN, body([], [eventInput(eventId, matchId)]));
+    assert.deepStrictEqual(resent.accepted, [eventId]);
+    assert.deepStrictEqual(await storedEvent(eventId), original);
+
+    const rewritten = await push(STATISTICIAN, body([], [eventInput(eventId, matchId, false, { playerId: 'p-2' })]));
+    assert.deepStrictEqual(rewritten.rejected, [{ id: eventId, reason: 'STALE' }]);
+    assert.deepStrictEqual(await storedEvent(eventId), original);
+
+    const cursor = await readCurrentCursor(connection.db);
+    const tombstoned = await push(STATISTICIAN, body([], [eventInput(eventId, matchId, true)]));
+    assert.deepStrictEqual(tombstoned.accepted, [eventId]);
+    const deleted = await storedEvent(eventId);
+    assert.strictEqual(deleted.deleted, true);
+    assert.deepStrictEqual(deleted.data, original.data);
+    assert.ok(deleted.seq > original.seq);
+    const pulled = await pullChanges(connection.db, Number(cursor));
+    assert.deepStrictEqual(pulled.events, [{ id: eventId, matchId, data: original.data, deleted: true }]);
+
+    const revert = await push(STATISTICIAN, body([], [eventInput(eventId, matchId)]));
+    assert.deepStrictEqual(revert.rejected, [{ id: eventId, reason: 'STALE' }]);
+    const again = await push(STATISTICIAN, body([], [eventInput(eventId, matchId, true)]));
+    assert.deepStrictEqual(again.accepted, [eventId]);
+    assert.deepStrictEqual(await storedEvent(eventId), deleted);
+
+    const fresh = await push(STATISTICIAN, body([], [eventInput(unknownTombstone, matchId, true)]));
+    assert.deepStrictEqual(fresh.accepted, [unknownTombstone]);
+    assert.strictEqual((await storedEvent(unknownTombstone)).deleted, true);
+  });
+
+  it('dedupes events in a batch so a tombstone wins over its live copy', async () => {
+    const matchId = uid('match');
+    const eventId = uid('event');
+    const result = await push(
+      STATISTICIAN,
+      body([], [eventInput(eventId, matchId, true), eventInput(eventId, matchId)])
+    );
+    assert.deepStrictEqual(result.accepted, [eventId]);
+    assert.strictEqual((await storedEvent(eventId)).deleted, true);
+  });
+
+  it('paginates records and events together in seq order until hasMore is false', async () => {
+    const matchId = uid('match');
+    const start = await readCurrentCursor(connection.db);
+    const records = Array.from({ length: 6 }, (_, index) => playerRecord(uid(`page-${index}`), at(50)));
+    const events = Array.from({ length: 17 }, (_, index) => eventInput(uid(`page-event-${index}`), matchId));
+    const pushed = await push(ADMIN, body(records, events));
+    assert.strictEqual(pushed.accepted.length, 23);
+    await push(ADMIN, body([playerRecord(records[0].id, at(51), { firstName: 'Bumped' })]));
+
+    const seen: string[] = [];
+    let cursor = Number(start);
+    let pages = 0;
+    for (;;) {
+      const page = await pullChanges(connection.db, cursor, 5);
+      pages += 1;
+      assert.ok(page.records.length + page.events.length <= 5);
+      seen.push(...page.records.map((record) => record.id), ...page.events.map((event) => event.id));
+      assert.ok(Number(page.cursor) > cursor || !page.hasMore);
+      cursor = Number(page.cursor);
+      if (!page.hasMore) break;
+    }
+    assert.strictEqual(pages, 5);
+    assert.strictEqual(seen.length, 23);
+    assert.deepStrictEqual(new Set(seen), new Set([...records, ...events].map((item) => item.id)));
+    assert.strictEqual(String(cursor), await readCurrentCursor(connection.db));
+  });
+
+  it('keeps the newest write when concurrent pushes race on the same record', async () => {
+    const id = uid('player');
+    const minutes = [3, 9, 1, 7, 5];
+    await Promise.all(minutes.map((minute) => push(ADMIN, body([playerRecord(id, at(minute), { firstName: `m${minute}` })]))));
+    const stored = await storedRecord('player', id);
+    assert.strictEqual(stored.updatedAt.toISOString(), at(9).toISOString());
+    assert.strictEqual(stored.data.firstName, 'm9');
+  });
+});
+
+describe('sync change notifications (database)', () => {
+  let connection: DatabaseConnection;
+  let listener: SyncChangeListener;
+  const createdRecordIds: string[] = [];
+
+  before(async () => {
+    connection = await openTestDatabase();
+    const { connectionString } = connection.pool.options;
+    assert.ok(connectionString);
+    listener = createSyncChangeListener({ connectionString, retryMs: 50 });
+  });
+
+  after(async () => {
+    await listener.close();
+    if (createdRecordIds.length > 0) {
+      await connection.db.delete(syncRecords).where(inArray(syncRecords.id, createdRecordIds));
+    }
+    await connection.pool.end();
+  });
+
+  function nextCursor(timeoutMs = 2000): { cursor: Promise<string | null>; stop: () => void } {
+    let stop = () => {};
+    const cursor = new Promise<string | null>((resolve) => {
+      const timer = setTimeout(() => {
+        unsubscribe();
+        resolve(null);
+      }, timeoutMs);
+      const unsubscribe = listener.subscribe((value) => {
+        clearTimeout(timer);
+        unsubscribe();
+        resolve(value);
+      });
+      stop = () => {
+        clearTimeout(timer);
+        unsubscribe();
+        resolve(null);
+      };
+    });
+    return { cursor, stop };
+  }
+
+  it(`notifies ${SYNC_CHANNEL} with the cursor after a push with accepted writes`, async () => {
+    const waiting = nextCursor();
+    await listener.ready();
+    const id = uid('notify');
+    createdRecordIds.push(id);
+    const result = await applyPush(connection.db, ADMIN, body([playerRecord(id, at(1))]));
+    assert.strictEqual(await waiting.cursor, result.cursor);
+  });
+
+  it('does not notify when nothing was written', async () => {
+    const id = uid('notify');
+    createdRecordIds.push(id);
+    const setup = nextCursor();
+    await listener.ready();
+    const created = await applyPush(connection.db, ADMIN, body([playerRecord(id, at(2))]));
+    assert.strictEqual(await setup.cursor, created.cursor);
+
+    const waiting = nextCursor(400);
+    await listener.ready();
+    const stale = await applyPush(connection.db, ADMIN, body([playerRecord(id, at(2))]));
+    assert.deepStrictEqual(stale.rejected, [{ id, reason: 'STALE' }]);
+    assert.strictEqual(await waiting.cursor, null);
+  });
+
+  it('reconnects after losing its connection and reports the current cursor', async () => {
+    await listener.ready();
+    const waiting = nextCursor(5000);
+    await connection.db.execute(sql`
+      SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+      WHERE datname = current_database() AND pid <> pg_backend_pid() AND query = ${`LISTEN ${SYNC_CHANNEL}`}
+    `);
+    assert.strictEqual(await waiting.cursor, await readCurrentCursor(connection.db));
+
+    const after = nextCursor();
+    await listener.ready();
+    const id = uid('notify');
+    createdRecordIds.push(id);
+    const result = await applyPush(connection.db, ADMIN, body([playerRecord(id, at(3))]));
+    assert.strictEqual(await after.cursor, result.cursor);
+  });
+});

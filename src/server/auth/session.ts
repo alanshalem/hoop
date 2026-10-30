@@ -38,11 +38,28 @@ export interface SessionCookieOptions {
   expires: Date;
 }
 
+/**
+ * Whether the session cookie carries the `Secure` flag.
+ *
+ * Default: secure in production (`NODE_ENV=production`), not in development.
+ * `SESSION_COOKIE_SECURE=false` turns it off, e.g. when tablets reach a
+ * production build over plain http on the club LAN (`http://192.168.x.x:3000`):
+ * browsers drop `Secure` cookies on http, so login would silently fail.
+ * Only use it on a trusted network; behind HTTPS keep the default.
+ * `SESSION_COOKIE_SECURE=true` forces it on. Any other value is ignored.
+ */
+export function resolveSessionCookieSecure(env: Readonly<Record<string, string | undefined>>): boolean {
+  const override = env.SESSION_COOKIE_SECURE?.trim().toLowerCase();
+  if (override === 'true') return true;
+  if (override === 'false') return false;
+  return env.NODE_ENV === 'production';
+}
+
 export function sessionCookieOptions(
   expiresAt: Date,
-  isProduction: boolean = process.env.NODE_ENV === 'production'
+  secure: boolean = resolveSessionCookieSecure(process.env)
 ): SessionCookieOptions {
-  return { httpOnly: true, sameSite: 'lax', secure: isProduction, path: '/', expires: expiresAt };
+  return { httpOnly: true, sameSite: 'lax', secure, path: '/', expires: expiresAt };
 }
 
 export interface CreatedSession {

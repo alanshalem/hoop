@@ -6,7 +6,13 @@ import { hashPassword, verifyPassword } from '../auth/password';
 import { normalizeEmail } from '../auth/users';
 import type { SyncRecordKind } from '../sync/record-kinds';
 import { parseEventData, parseRecordData } from '../sync/records';
-import { insertEventsIfNew, upsertRecordsLww, type EventWrite, type RecordWrite } from '../sync/repository';
+import {
+  insertEventsIfNew,
+  lockSyncWrites,
+  upsertRecordsLww,
+  type EventWrite,
+  type RecordWrite,
+} from '../sync/repository';
 import type { Database } from './client';
 import { users } from './schema';
 
@@ -81,6 +87,8 @@ export async function seedDatabase(db: Database, { now, demoPassword }: SeedOpti
   );
 
   return db.transaction(async (tx) => {
+    // Seq values must commit in order, like sync pushes (see ../sync/repository.ts).
+    await lockSyncWrites(tx);
     await tx
       .insert(users)
       .values(userRows)
