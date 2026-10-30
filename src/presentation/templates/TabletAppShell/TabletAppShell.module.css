@@ -245,6 +245,36 @@
   color: var(--text-primary);
 }
 
+.mobileTopActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.mobileHelpLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.mobileHelpLink:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-surface-2);
+}
+
+.mobileHelpLinkActive,
+.mobileHelpLinkActive:hover {
+  color: var(--brand-primary-ink);
+  background-color: var(--brand-primary-subtle);
+}
+
 .mobileBrandTitle {
   font-family: var(--font-display);
   font-size: var(--text-lg);
@@ -344,4 +374,26 @@
 /* ModalSheet scroll lock also applies to the inner scroll container */
 :global(html[data-scroll-locked='true']) .mainContent {
   overflow: hidden;
+}
+
+/* -----------------------------------------------------------------------------
+   PRINT: content only
+   ----------------------------------------------------------------------------- */
+@media print {
+  .navRail,
+  .mobileTopBar,
+  .bottomBar {
+    display: none;
+  }
+
+  .shellContainer {
+    display: block;
+    min-height: 0;
+  }
+
+  .mainContent {
+    height: auto;
+    overflow: visible;
+    padding-bottom: 0;
+  }
 }

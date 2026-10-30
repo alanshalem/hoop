@@ -3,11 +3,12 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
-import { LogOut } from 'lucide-react';
+import { LifeBuoy, LogOut } from 'lucide-react';
 import { USER_ROLE_LABELS } from '@/core/domain/entities/club.types';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
+import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
 import { ThemeToggle } from '@/presentation/molecules/ThemeToggle/ThemeToggle';
 import { SyncStatusIndicator } from '@/presentation/organisms/SyncStatusIndicator/SyncStatusIndicator';
 import { logoutWithConfirmation } from '@/presentation/session/logout';
@@ -20,7 +21,7 @@ export interface UserMenuProps {
 }
 
 /**
- * Authenticated user (S10.8): name, role from the server, sync status and logout.
+ * Authenticated user (S10.8): name, role from the server, sync status, help and logout.
  * Replaces the simulated role switcher.
  */
 export const UserMenu: React.FC<UserMenuProps> = ({ variant = 'inline', className }) => {
@@ -54,6 +55,16 @@ export const UserMenu: React.FC<UserMenuProps> = ({ variant = 'inline', classNam
       </div>
 
       <SyncStatusIndicator className={styles.syncStatus} />
+
+      <LinkButton
+        href="/ayuda"
+        variant="ghost"
+        fullWidth={variant === 'rail'}
+        className={styles.menuLink}
+        leftIcon={<LifeBuoy size={ICON_SIZE.md} />}
+      >
+        Ayuda y manual
+      </LinkButton>
 
       <TouchButton
         variant="ghost"

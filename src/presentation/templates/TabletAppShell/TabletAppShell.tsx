@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   CalendarDays,
   LayoutDashboard,
+  LifeBuoy,
   Radio,
   Shield,
   Users,
@@ -40,6 +41,11 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Partidos', shortLabel: 'Fechas', href: '/matches', icon: CalendarDays },
 ];
 
+const HELP_ITEM: NavItem = { label: 'Ayuda', shortLabel: 'Ayuda', href: '/ayuda', icon: LifeBuoy };
+
+// The rail closes with the manual; on phones it lives in the top bar so the bottom bar stays balanced.
+const RAIL_ITEMS: NavItem[] = [...NAV_ITEMS, HELP_ITEM];
+
 // The mobile bottom bar places the live button between these two halves.
 const BOTTOM_LEFT_ITEMS = NAV_ITEMS.slice(0, 2);
 const BOTTOM_RIGHT_ITEMS = NAV_ITEMS.slice(2);
@@ -56,7 +62,8 @@ const isNavItemActive = (pathname: string, href: string) => {
 export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
   const pathname = usePathname();
   const isLiveActive = isLivePath(pathname);
-  const activeHref = NAV_ITEMS.find((item) => isNavItemActive(pathname, item.href))?.href ?? null;
+  const activeHref = RAIL_ITEMS.find((item) => isNavItemActive(pathname, item.href))?.href ?? null;
+  const isHelpActive = activeHref === HELP_ITEM.href;
 
   const mainRef = useRef<HTMLElement | null>(null);
   const navRef = useRef<HTMLElement | null>(null);
@@ -100,7 +107,7 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
 
           <nav ref={navRef} className={styles.navLinks} aria-label="Navegación principal">
             <span ref={indicatorRef} className={styles.navIndicator} aria-hidden="true" />
-            {NAV_ITEMS.map((item) => {
+            {RAIL_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive = isNavItemActive(pathname, item.href);
               return (
@@ -137,7 +144,17 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
           <ClubCrest size={32} eager />
           <span className={styles.mobileBrandTitle}>{CLUB_BRAND.productName}</span>
         </Link>
-        <SyncStatusIndicator compact />
+        <div className={styles.mobileTopActions}>
+          <SyncStatusIndicator compact />
+          <Link
+            href={HELP_ITEM.href}
+            className={clsx(styles.mobileHelpLink, isHelpActive && styles.mobileHelpLinkActive)}
+            aria-label={HELP_ITEM.label}
+            aria-current={isHelpActive ? 'page' : undefined}
+          >
+            <LifeBuoy size={ICON_SIZE.lg} aria-hidden="true" />
+          </Link>
+        </div>
       </header>
 
       <main ref={mainRef} className={styles.mainContent}>

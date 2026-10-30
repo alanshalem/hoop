@@ -79,6 +79,7 @@
   flex-shrink: 0;
 }
 
+.menuLink,
 .logoutButton {
   justify-content: flex-start;
 }
