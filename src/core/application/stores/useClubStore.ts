@@ -53,9 +53,10 @@ export interface ClubStoreState extends ClubDataState {
   updateDivision: (id: string, updates: Partial<Omit<Division, 'id'>>) => void;
   /** Also removes its team and leaves its players without a team. */
   deleteDivision: (id: string) => void;
+  /** `userId: null` unassigns the head coach. */
   assignHeadCoach: (
     teamId: string,
-    userId: string
+    userId: string | null
   ) => ActionResult<'TEAM_NOT_FOUND' | 'USER_NOT_HEAD_COACH'>;
 
   // Players
@@ -191,7 +192,8 @@ export const useClubStore = create<ClubStoreState>()(
           return divisionId;
         },
 
-        updateDivision: (id, updates) => set(club.updateDivision(clubData(), id, updates)),
+        updateDivision: (id, updates) =>
+          set(club.updateDivision(clubData(), id, updates, { clubName: CLUB_PROFILE.name })),
 
         deleteDivision: (id) => set(club.deleteDivision(clubData(), id)),
 

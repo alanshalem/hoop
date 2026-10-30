@@ -40,7 +40,7 @@ export function createDivision(
 ): ClubData {
   const team: Team = {
     id: ctx.teamId,
-    name: `${ctx.clubName} - ${input.name}`,
+    name: buildTeamName(ctx.clubName, input.name),
     divisionId: ctx.divisionId,
     season: ctx.season,
     headCoachId: ctx.headCoachId,
@@ -55,14 +55,28 @@ export function createDivision(
   };
 }
 
+function buildTeamName(clubName: string, divisionName: string): string {
+  return `${clubName} - ${divisionName}`;
+}
+
+/**
+ * Updates a division; a rename also renames the teams of that division.
+ */
 export function updateDivision(
   data: ClubData,
   divisionId: string,
-  updates: Partial<Omit<Division, 'id'>>
+  updates: Partial<Omit<Division, 'id'>>,
+  ctx: { clubName: string }
 ): ClubData {
+  const renamedTo = updates.name;
   return {
     ...data,
     divisions: data.divisions.map((d) => (d.id === divisionId ? { ...d, ...updates } : d)),
+    teams: renamedTo
+      ? data.teams.map((t) =>
+          t.divisionId === divisionId ? { ...t, name: buildTeamName(ctx.clubName, renamedTo) } : t
+        )
+      : data.teams,
   };
 }
 
@@ -86,16 +100,20 @@ export function assignHeadCoach(
   data: ClubData,
   users: User[],
   teamId: string,
-  userId: string
+  /** `null` leaves the team without a head coach. */
+  userId: string | null
 ): ClubResult<'TEAM_NOT_FOUND' | 'USER_NOT_HEAD_COACH'> {
   if (!data.teams.some((t) => t.id === teamId)) return { ok: false, reason: 'TEAM_NOT_FOUND' };
-  const user = users.find((u) => u.id === userId);
-  if (!user || user.role !== 'HEAD_COACH') return { ok: false, reason: 'USER_NOT_HEAD_COACH' };
+  if (userId !== null) {
+    const user = users.find((u) => u.id === userId);
+    if (!user || user.role !== 'HEAD_COACH') return { ok: false, reason: 'USER_NOT_HEAD_COACH' };
+  }
+  const headCoachId = userId ?? undefined;
   return {
     ok: true,
     data: {
       ...data,
-      teams: data.teams.map((t) => (t.id === teamId ? { ...t, headCoachId: userId } : t)),
+      teams: data.teams.map((t) => (t.id === teamId ? { ...t, headCoachId } : t)),
     },
   };
 }

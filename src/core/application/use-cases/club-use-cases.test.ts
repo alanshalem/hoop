@@ -8,6 +8,7 @@ import {
   createDivision,
   deleteDivision,
   deletePlayer,
+  updateDivision,
   updatePlayer,
 } from './club-use-cases';
 import type { Player, User } from '@/core/domain/entities/club.types';
@@ -73,6 +74,21 @@ describe('createDivision', () => {
   });
 });
 
+describe('updateDivision', () => {
+  it('renames the division and its team', () => {
+    const next = updateDivision(seed(), 'd2', { name: 'Sub-19' }, { clubName: 'Club' });
+    assert.strictEqual(next.divisions[1].name, 'Sub-19');
+    assert.strictEqual(next.teams[1].name, 'Club - Sub-19');
+    assert.strictEqual(next.teams[0].name, 'Club - Primera');
+  });
+
+  it('keeps the team name when the division name is unchanged', () => {
+    const next = updateDivision(seed(), 'd2', { description: 'Liga' }, { clubName: 'Other' });
+    assert.strictEqual(next.divisions[1].description, 'Liga');
+    assert.strictEqual(next.teams[1].name, 'Club - U19');
+  });
+});
+
 describe('deleteDivision', () => {
   it('removes the division, its team and unassigns its players', () => {
     const next = deleteDivision(seed(), 'd2');
@@ -97,6 +113,12 @@ describe('assignHeadCoach', () => {
       ok: false,
       reason: 'USER_NOT_HEAD_COACH',
     });
+  });
+
+  it('unassigns the head coach when userId is null', () => {
+    const result = assignHeadCoach(seed(), users, 't1', null);
+    assert.strictEqual(result.ok, true);
+    if (result.ok) assert.strictEqual(result.data.teams[0].headCoachId, undefined);
   });
 
   it('rejects unknown teams', () => {
