@@ -1,0 +1,31 @@
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--bg-surface-2);
+  border-radius: var(--radius-lg);
+}
+
+.summaryItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+}
+
+.medicalNote {
+  flex-basis: 100%;
+  font-size: var(--text-2xs);
+  color: var(--color-amber);
+}

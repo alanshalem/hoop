@@ -1,352 +1,231 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
-import { Plus, Radio, Users, BarChart2 } from 'lucide-react';
-import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
-import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
-import { ModalSheet } from '@/presentation/molecules/ModalSheet/ModalSheet';
+import { BarChart3, CalendarDays, ClipboardList, Pencil, Plus, Radio, Trash2, Users } from 'lucide-react';
+import type { Match, MatchStatus } from '@/core/domain/entities/match.types';
+import { can } from '@/core/domain/rules/permissions';
 import { useClubStore } from '@/core/application/stores/useClubStore';
-import { MatchCondition } from '@/core/domain/entities/match.types';
-import clsx from 'clsx';
+import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
+import { PageHeader } from '@/presentation/molecules/PageHeader/PageHeader';
+import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
+import { FilterChipGroup } from '@/presentation/molecules/FilterChipGroup/FilterChipGroup';
+import { FilterChip } from '@/presentation/atoms/FilterChip/FilterChip';
+import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
+import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
+import { IconButton } from '@/presentation/atoms/IconButton/IconButton';
+import { confirm } from '@/presentation/organisms/DialogHost/dialog-store';
+import { MatchCard } from '@/presentation/organisms/MatchCard/MatchCard';
+import {
+  formatMatchDate,
+  isMatchInPlay,
+  sortMatchesForCalendar,
+} from '@/presentation/organisms/MatchCard/match-display';
+import { MatchFormModal } from '@/presentation/organisms/MatchFormModal/MatchFormModal';
 import styles from './page.module.css';
 
+const ALL = 'ALL';
+const NO_DIVISION = 'NO_DIVISION';
+const DELETED_DIVISION_LABEL = 'División eliminada';
+
+type StatusFilter = typeof ALL | 'IN_PLAY' | Exclude<MatchStatus, 'LIVE' | 'HALFTIME'>;
+
+const STATUS_CHIPS: Array<{ value: StatusFilter; label: string }> = [
+  { value: ALL, label: 'Todos' },
+  { value: 'IN_PLAY', label: 'En vivo' },
+  { value: 'SCHEDULED', label: 'Programados' },
+  { value: 'FINISHED', label: 'Finalizados' },
+];
+
+const matchesStatus = (match: Match, filter: StatusFilter): boolean => {
+  if (filter === ALL) return true;
+  if (filter === 'IN_PLAY') return isMatchInPlay(match);
+  return match.status === filter;
+};
+
 export default function MatchesPage() {
-  const { matches, divisions, addMatch } = useClubStore();
+  const matches = useClubStore((state) => state.matches);
+  const divisions = useClubStore((state) => state.divisions);
+  const activeDivisionId = useClubStore((state) => state.activeDivisionId);
+  const role = useClubStore((state) => state.currentUser.role);
+  const deleteMatch = useClubStore((state) => state.deleteMatch);
 
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [divisionFilter, setDivisionFilter] = useState<string>('ALL');
+  const canManageMatches = can(role, 'MANAGE_MATCHES');
+  const canManageLineup = can(role, 'MANAGE_LINEUP');
 
-  // New Match Form Modal
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [rivalName, setRivalName] = useState('');
-  const [tournament, setTournament] = useState('Torneo Federal');
-  const [venue, setVenue] = useState('Estadio Hoop Arena');
-  const [condition, setCondition] = useState<MatchCondition>('HOME');
-  const [divisionId, setDivisionId] = useState('div-primera');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(ALL);
+  const [divisionFilter, setDivisionFilter] = useState<string>(ALL);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [matchToEdit, setMatchToEdit] = useState<Match | null>(null);
 
-  const filteredMatches = matches.filter((m) => {
-    if (statusFilter !== 'ALL' && m.status !== statusFilter) return false;
-    if (divisionFilter !== 'ALL' && m.divisionId !== divisionFilter) return false;
-    return true;
-  });
+  const divisionKeyOf = (match: Match) =>
+    divisions.some((d) => d.id === match.divisionId) ? match.divisionId : NO_DIVISION;
+  const divisionNameOf = (match: Match) =>
+    divisions.find((d) => d.id === match.divisionId)?.name ?? DELETED_DIVISION_LABEL;
+  const matchesDivision = (match: Match, filter: string) =>
+    filter === ALL || divisionKeyOf(match) === filter;
 
-  const handleCreateMatch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rivalName.trim()) return;
+  const visibleMatches = sortMatchesForCalendar(
+    matches.filter((m) => matchesStatus(m, statusFilter) && matchesDivision(m, divisionFilter))
+  );
 
-    addMatch({
-      clubId: 'club-hoop-arg',
-      divisionId,
-      ownTeamId: 'team-primera',
-      ownTeamName: 'Hoop Athletic Club',
-      rivalTeamName: rivalName.trim(),
-      date: new Date().toISOString(),
-      condition,
-      tournament: tournament.trim(),
-      venue: venue.trim(),
-      status: 'SCHEDULED',
-      currentQuarter: 'Q1',
-      quarterTimeRemainingSeconds: 600,
-      homeScore: 0,
-      awayScore: 0,
-      homeFoulsQuarter: 0,
-      awayFoulsQuarter: 0,
-      homeTimeouts: { firstHalfRemaining: 2, secondHalfRemaining: 3, overtimeRemaining: 1 },
-      awayTimeouts: { firstHalfRemaining: 2, secondHalfRemaining: 3, overtimeRemaining: 1 },
-      activeLineupOwn: [],
-      rosterOwnPlayerIds: [],
-      events: [],
+  const hasOrphans = matches.some((m) => divisionKeyOf(m) === NO_DIVISION);
+  const divisionChips = [
+    { value: ALL, label: 'Todas' },
+    ...divisions.map((d) => ({ value: d.id, label: d.name })),
+    ...(hasOrphans ? [{ value: NO_DIVISION, label: DELETED_DIVISION_LABEL }] : []),
+  ];
+
+  const openForm = (match: Match | null) => {
+    setMatchToEdit(match);
+    setIsFormOpen(true);
+  };
+
+  const handleDelete = async (match: Match) => {
+    const { date, time } = formatMatchDate(match.date);
+    const accepted = await confirm({
+      title: 'Eliminar partido',
+      message: `Se eliminará el partido contra ${match.rivalTeamName} del ${date} a las ${time} h. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Eliminar partido',
+      tone: 'danger',
     });
+    if (accepted) deleteMatch(match.id);
+  };
 
-    setIsModalOpen(false);
-    setRivalName('');
+  const renderActions = (match: Match) => {
+    if (isMatchInPlay(match)) {
+      return (
+        <>
+          <LinkButton
+            href={`/matches/${match.id}/lineup`}
+            variant="secondary"
+            leftIcon={<Users size={ICON_SIZE.md} />}
+          >
+            Convocatoria
+          </LinkButton>
+          <LinkButton href={`/matches/${match.id}/live`} leftIcon={<Radio size={ICON_SIZE.md} />}>
+            Consola en vivo
+          </LinkButton>
+        </>
+      );
+    }
+
+    if (match.status === 'FINISHED') {
+      return (
+        <LinkButton
+          href={`/matches/${match.id}/stats`}
+          variant="secondary"
+          leftIcon={<BarChart3 size={ICON_SIZE.md} />}
+        >
+          Planilla box score
+        </LinkButton>
+      );
+    }
+
+    return (
+      <>
+        {canManageMatches && (
+          <>
+            <IconButton
+              aria-label={`Editar partido contra ${match.rivalTeamName}`}
+              variant="secondary"
+              icon={<Pencil size={ICON_SIZE.md} />}
+              onClick={() => openForm(match)}
+            />
+            <IconButton
+              aria-label={`Eliminar partido contra ${match.rivalTeamName}`}
+              variant="danger"
+              icon={<Trash2 size={ICON_SIZE.md} />}
+              onClick={() => handleDelete(match)}
+            />
+          </>
+        )}
+        <LinkButton
+          href={`/matches/${match.id}/lineup`}
+          variant={canManageLineup ? 'primary' : 'secondary'}
+          leftIcon={<ClipboardList size={ICON_SIZE.md} />}
+        >
+          {canManageLineup ? 'Armar quinteto' : 'Ver convocatoria'}
+        </LinkButton>
+      </>
+    );
   };
 
   return (
     <TabletAppShell>
-      <div className={styles.pageContainer}>
-        {/* HEADER */}
-        <div className={styles.header}>
-          <div className={styles.titleArea}>
-            <h1 className={styles.pageTitle}>Calendario de Partidos</h1>
-            <p className={styles.pageSubtitle}>
-              Fixture de fechas oficiales, partidos en vivo y actas estadísticas.
-            </p>
-          </div>
-
-          <TouchButton
-            variant="primary"
-            size="md"
-            leftIcon={<Plus size={18} />}
-            onClick={() => setIsModalOpen(true)}
-          >
-            Nueva Fecha
-          </TouchButton>
-        </div>
-
-        {/* FILTERS */}
-        <div className={clsx(styles.filtersRow, 'no-scrollbar')}>
-          <button
-            type="button"
-            className={clsx(
-              styles.filterBtn,
-              statusFilter === 'ALL' && styles.filterBtnActive
-            )}
-            onClick={() => setStatusFilter('ALL')}
-          >
-            Todos los Estados
-          </button>
-          <button
-            type="button"
-            className={clsx(
-              styles.filterBtn,
-              statusFilter === 'LIVE' && styles.filterBtnActive
-            )}
-            onClick={() => setStatusFilter('LIVE')}
-          >
-            En Juego (Live)
-          </button>
-          <button
-            type="button"
-            className={clsx(
-              styles.filterBtn,
-              statusFilter === 'SCHEDULED' && styles.filterBtnActive
-            )}
-            onClick={() => setStatusFilter('SCHEDULED')}
-          >
-            Programados
-          </button>
-          <button
-            type="button"
-            className={clsx(
-              styles.filterBtn,
-              statusFilter === 'FINISHED' && styles.filterBtnActive
-            )}
-            onClick={() => setStatusFilter('FINISHED')}
-          >
-            Finalizados
-          </button>
-
-          <span style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-subtle)', margin: '0 4px' }} />
-
-          <button
-            type="button"
-            className={clsx(
-              styles.filterBtn,
-              divisionFilter === 'ALL' && styles.filterBtnActive
-            )}
-            onClick={() => setDivisionFilter('ALL')}
-          >
-            Todas las Divisiones
-          </button>
-          {divisions.map((d) => (
-            <button
-              key={d.id}
-              type="button"
-              className={clsx(
-                styles.filterBtn,
-                divisionFilter === d.id && styles.filterBtnActive
-              )}
-              onClick={() => setDivisionFilter(d.id)}
-            >
-              {d.name}
-            </button>
-          ))}
-        </div>
-
-        {/* MATCHES LIST */}
-        <div className={styles.matchesList}>
-          {filteredMatches.map((match) => (
-            <div key={match.id} className={styles.matchCard}>
-              <div className={styles.matchTop}>
-                <span className={styles.tournament}>
-                  {match.tournament} · {match.venue}
-                </span>
-
-                {match.status === 'LIVE' && (
-                  <span className={styles.statusLive}>
-                    <Radio size={14} /> EN VIVO · {match.currentQuarter}
-                  </span>
-                )}
-                {match.status === 'FINISHED' && (
-                  <span className={styles.statusFinished}>FINALIZADO</span>
-                )}
-                {match.status === 'SCHEDULED' && (
-                  <span className={styles.statusScheduled}>PROGRAMADO</span>
-                )}
-              </div>
-
-              <div className={styles.matchScoreSection}>
-                <div className={styles.teamSide}>
-                  <span className={styles.teamName}>{match.ownTeamName}</span>
-                  <span className={styles.conditionBadge}>
-                    {match.condition === 'HOME' ? 'Local' : 'Visitante'}
-                  </span>
-                </div>
-
-                <div className={styles.scoreCenter}>
-                  <span>{match.homeScore}</span>
-                  <span style={{ color: 'var(--text-muted)' }}>-</span>
-                  <span>{match.awayScore}</span>
-                </div>
-
-                <div className={styles.teamSide}>
-                  <span className={styles.teamName}>{match.rivalTeamName}</span>
-                  <span className={styles.conditionBadge}>
-                    {match.condition === 'HOME' ? 'Visitante' : 'Local'}
-                  </span>
-                </div>
-              </div>
-
-              <div className={styles.actionsRow}>
-                {match.status === 'SCHEDULED' && (
-                  <Link href={`/matches/${match.id}/lineup`} style={{ textDecoration: 'none' }}>
-                    <TouchButton variant="secondary" size="md" leftIcon={<Users size={16} />}>
-                      Armar Quinteto Inicial
-                    </TouchButton>
-                  </Link>
-                )}
-
-                {match.status === 'LIVE' && (
-                  <>
-                    <Link href={`/matches/${match.id}/lineup`} style={{ textDecoration: 'none' }}>
-                      <TouchButton variant="secondary" size="md" leftIcon={<Users size={16} />}>
-                        Quinteto / Roster
-                      </TouchButton>
-                    </Link>
-                    <Link href={`/matches/${match.id}/live`} style={{ textDecoration: 'none' }}>
-                      <TouchButton variant="primary" size="md" leftIcon={<Radio size={16} />}>
-                        Ir a Consola en Vivo
-                      </TouchButton>
-                    </Link>
-                  </>
-                )}
-
-                {match.status === 'FINISHED' && (
-                  <Link href={`/matches/${match.id}/stats`} style={{ textDecoration: 'none' }}>
-                    <TouchButton variant="secondary" size="md" leftIcon={<BarChart2 size={16} />}>
-                      Ver Planilla Box Score
-                    </TouchButton>
-                  </Link>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* MODAL CREAR PARTIDO */}
-        <ModalSheet
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          title="Crear Nueva Fecha / Partido"
-        >
-          <form onSubmit={handleCreateMatch} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>Equipo Rival</label>
-              <input
-                type="text"
-                value={rivalName}
-                onChange={(e) => setRivalName(e.target.value)}
-                placeholder="Ej. Club Atlético Platense"
-                style={{
-                  minHeight: '48px',
-                  padding: '0 12px',
-                  backgroundColor: 'var(--bg-surface-2)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--text-primary)',
-                }}
-                required
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>División</label>
-              <select
-                value={divisionId}
-                onChange={(e) => setDivisionId(e.target.value)}
-                style={{
-                  minHeight: '48px',
-                  padding: '0 12px',
-                  backgroundColor: 'var(--bg-surface-2)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--text-primary)',
-                }}
-              >
-                {divisions.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>Condición</label>
-              <select
-                value={condition}
-                onChange={(e) => setCondition(e.target.value as MatchCondition)}
-                style={{
-                  minHeight: '48px',
-                  padding: '0 12px',
-                  backgroundColor: 'var(--bg-surface-2)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--text-primary)',
-                }}
-              >
-                <option value="HOME">Local (En nuestro estadio)</option>
-                <option value="AWAY">Visitante</option>
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>Torneo / Competencia</label>
-              <input
-                type="text"
-                value={tournament}
-                onChange={(e) => setTournament(e.target.value)}
-                style={{
-                  minHeight: '48px',
-                  padding: '0 12px',
-                  backgroundColor: 'var(--bg-surface-2)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--text-primary)',
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>Estadio / Cancha</label>
-              <input
-                type="text"
-                value={venue}
-                onChange={(e) => setVenue(e.target.value)}
-                style={{
-                  minHeight: '48px',
-                  padding: '0 12px',
-                  backgroundColor: 'var(--bg-surface-2)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--text-primary)',
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-              <TouchButton type="button" variant="ghost" size="md" onClick={() => setIsModalOpen(false)}>
-                Cancelar
+      <div className="page-container">
+        <PageHeader
+          title="Partidos"
+          subtitle="Partidos en juego primero, luego los próximos por fecha y al final los finalizados, del más reciente al más antiguo."
+          actions={
+            canManageMatches && (
+              <TouchButton leftIcon={<Plus size={ICON_SIZE.md} />} onClick={() => openForm(null)}>
+                Nuevo partido
               </TouchButton>
-              <TouchButton type="submit" variant="primary" size="md">
-                Crear Partido
-              </TouchButton>
-            </div>
-          </form>
-        </ModalSheet>
+            )
+          }
+        />
+
+        <section className={styles.filterPanel} aria-label="Filtros">
+          <FilterChipGroup label="Estado">
+            {STATUS_CHIPS.map((chip) => (
+              <FilterChip
+                key={chip.value}
+                label={chip.label}
+                pressed={statusFilter === chip.value}
+                count={matches.filter((m) => matchesStatus(m, chip.value) && matchesDivision(m, divisionFilter)).length}
+                onClick={() => setStatusFilter(chip.value)}
+              />
+            ))}
+          </FilterChipGroup>
+          <FilterChipGroup label="División">
+            {divisionChips.map((chip) => (
+              <FilterChip
+                key={chip.value}
+                label={chip.label}
+                pressed={divisionFilter === chip.value}
+                count={matches.filter((m) => matchesDivision(m, chip.value) && matchesStatus(m, statusFilter)).length}
+                onClick={() => setDivisionFilter(chip.value)}
+              />
+            ))}
+          </FilterChipGroup>
+        </section>
+
+        {visibleMatches.length === 0 ? (
+          <EmptyState
+            icon={CalendarDays}
+            title={matches.length === 0 ? 'Todavía no hay partidos' : 'Sin partidos para estos filtros'}
+            description={
+              matches.length === 0
+                ? 'Programa el primer partido de la temporada.'
+                : 'Cambia el estado o la división para ver otros partidos.'
+            }
+            action={
+              canManageMatches &&
+              matches.length === 0 && (
+                <TouchButton leftIcon={<Plus size={ICON_SIZE.md} />} onClick={() => openForm(null)}>
+                  Nuevo partido
+                </TouchButton>
+              )
+            }
+          />
+        ) : (
+          <ul className={styles.list}>
+            {visibleMatches.map((match) => (
+              <li key={match.id}>
+                <MatchCard match={match} divisionName={divisionNameOf(match)} actions={renderActions(match)} />
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
+
+      <MatchFormModal
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        matchToEdit={matchToEdit}
+        defaultDivisionId={divisionFilter !== ALL && divisionFilter !== NO_DIVISION ? divisionFilter : activeDivisionId}
+      />
     </TabletAppShell>
   );
 }

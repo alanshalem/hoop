@@ -1,145 +1,142 @@
-.pageContainer {
-  padding: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  max-width: 1200px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-@media (min-width: 768px) {
-  .pageContainer {
-    padding: var(--space-6);
-  }
-}
-
-.header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  justify-content: space-between;
-}
-
-@media (min-width: 640px) {
-  .header {
-    flex-direction: row;
-    align-items: center;
-  }
-}
-
-.titleArea {
-  display: flex;
-  flex-direction: column;
-}
-
-.pageTitle {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-weight-black);
-  color: var(--text-primary);
-}
-
-.pageSubtitle {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
 .grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-4);
+  list-style: none;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 640px) {
   .grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
   .grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 .divisionCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
   background-color: var(--bg-surface-1);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
-  padding: var(--space-5);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: var(--space-4);
-  transition: transform var(--transition-fast), border-color var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: border-color var(--transition-fast);
+}
+
+/* Court-orange accent along the top edge */
+.divisionCard::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-orange), transparent);
 }
 
 .divisionCard:hover {
   border-color: var(--border-strong);
-  transform: translateY(-2px);
 }
 
 .cardTop {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
-.divName {
-  font-size: var(--text-lg);
-  font-weight: var(--font-weight-bold);
+.divisionName {
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-black);
+  line-height: var(--leading-tight);
   color: var(--text-primary);
 }
 
-.divDesc {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  margin-top: var(--space-1);
-}
-
-.tag {
+.categoryTag {
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
   background-color: var(--color-orange-subtle);
   color: var(--color-orange);
   font-size: var(--text-2xs);
   font-weight: var(--font-weight-bold);
-  padding: var(--space-0-5) var(--space-2);
-  border-radius: var(--radius-sm);
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
-.cardStats {
+.description {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-3);
-  padding: var(--space-3);
-  background-color: var(--bg-surface-2);
-  border-radius: var(--radius-lg);
 }
 
 .statItem {
   display: flex;
   flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background-color: var(--bg-surface-2);
+  border-radius: var(--radius-lg);
+}
+
+.statLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .statValue {
-  font-family: var(--font-athletic), var(--font-mono);
   font-size: var(--text-xl);
   font-weight: var(--font-weight-black);
   color: var(--text-primary);
 }
 
-.statLabel {
-  font-size: var(--text-2xs);
-  color: var(--text-secondary);
-  text-transform: uppercase;
+.coach {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
 }
 
-.coachInfo {
+.coach svg {
+  color: var(--color-orange);
+}
+
+.coachMissing {
+  color: var(--text-muted);
+}
+
+.coachMissing svg {
+  color: var(--color-amber);
+}
+
+.cardActions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
 }
 
+.rosterButton {
+  flex: 1;
+}

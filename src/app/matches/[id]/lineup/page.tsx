@@ -1,277 +1,394 @@
 'use client';
 
-import React, { useState, useMemo, Suspense } from 'react';
+import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { CheckCircle2, AlertCircle, Play, ArrowLeft } from 'lucide-react';
-import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
-import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
-import { JerseyBadge } from '@/presentation/atoms/JerseyBadge/JerseyBadge';
-import { StatBadge } from '@/presentation/atoms/StatBadge/StatBadge';
-import { useClubStore } from '@/core/application/stores/useClubStore';
+import {
+  AlertCircle,
+  BarChart3,
+  CalendarX2,
+  CheckCircle2,
+  ClipboardList,
+  Info,
+  Play,
+  Radio,
+  Save,
+  UserX,
+} from 'lucide-react';
 import clsx from 'clsx';
+import type { Player } from '@/core/domain/entities/club.types';
+import type { Match } from '@/core/domain/entities/match.types';
+import { FIBA_MAX_ROSTER, FIBA_STARTERS, validateLineup } from '@/core/domain/rules/lineup-rules';
+import { getStartingLineup } from '@/core/domain/rules/match-derivations';
+import { can } from '@/core/domain/rules/permissions';
+import { useClubStore } from '@/core/application/stores/useClubStore';
+import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
+import { PageHeader } from '@/presentation/molecules/PageHeader/PageHeader';
+import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
+import { SectionCard } from '@/presentation/molecules/SectionCard/SectionCard';
+import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
+import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
+import { notify } from '@/presentation/organisms/DialogHost/dialog-store';
+import { LineupPlayerRow } from '@/presentation/organisms/LineupPlayerRow/LineupPlayerRow';
+import { MatchStatusBadge } from '@/presentation/organisms/MatchCard/MatchStatusBadge';
+import { formatMatchDate, isMatchInPlay } from '@/presentation/organisms/MatchCard/match-display';
+import { getTeamRosterPlayers } from '@/presentation/organisms/DivisionRosterModal/team-roster';
 import styles from './page.module.css';
 
-function MatchLineupContent() {
+/** SETUP: before tip-off. IN_PLAY: starters locked, roster can grow. FINISHED: read-only. */
+type LineupMode = 'SETUP' | 'IN_PLAY' | 'FINISHED';
+
+const getMode = (match: Match): LineupMode => {
+  if (match.status === 'SCHEDULED') return 'SETUP';
+  return isMatchInPlay(match) ? 'IN_PLAY' : 'FINISHED';
+};
+
+const byDorsal = (a: Player, b: Player) => a.dorsal - b.dorsal;
+
+export default function MatchLineupPage() {
+  const { id } = useParams<{ id: string }>();
+  const match = useClubStore((state) => state.matches.find((m) => m.id === id));
+
+  if (!match) {
+    return (
+      <TabletAppShell>
+        <div className="page-container">
+          <PageHeader title="Quinteto y convocatoria" backHref="/matches" backLabel="Volver a partidos" />
+          <EmptyState
+            icon={CalendarX2}
+            title="Partido no encontrado"
+            description="El partido no existe o fue eliminado del calendario."
+            action={
+              <LinkButton href="/matches" variant="secondary">
+                Ir a partidos
+              </LinkButton>
+            }
+          />
+        </div>
+      </TabletAppShell>
+    );
+  }
+
+  // Remount the editor (fresh draft) when navigating to another match.
+  return <LineupEditor key={match.id} match={match} />;
+}
+
+function LineupEditor({ match }: { match: Match }) {
   const router = useRouter();
-  const params = useParams();
-  const matchId = params?.id as string;
+  const players = useClubStore((state) => state.players);
+  const teams = useClubStore((state) => state.teams);
+  const role = useClubStore((state) => state.currentUser.role);
+  const startMatch = useClubStore((state) => state.startMatch);
+  const updateMatch = useClubStore((state) => state.updateMatch);
+  const setActiveMatch = useClubStore((state) => state.setActiveMatch);
 
-  const { matches, players, setStartingLineup, updateMatch } = useClubStore();
-  const match = matches.find((m) => m.id === matchId) || matches[0];
+  const mode = getMode(match);
+  const canEdit = can(role, 'MANAGE_LINEUP') && mode !== 'FINISHED';
+  const committedRoster = match.rosterOwnPlayerIds;
 
-  // Eligible players
-  const availablePlayers = useMemo(
-    () => players.filter((p) => p.status !== 'SUSPENDED'),
-    [players]
+  // Candidates: the match team roster (own players plus called-up juveniles) and anyone
+  // already listed. Suspended players are excluded unless they were already listed.
+  const team = teams.find((t) => t.id === match.ownTeamId);
+  const candidateIds = new Set([...getTeamRosterPlayers(team, players).map((p) => p.id), ...committedRoster]);
+  const candidates = players
+    .filter(
+      (p) =>
+        candidateIds.has(p.id) &&
+        (p.status !== 'SUSPENDED' || (mode !== 'SETUP' && committedRoster.includes(p.id)))
+    )
+    .sort(byDorsal);
+  const candidateSet = new Set(candidates.map((p) => p.id));
+
+  const [rosterIds, setRosterIds] = useState<string[]>(() =>
+    mode === 'SETUP' ? committedRoster.filter((pid) => candidateSet.has(pid)) : committedRoster
   );
+  const [starterIds, setStarterIds] = useState<string[]>(() => {
+    const starters = mode === 'SETUP' ? match.startingLineupOwn : getStartingLineup(match);
+    return starters.filter((pid) => mode !== 'SETUP' || rosterIds.includes(pid));
+  });
 
-  // Derived initial selections
-  const defaultRoster = useMemo(() => {
-    if (match?.rosterOwnPlayerIds && match.rosterOwnPlayerIds.length > 0) {
-      return match.rosterOwnPlayerIds;
-    }
-    return availablePlayers.slice(0, 12).map((p) => p.id);
-  }, [match, availablePlayers]);
+  const rosterPlayers = candidates.filter((p) => rosterIds.includes(p.id));
+  const issues = mode === 'SETUP' ? validateLineup(rosterIds, starterIds) : [];
+  const injuredInRoster = rosterPlayers.filter((p) => p.status === 'INJURED').length;
+  const isRosterDirty = mode === 'IN_PLAY' && rosterIds.length !== committedRoster.length;
 
-  const defaultStarters = useMemo(() => {
-    if (match?.activeLineupOwn && match.activeLineupOwn.length === 5) {
-      return match.activeLineupOwn;
-    }
-    return availablePlayers.slice(0, 5).map((p) => p.id);
-  }, [match, availablePlayers]);
-
-  const [userRosterIds, setUserRosterIds] = useState<string[] | null>(null);
-  const [userStarterIds, setUserStarterIds] = useState<string[] | null>(null);
-
-  const rosterIds = userRosterIds ?? defaultRoster;
-  const starterIds = userStarterIds ?? defaultStarters;
+  const isLockedInRoster = (playerId: string) => mode === 'IN_PLAY' && committedRoster.includes(playerId);
 
   const toggleRoster = (playerId: string) => {
+    if (isLockedInRoster(playerId)) return;
     if (rosterIds.includes(playerId)) {
-      setUserRosterIds(rosterIds.filter((id) => id !== playerId));
-      setUserStarterIds(starterIds.filter((id) => id !== playerId));
-    } else {
-      if (rosterIds.length >= 12) {
-        alert('El reglamento FIBA permite un máximo de 12 jugadores en la planilla.');
-        return;
-      }
-      setUserRosterIds([...rosterIds, playerId]);
+      setRosterIds(rosterIds.filter((pid) => pid !== playerId));
+      setStarterIds(starterIds.filter((pid) => pid !== playerId));
+      return;
     }
+    if (rosterIds.length >= FIBA_MAX_ROSTER) {
+      notify({
+        title: 'Convocatoria completa',
+        message: `El reglamento FIBA admite como máximo ${FIBA_MAX_ROSTER} jugadores. Quita a alguien antes de sumar otro.`,
+        tone: 'warning',
+      });
+      return;
+    }
+    setRosterIds([...rosterIds, playerId]);
   };
 
   const toggleStarter = (playerId: string) => {
     if (starterIds.includes(playerId)) {
-      setUserStarterIds(starterIds.filter((id) => id !== playerId));
-    } else {
-      if (starterIds.length >= 5) {
-        alert('Debe haber exactamente 5 jugadores titulares en el quinteto inicial.');
-        return;
-      }
-      if (!rosterIds.includes(playerId)) {
-        setUserRosterIds([...rosterIds, playerId]);
-      }
-      setUserStarterIds([...starterIds, playerId]);
-    }
-  };
-
-  const handleStartMatch = () => {
-    if (starterIds.length !== 5) {
-      alert('Debes seleccionar exactamente 5 titulares para el salto inicial.');
+      setStarterIds(starterIds.filter((pid) => pid !== playerId));
       return;
     }
-
-    setStartingLineup(match.id, starterIds);
-    updateMatch(match.id, {
-      status: 'LIVE',
-      rosterOwnPlayerIds: rosterIds,
-    });
-
-    router.push(`/matches/${match.id}/live`);
+    if (starterIds.length >= FIBA_STARTERS) {
+      notify({
+        title: 'Quinteto completo',
+        message: `Ya elegiste ${FIBA_STARTERS} titulares. Toca uno para pasarlo al banco antes de elegir otro.`,
+        tone: 'warning',
+      });
+      return;
+    }
+    setStarterIds([...starterIds, playerId]);
   };
 
-  const isValidStarters = starterIds.length === 5;
+  const handleStart = () => {
+    const result = startMatch(match.id, rosterIds, starterIds);
+    if (result.ok) {
+      setActiveMatch(match.id);
+      router.push(`/matches/${match.id}/live`);
+      return;
+    }
+    if (result.reason === 'INVALID_LINEUP') {
+      notify({
+        title: 'No se puede iniciar el partido',
+        message: (
+          <ul className={styles.dialogList}>
+            {result.issues.map((issue) => (
+              <li key={issue.code}>{issue.message}</li>
+            ))}
+          </ul>
+        ),
+        tone: 'warning',
+      });
+      return;
+    }
+    notify({
+      title: 'No se puede iniciar el partido',
+      message:
+        result.reason === 'MATCH_ALREADY_STARTED'
+          ? 'El partido ya fue iniciado.'
+          : 'El partido ya no existe.',
+      tone: 'danger',
+    });
+  };
+
+  const handleSaveRoster = () => {
+    updateMatch(match.id, { rosterOwnPlayerIds: rosterIds });
+    notify({
+      title: 'Convocatoria actualizada',
+      message: `La lista de buena fe tiene ahora ${rosterIds.length} jugadores.`,
+      tone: 'success',
+    });
+  };
+
+  const { date, time } = formatMatchDate(match.date);
+
+  const headerActions = (() => {
+    if (mode === 'FINISHED') {
+      return (
+        <LinkButton href={`/matches/${match.id}/stats`} leftIcon={<BarChart3 size={ICON_SIZE.md} />}>
+          Ver box score
+        </LinkButton>
+      );
+    }
+    if (mode === 'IN_PLAY') {
+      return (
+        <>
+          {canEdit && (
+            <TouchButton
+              variant="secondary"
+              leftIcon={<Save size={ICON_SIZE.md} />}
+              disabled={!isRosterDirty}
+              onClick={handleSaveRoster}
+            >
+              Guardar convocatoria
+            </TouchButton>
+          )}
+          <LinkButton href={`/matches/${match.id}/live`} leftIcon={<Radio size={ICON_SIZE.md} />}>
+            Volver a la consola
+          </LinkButton>
+        </>
+      );
+    }
+    return (
+      canEdit && (
+        <TouchButton size="lg" leftIcon={<Play size={ICON_SIZE.md} />} onClick={handleStart}>
+          Iniciar partido
+        </TouchButton>
+      )
+    );
+  })();
+
+  const rosterList = mode === 'FINISHED' ? rosterPlayers : candidates;
 
   return (
     <TabletAppShell>
-      <div className={styles.container}>
-        {/* HEADER */}
-        <div className={styles.header}>
-          <div className={styles.titleArea}>
-            <button
-              type="button"
-              onClick={() => router.back()}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-                marginBottom: '8px',
-                fontSize: 'var(--text-xs)',
-              }}
-            >
-              <ArrowLeft size={16} /> Volver al Calendario
-            </button>
-            <h1 className={styles.title}>Quinteto Inicial y Convocatoria</h1>
-            <p className={styles.subtitle}>
-              {match?.ownTeamName} vs {match?.rivalTeamName} · {match?.tournament}
-            </p>
-          </div>
+      <div className="page-container">
+        <PageHeader
+          title="Quinteto y convocatoria"
+          subtitle={`${match.ownTeamName} vs ${match.rivalTeamName} · ${date} ${time} h · ${match.tournament}`}
+          backHref="/matches"
+          backLabel="Volver a partidos"
+          actions={headerActions}
+        />
 
-          <TouchButton
-            variant="primary"
-            size="lg"
-            leftIcon={<Play size={18} />}
-            disabled={!isValidStarters}
-            onClick={handleStartMatch}
-          >
-            INICIAR PARTIDO EN VIVO
-          </TouchButton>
-        </div>
-
-        {/* VALIDATION STATUS BAR */}
-        <div className={styles.validationBar}>
-          <div className={styles.countsGroup}>
-            <div className={styles.countItem}>
-              <span className={styles.countNum}>{starterIds.length} / 5</span>
-              <span className={styles.countLabel}>Titulares en Cancha</span>
-            </div>
-            <div className={styles.countItem}>
-              <span className={styles.countNum}>{rosterIds.length} / 12</span>
-              <span className={styles.countLabel}>Convocados en Planilla</span>
+        <section className={styles.statusPanel} aria-label="Estado de la convocatoria">
+          <div className={styles.statusTop}>
+            <MatchStatusBadge
+              status={match.status}
+              detail={mode === 'IN_PLAY' ? match.currentQuarter : undefined}
+            />
+            <div className={styles.counters}>
+              <span
+                className={clsx(
+                  styles.counter,
+                  rosterIds.length >= FIBA_STARTERS && rosterIds.length <= FIBA_MAX_ROSTER && styles.counterOk
+                )}
+              >
+                <span className={clsx(styles.counterValue, 'tabular-nums')}>
+                  {rosterIds.length}/{FIBA_MAX_ROSTER}
+                </span>
+                <span className={styles.counterLabel}>Convocados</span>
+              </span>
+              <span className={clsx(styles.counter, starterIds.length === FIBA_STARTERS && styles.counterOk)}>
+                <span className={clsx(styles.counterValue, 'tabular-nums')}>
+                  {starterIds.length}/{FIBA_STARTERS}
+                </span>
+                <span className={styles.counterLabel}>Titulares</span>
+              </span>
             </div>
           </div>
 
-          <div>
-            {isValidStarters ? (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--color-green)', fontSize: 'var(--text-xs)', fontWeight: 'bold' }}>
-                <CheckCircle2 size={16} /> Quinteto inicial completo
-              </span>
-            ) : (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--color-amber)', fontSize: 'var(--text-xs)', fontWeight: 'bold' }}>
-                <AlertCircle size={16} /> Selecciona 5 titulares para habilitar
-              </span>
+          <ul className={styles.messages}>
+            {mode === 'SETUP' &&
+              (issues.length === 0 ? (
+                <li className={clsx(styles.message, styles.messageOk)}>
+                  <CheckCircle2 size={ICON_SIZE.sm} aria-hidden="true" />
+                  Convocatoria y quinteto listos para el salto inicial.
+                </li>
+              ) : (
+                issues.map((issue) => (
+                  <li key={issue.code} className={clsx(styles.message, styles.messageWarning)}>
+                    <AlertCircle size={ICON_SIZE.sm} aria-hidden="true" />
+                    {issue.message}
+                  </li>
+                ))
+              ))}
+            {injuredInRoster > 0 && mode !== 'FINISHED' && (
+              <li className={clsx(styles.message, styles.messageWarning)}>
+                <AlertCircle size={ICON_SIZE.sm} aria-hidden="true" />
+                {injuredInRoster === 1
+                  ? 'Hay 1 jugador lesionado en la convocatoria: revisa su parte médico.'
+                  : `Hay ${injuredInRoster} jugadores lesionados en la convocatoria: revisa sus partes médicos.`}
+              </li>
             )}
-          </div>
-        </div>
+            {mode === 'IN_PLAY' && (
+              <li className={clsx(styles.message, styles.messageInfo)}>
+                <Info size={ICON_SIZE.sm} aria-hidden="true" />
+                El partido está en juego: el quinteto inicial queda bloqueado y solo se pueden sumar
+                jugadores a la convocatoria.
+              </li>
+            )}
+            {mode === 'FINISHED' && (
+              <li className={clsx(styles.message, styles.messageInfo)}>
+                <Info size={ICON_SIZE.sm} aria-hidden="true" />
+                Partido finalizado: la convocatoria es de solo lectura.
+              </li>
+            )}
+            {mode !== 'FINISHED' && !canEdit && (
+              <li className={clsx(styles.message, styles.messageInfo)}>
+                <Info size={ICON_SIZE.sm} aria-hidden="true" />
+                Tu rol no puede modificar la convocatoria ni el quinteto.
+              </li>
+            )}
+          </ul>
+        </section>
 
-        {/* TWO COLUMN INTERFACE: STARTERS VS ROSTER */}
-        <div className={styles.columnsLayout}>
-          {/* COLUMN 1: STARTING FIVE SELECTION */}
-          <div className={styles.column}>
-            <div className={styles.columnHeader}>
-              <h2 className={styles.colTitle}>1. Quinteto Titular (5 Jugadores)</h2>
-              <span className={styles.badge}>Tocar para alternar titular</span>
-            </div>
-
-            <div className={styles.playersList}>
-              {rosterIds.map((pid) => {
-                const player = players.find((p) => p.id === pid);
-                if (!player) return null;
-                const isStarter = starterIds.includes(player.id);
-
-                return (
-                  <div
-                    key={player.id}
-                    className={clsx(
-                      styles.lineupCard,
-                      isStarter && styles.isStarter
-                    )}
-                    onClick={() => toggleStarter(player.id)}
-                  >
-                    <div className={styles.playerLeft}>
-                      <JerseyBadge
-                        dorsal={player.dorsal}
-                        state={isStarter ? 'onCourt' : 'bench'}
-                        size="md"
+        <div className={styles.columns}>
+          <SectionCard
+            title="Convocatoria"
+            icon={ClipboardList}
+            description={
+              mode === 'FINISHED'
+                ? 'Jugadores que integraron la lista de buena fe.'
+                : `Toca un jugador para convocarlo (máximo ${FIBA_MAX_ROSTER}).`
+            }
+          >
+            {rosterList.length === 0 ? (
+              <EmptyState
+                icon={UserX}
+                title="Sin jugadores disponibles"
+                description="El equipo de este partido no tiene jugadores habilitados. Los suspendidos no pueden ser convocados."
+              />
+            ) : (
+              <ul className={styles.playerList}>
+                {rosterList.map((player) => {
+                  const selected = rosterIds.includes(player.id);
+                  const locked = isLockedInRoster(player.id);
+                  return (
+                    <li key={player.id}>
+                      <LineupPlayerRow
+                        player={player}
+                        selected={selected}
+                        tag={selected ? 'Convocado' : undefined}
+                        locked={locked}
+                        meta={
+                          player.status === 'INJURED' && player.medicalNote ? (
+                            <span className={styles.medicalNote}>{player.medicalNote}</span>
+                          ) : undefined
+                        }
+                        onToggle={canEdit && !locked ? () => toggleRoster(player.id) : undefined}
                       />
-                      <div className={styles.playerInfo}>
-                        <span className={styles.name}>
-                          {player.lastName}, {player.firstName}
-                        </span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
-                          <StatBadge position={player.position} />
-                          <span className={styles.positionText}>
-                            {player.heightCm} cm
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </SectionCard>
 
-                    <div>
-                      {isStarter ? (
-                        <span className={styles.tagStarter}>TITULAR</span>
-                      ) : (
-                        <span className={styles.tagBench}>BANCA</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* COLUMN 2: FULL ROSTER (CONVOCADOS) */}
-          <div className={styles.column}>
-            <div className={styles.columnHeader}>
-              <h2 className={styles.colTitle}>2. Plantel Disponible del Club</h2>
-              <span className={styles.badge}>Convocados ({rosterIds.length}/12)</span>
-            </div>
-
-            <div className={styles.playersList}>
-              {availablePlayers.map((player) => {
-                const isSelectedInRoster = rosterIds.includes(player.id);
-
-                return (
-                  <div
-                    key={player.id}
-                    className={clsx(
-                      styles.lineupCard,
-                      isSelectedInRoster && styles.isStarter
-                    )}
-                    onClick={() => toggleRoster(player.id)}
-                  >
-                    <div className={styles.playerLeft}>
-                      <JerseyBadge
-                        dorsal={player.dorsal}
-                        state={isSelectedInRoster ? 'onCourt' : 'default'}
-                        size="sm"
+          <SectionCard
+            title="Quinteto inicial"
+            icon={Play}
+            description={
+              mode === 'SETUP'
+                ? `Elige exactamente ${FIBA_STARTERS} titulares entre los convocados.`
+                : 'Quinteto que saltó a la cancha.'
+            }
+          >
+            {rosterPlayers.length === 0 ? (
+              <EmptyState
+                icon={ClipboardList}
+                title="Sin convocados"
+                description="Primero convoca jugadores para elegir el quinteto inicial."
+              />
+            ) : (
+              <ul className={styles.playerList}>
+                {rosterPlayers.map((player) => {
+                  const selected = starterIds.includes(player.id);
+                  return (
+                    <li key={player.id}>
+                      <LineupPlayerRow
+                        player={player}
+                        selected={selected}
+                        tag={selected ? 'Titular' : 'Banco'}
+                        locked={mode !== 'SETUP' && selected}
+                        onToggle={mode === 'SETUP' && canEdit ? () => toggleStarter(player.id) : undefined}
                       />
-                      <div className={styles.playerInfo}>
-                        <span className={styles.name}>
-                          {player.lastName}, {player.firstName}
-                        </span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <StatBadge position={player.position} />
-                          <span className={styles.positionText}>
-                            {player.status === 'INJURED' ? '⚠️ Con molestia' : 'Disponible'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <span className={isSelectedInRoster ? styles.tagStarter : styles.tagBench}>
-                        {isSelectedInRoster ? 'CONVOCADO' : 'NO CONVOCADO'}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </SectionCard>
         </div>
       </div>
     </TabletAppShell>
-  );
-}
-
-export default function MatchLineupPage() {
-  return (
-    <Suspense fallback={<div style={{ padding: 40, color: '#fff' }}>Cargando quinteto...</div>}>
-      <MatchLineupContent />
-    </Suspense>
   );
 }
