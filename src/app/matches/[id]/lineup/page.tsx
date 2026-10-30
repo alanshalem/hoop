@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   AlertCircle,
@@ -45,7 +45,22 @@ const getMode = (match: Match): LineupMode => {
 
 const byDorsal = (a: Player, b: Player) => a.dorsal - b.dorsal;
 
+// cacheComponents: useParams suspends on dynamic routes, so it needs a Suspense boundary.
 export default function MatchLineupPage() {
+  return (
+    <Suspense
+      fallback={
+        <p className={styles.loading} role="status">
+          Cargando convocatoria...
+        </p>
+      }
+    >
+      <MatchLineupContent />
+    </Suspense>
+  );
+}
+
+function MatchLineupContent() {
   const { id } = useParams<{ id: string }>();
   const match = useClubStore((state) => state.matches.find((m) => m.id === id));
 
