@@ -2,7 +2,7 @@
 
 HoopOS es el sistema de básquet del Club Atlético Monte Grande (CAMG): divisiones, planteles, calendario de partidos y estadísticas FIBA registradas en vivo desde una tablet al borde de la cancha. Este manual describe el sistema tal como está implementado hoy, primero para quien lo usa y después para quien lo mantiene.
 
-> Estado de esta versión: todo funciona en el navegador, sin servidor. Los datos se guardan en el `localStorage` del dispositivo y los roles se simulan. La sincronización con un servidor está en desarrollo (ver [Limitaciones conocidas y roadmap](#9-limitaciones-conocidas-y-roadmap)).
+> Estado de esta versión: local primero con servidor. Cada cambio se guarda al instante en el navegador y se sincroniza con un servidor PostgreSQL cuando hay conexión. El acceso es con correo y contraseña, y los roles se validan en el servidor (ver [Datos, persistencia y sincronización](#7-datos-persistencia-y-sincronización) y [Servidor y base de datos](#8-servidor-y-base-de-datos)).
 
 ## Índice
 
@@ -12,11 +12,12 @@ HoopOS es el sistema de básquet del Club Atlético Monte Grande (CAMG): divisio
 4. [Guía por pantalla](#4-guía-por-pantalla)
 5. [Flujos paso a paso](#5-flujos-paso-a-paso)
 6. [Reglas FIBA aplicadas](#6-reglas-fiba-aplicadas)
-7. [Datos y persistencia](#7-datos-y-persistencia)
-8. [Identidad visual](#8-identidad-visual)
-9. [Limitaciones conocidas y roadmap](#9-limitaciones-conocidas-y-roadmap)
-10. [Arquitectura](#10-arquitectura)
-11. [Glosario](#11-glosario)
+7. [Datos, persistencia y sincronización](#7-datos-persistencia-y-sincronización)
+8. [Servidor y base de datos](#8-servidor-y-base-de-datos)
+9. [Identidad visual](#9-identidad-visual)
+10. [Limitaciones conocidas](#10-limitaciones-conocidas)
+11. [Arquitectura](#11-arquitectura)
+12. [Glosario](#12-glosario)
 
 ---
 
@@ -26,6 +27,7 @@ HoopOS es el sistema de básquet del Club Atlético Monte Grande (CAMG): divisio
 |-------|------------------------------|
 | Del club | Marca, escudo y paleta del Club Atlético Monte Grande (fundado en 1922). Los datos de demostración corresponden al club. |
 | Offline-first | Cada acción se guarda al instante en el navegador. Un corte de WiFi o 4G en el estadio no interrumpe el registro del partido. |
+| Sincronizado | Con conexión, los cambios viajan al servidor del club y llegan en vivo a las demás tablets. Sin conexión quedan en una cola y se envían solos cuando vuelve la red. |
 | Tablet-first | Pensado para tablet (horizontal o vertical) y teléfono. Áreas táctiles de 48 px como mínimo y de 56 px en la consola en vivo. Registro de jugadas en dos toques. |
 | Reglas FIBA | Faltas, bonus, tiempos muertos, duración de períodos, convocatoria, PIR y +/- siguen el reglamento FIBA (detalle en la [sección 6](#6-reglas-fiba-aplicadas)). |
 | Sin alertas del navegador | Todos los avisos y confirmaciones son modales propios de la aplicación (`notify` y `confirm`). Nunca se usa `alert`, `confirm` ni `prompt` del navegador. |
@@ -38,12 +40,17 @@ HoopOS es el sistema de básquet del Club Atlético Monte Grande (CAMG): divisio
 
 - Node.js 20.9 o superior (lo exige Next.js 16; se recomienda la versión LTS vigente). El proyecto no fija `engines` propio en `package.json`.
 - npm (incluido con Node.js).
+- Docker con Docker Compose, para la base de datos PostgreSQL de desarrollo.
 
 ### Puesta en marcha
 
 1. Instalar dependencias: `npm install`
-2. Levantar el entorno de desarrollo: `npm run dev`
-3. Abrir `http://localhost:3000`. La primera carga crea los datos de demostración en el navegador.
+2. Crear `.env.local` a partir de `.env.example` y revisar las variables (ver [Variables de entorno](#variables-de-entorno)). Con los valores por defecto alcanza para desarrollo.
+3. Levantar PostgreSQL: `npm run db:up`
+4. Crear las tablas: `npm run db:migrate`
+5. Cargar el club de demostración y las cuentas: `npm run db:seed`
+6. Levantar la aplicación: `npm run dev`
+7. Abrir `http://localhost:3000` e iniciar sesión con una [cuenta de demostración](#cuentas-de-demostración) (contraseña por defecto `camg1922`).
 
 ### Scripts disponibles
 
@@ -53,7 +60,13 @@ HoopOS es el sistema de básquet del Club Atlético Monte Grande (CAMG): divisio
 | `npm run build` | Compilación de producción. |
 | `npm run start` | Sirve la compilación de producción (requiere `npm run build` antes). |
 | `npm run lint` | ESLint con la configuración de Next.js (`eslint.config.mjs`). |
-| `npm test` | Pruebas unitarias del núcleo: `tsx --test src/**/*.test.ts` (runner `node:test`). |
+| `npm test` | Pruebas unitarias (runner `node:test` vía `tsx`): todos los `src/**/*.test.ts` salvo los `*.db.test.ts`. No necesitan base de datos. |
+| `npm run test:db` | Pruebas de integración contra PostgreSQL (`*.db.test.ts`). Usan una base aparte (ver [Variables de entorno](#variables-de-entorno)). |
+| `npm run db:up` | Levanta PostgreSQL 17 en Docker (`docker compose up -d --wait`). |
+| `npm run db:down` | Detiene el contenedor. Los datos quedan en el volumen `hoop-pgdata`. |
+| `npm run db:migrate` | Aplica las migraciones SQL versionadas de `drizzle/`. |
+| `npm run db:generate` | Genera una migración nueva a partir de `src/server/db/schema.ts` (solo al cambiar el esquema). |
+| `npm run db:seed` | Carga el club de demostración y las cuentas. Solo inserta lo que falta (ver [Datos de demostración en el servidor](#datos-de-demostración-en-el-servidor)). |
 
 Control de tipos (no tiene script propio): `npx tsc --noEmit`.
 
@@ -61,7 +74,7 @@ Control de tipos (no tiene script propio): `npx tsc --noEmit`.
 
 ## 3. Roles y permisos
 
-Hay tres roles. Cada pantalla oculta o deshabilita lo que el rol activo no puede hacer, usando la matriz de `src/core/domain/rules/permissions.ts` (función `can(role, permission)`).
+Hay tres roles. Cada usuario tiene uno, asignado en el servidor. Cada pantalla oculta o deshabilita lo que el rol no puede hacer, usando la matriz de `src/core/domain/rules/permissions.ts` (función `can(role, permission)`). El servidor aplica la misma matriz a cada cambio que recibe, así que un permiso no se puede saltear desde el navegador.
 
 ### Matriz de permisos
 
@@ -75,20 +88,21 @@ Hay tres roles. Cada pantalla oculta o deshabilita lo que el rol activo no puede
 
 Lo que cualquier rol puede ver: dashboard, listado de divisiones y su plantel ("Ver plantel"), jugadores, calendario, convocatorias (en modo lectura) y planillas estadísticas. Sin `RECORD_LIVE` la consola se abre en modo lectura con un aviso.
 
-### Cambiar de rol
+### Cuentas de demostración
 
-- Tablet o escritorio: selector **Rol activo** al pie del riel de navegación lateral, junto al nombre del usuario.
-- Teléfono: el componente `UserRoleSwitcher` aparece en la cabecera del Dashboard (tres botones: Entrenador principal, Asistente planillero, Administrador).
+El rol sale de la cuenta con la que se inicia sesión. `npm run db:seed` crea estas cuentas, todas con la contraseña de `SEED_DEMO_PASSWORD` (por defecto `camg1922`):
 
-Al elegir un rol, el sistema toma el primer usuario de demostración con ese rol:
+| Rol | Usuario | Correo |
+|-----|---------|--------|
+| Administrador | Alejandro Montecchia | `admin@camg.com.ar` |
+| Entrenador principal | Federico Balbi | `fbalbi@camg.com.ar` |
+| Entrenador principal | Sergio Hernández | `shernandez@camg.com.ar` |
+| Entrenador principal | Julio Lamas | `jlamas@camg.com.ar` |
+| Asistente planillero | Mariano Ginóbili | `mginobili@camg.com.ar` |
 
-| Rol | Usuario de demostración |
-|-----|-------------------------|
-| Entrenador principal (rol inicial) | Federico Balbi |
-| Asistente planillero | Mariano Ginóbili |
-| Administrador | Alejandro Montecchia |
+Para usar otro rol hay que cerrar sesión y entrar con otra cuenta. Si el rol de una cuenta cambia en el servidor, la aplicación lo toma la próxima vez que confirma la sesión con conexión.
 
-> El cambio de rol es una simulación: no hay inicio de sesión ni contraseña en esta versión, y los permisos solo se aplican en la interfaz. El rol elegido se guarda junto con el resto de los datos.
+> Cambiar la contraseña de demostración antes de usar el sistema fuera de un entorno de prueba: definir `SEED_DEMO_PASSWORD` y volver a correr `npm run db:seed`.
 
 ---
 
@@ -98,9 +112,36 @@ Al elegir un rol, el sistema toma el primer usuario de demostración con ese rol
 
 | Elemento | Dónde | Función |
 |----------|-------|---------|
-| Riel lateral (tablet) | Izquierda | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, botón **Partido en vivo**, selector de rol, nombre del usuario y botón de tema claro/oscuro. |
+| Riel lateral (tablet) | Izquierda | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, botón **Partido en vivo** y, al pie, el menú de usuario: nombre, rol, botón de tema claro/oscuro, [estado de sincronización](#estado-de-sincronización) y **Cerrar sesión**. |
+| Barra superior (teléfono) | Arriba | Escudo y marca (vuelve al inicio) y el estado de sincronización compacto. |
 | Barra inferior (teléfono) | Abajo | Inicio, Equipos, botón central de partido en vivo (icono `Radio`), Plantel y Fechas. |
+| Menú de usuario (teléfono) | Cabecera del Dashboard | Nombre, rol, estado de sincronización y **Cerrar sesión**. |
 | Diálogos | Sobre la pantalla | Modales propios: avisos (`notify`, botón "Entendido") y confirmaciones (`confirm`, botones "Cancelar" y la acción). Se muestran de a uno, en cola. |
+
+### Inicio de sesión (`/login`)
+
+Pantalla con el escudo del club, campos **Email** y **Contraseña** y el botón **Ingresar**.
+
+| Situación | Qué pasa |
+|-----------|----------|
+| Datos correctos | Entra y vuelve a la pantalla que se había pedido (o al Dashboard). |
+| Correo o contraseña incorrectos | Modal "No pudimos iniciar sesión" con el mensaje genérico "Email o contraseña incorrectos" (no revela si el correo existe). |
+| Sin conexión | Modal "Sin conexión": el primer ingreso en una tablet necesita llegar al servidor. |
+| Campos vacíos o correo mal escrito | El error aparece debajo del campo. |
+| Ya hay una sesión guardada en la tablet | Botón **Continuar como \<nombre\>** para volver sin escribir la contraseña. |
+
+Cualquier otra pantalla, sin una sesión guardada, redirige a `/login` y después vuelve a la pantalla pedida.
+
+### Estado de sincronización
+
+Botón visible en el riel lateral (tablet), en la barra superior (teléfono) y en el menú de usuario del Dashboard. Tocarlo sincroniza en ese momento.
+
+| Estado | Icono | Significado |
+|--------|-------|-------------|
+| Sincronizado | `Cloud` | Todo está en el servidor. Muestra hace cuánto fue la última sincronización. |
+| Sincronizando | `RefreshCw` (gira) | Enviando o recibiendo cambios, o hay cambios pendientes por salir en instantes. |
+| Sin conexión | `CloudOff` | No hay red o el servidor no responde. Muestra cuántos cambios esperan en la cola ("3 pendientes"). La aplicación sigue funcionando igual. |
+| Error | `AlertTriangle` | El servidor rechazó cambios o respondió con un error. Muestra el motivo y "Toca para reintentar". |
 
 ### Dashboard (`/`)
 
@@ -215,6 +256,21 @@ Un partido programado muestra "El partido todavía no comenzó".
 
 ## 5. Flujos paso a paso
 
+### Iniciar sesión
+
+1. Abrir HoopOS. Sin una sesión guardada aparece la pantalla de inicio de sesión.
+2. Escribir el correo y la contraseña de la cuenta y pulsar **Ingresar**.
+3. La primera vez en una tablet, la aplicación descarga todos los datos del servidor y reemplaza los datos de demostración que traía el navegador.
+
+Después del primer ingreso, la tablet abre aunque no haya conexión: guarda el perfil del último usuario (nunca la contraseña ni la sesión).
+
+### Cerrar sesión
+
+1. Pulsar **Cerrar sesión** en el menú de usuario.
+2. Si hay cambios pendientes, la aplicación intenta enviarlos primero.
+3. Si no puede (por ejemplo, sin conexión), un modal avisa "Hay N cambios sin sincronizar. Si cierras sesión ahora, se perderán en este dispositivo." con las opciones **Seguir conectado** y **Cerrar sesión igual**.
+4. Al cerrar sesión se borran de la tablet la sesión, el perfil guardado y la cola de cambios. El próximo ingreso vuelve a descargar todo del servidor.
+
 ### Crear una división
 
 1. Rol Administrador. Ir a **Divisiones** y pulsar **Nueva división**.
@@ -310,6 +366,8 @@ El rival no tiene jugadores cargados. En la barra de herramientas, **+1**, **+2*
 
 **Deshacer** (en Últimas jugadas) elimina la última jugada registrada, sea propia o del rival. Si era un cambio, revierte el quinteto en cancha. El marcador y las faltas se recalculan desde las jugadas, así que deshacer funciona aunque la jugada sea de un período anterior. Los tiempos muertos y los cambios de período no son jugadas y no se deshacen con este botón.
 
+Con varias tablets en el mismo partido, **Deshacer** quita la última jugada de la lista, que puede haber cargado otra tablet. La jugada no se borra del servidor: queda marcada como eliminada y desaparece también en las demás tablets (ver [Sincronización](#sincronización)).
+
 ### Finalizar el partido
 
 1. Pulsar **Finalizar** en la barra de herramientas, o aceptar la propuesta del sistema cuando el reloj llega a 00:00.
@@ -343,21 +401,28 @@ Fuente única de verdad: el marcador, las faltas de equipo, los parciales y el b
 
 ---
 
-## 7. Datos y persistencia
+## 7. Datos, persistencia y sincronización
 
 ### Dónde se guardan
 
 | Dato | Ubicación |
 |------|-----------|
-| Club, usuarios, divisiones, equipos, jugadores, partidos y jugadas, rol activo, división y partido activos | `localStorage`, clave `hoop-club-storage` (Zustand con el middleware `persist`). |
+| Divisiones, equipos, jugadores, partidos y jugadas (copia del servidor) | PostgreSQL: tablas `sync_records` y `match_events` (ver [Servidor y base de datos](#8-servidor-y-base-de-datos)). |
+| Usuarios y sesiones | PostgreSQL: tablas `users` (contraseñas con hash scrypt) y `sessions` (solo el hash del token). |
+| Copia local del club: divisiones, equipos, jugadores, partidos y jugadas, usuario actual, división y partido activos | `localStorage`, clave `hoop-club-storage` (Zustand con el middleware `persist`). |
+| Cola de cambios pendientes (outbox), cursor de sincronización, versiones y hora de la última sincronización | `localStorage`, clave `hoop-sync-storage`. |
+| Perfil del último usuario (id, correo, nombre, rol) | `localStorage`, clave `hoop-auth-storage`. Nunca la contraseña ni el token. |
+| Sesión | Cookie `hoop_session` (httpOnly: el JavaScript de la página no puede leerla), 30 días. |
 | Tema claro u oscuro | `localStorage`, clave `hoop-theme`. |
-| Cola de diálogos, estado del reloj en marcha | Memoria (no se guarda). |
+| Cola de diálogos, estado del reloj en marcha, estado de la sincronización en curso | Memoria (no se guarda). |
 
 El reloj de juego se guarda en el partido al pausar, al corregirlo, al llegar a 00:00, con cada jugada, cambio, tiempo muerto o finalización, al ocultarse la página y al salir de la consola.
 
 ### Versión y migración
 
 El almacenamiento lleva una versión (`CLUB_STORE_VERSION = 3`, en `src/core/application/stores/club-state.ts`). Si el navegador tiene datos de una versión anterior, se descartan y se cargan los datos de demostración actuales en lugar de fallar. Cada cambio en la forma de los datos guardados debe subir esa versión.
+
+La cola de sincronización (`SYNC_STORE_VERSION`, en `useSyncStore.ts`) y el perfil guardado (`AUTH_STORE_VERSION`, en `useAuthStore.ts`) tienen su propia versión. Con una versión vieja, la cola vuelve a empezar sin cursor (la próxima sincronización descarga todo del servidor) y el perfil se descarta (hay que volver a iniciar sesión).
 
 ### Datos de demostración
 
@@ -373,19 +438,112 @@ Se generan en `src/core/infrastructure/mocks/seed-data.ts`, de forma determinís
 | Partido en vivo | Contra Obras Sanitarias, hoy, en el Estadio CAMG: 2.º cuarto con 07:08 en el reloj y el rival en bonus. |
 | Partido programado | Contra Boca Juniors como visitante, dentro de 7 días, con convocatoria precargada. |
 
-### Volver a los datos de demostración
+Los mismos datos cargan el servidor con `npm run db:seed`. El navegador los usa solo hasta el primer ingreso: en la primera sincronización de una tablet, la copia del servidor reemplaza los datos locales de demostración (nunca se envían al servidor).
 
-El store tiene la acción `resetToSeedData`, pero en esta versión ninguna pantalla la expone. Para empezar de cero:
+### Volver a los datos del servidor en una tablet
 
-1. Abrir las herramientas de desarrollo del navegador.
-2. En **Aplicación** (o **Almacenamiento**), borrar la clave `hoop-club-storage` de `localStorage`, o usar "Borrar datos del sitio".
-3. Recargar la página: se cargan los datos de demostración con fechas relativas al día actual.
+La fuente de verdad es el servidor. Para que una tablet descarte su copia local y vuelva a descargar todo:
 
-> Borrar los datos del sitio elimina todo lo cargado en ese navegador. No hay copia en un servidor.
+1. Esperar a que el estado diga **Sincronizado** (si no, los cambios pendientes se pierden).
+2. Pulsar **Cerrar sesión** y volver a iniciar sesión: la primera sincronización descarga todo de nuevo.
+
+Como alternativa, en las herramientas de desarrollo del navegador se pueden borrar las claves `hoop-club-storage` y `hoop-sync-storage` de `localStorage` y recargar. La acción `resetToSeedData` del store sigue sin estar expuesta en la interfaz.
+
+### Sincronización
+
+Cómo funciona para quien usa la aplicación:
+
+| Situación | Qué hace HoopOS |
+|-----------|-----------------|
+| Cualquier cambio (crear un jugador, registrar una jugada, mover el reloj) | Se guarda al instante en la tablet y entra en la cola de salida. Medio segundo después se envía al servidor. |
+| Sin conexión | Todo sigue funcionando igual. El estado muestra **Sin conexión** y cuántos cambios esperan. La cola se guarda en el navegador y sobrevive a recargas y reinicios. |
+| Vuelve la conexión | La cola se envía sola y la tablet descarga lo que cambiaron las demás. Si el servidor no responde, reintenta cada vez más espaciado (1 s, 2 s, 4 s... hasta 60 s). |
+| Otra tablet guarda un cambio | El servidor avisa en vivo (Server-Sent Events) y esta tablet lo descarga en segundos. |
+| Dos tablets editan lo mismo (un jugador, una división, los datos de un partido) | Gana el cambio más reciente según la hora en que se hizo (last-write-wins). El registro se reemplaza completo: si una tablet edita el estadio y otra cambia el quinteto en cancha del mismo partido, queda la versión que se guardó última. |
+| Jugadas | Nunca se pisan: cada jugada tiene su propio ID y se suma a la lista, ordenada por hora y luego por ID. Dos tablets pueden cargar jugadas del mismo partido a la vez sin perder ninguna. El marcador y las faltas se recalculan con todas. |
+| **Deshacer** una jugada | La jugada queda marcada como eliminada en el servidor (no se borra) y desaparece en todas las tablets. Una jugada eliminada no vuelve. |
+| El servidor rechaza un cambio | Si el rol no tiene permiso o el dato no es válido, el cambio se descarta y el estado muestra **Error** con la cantidad de cambios rechazados. Si el servidor tiene una versión más nueva, se descarta el cambio local y se descarga la del servidor. |
+| La sesión venció | La aplicación pide iniciar sesión de nuevo. La cola se conserva y se envía después del ingreso. |
+| Se reinició la base del servidor | Cuando la tablet detecta que el servidor volvió atrás (con el próximo envío o aviso en vivo), descarga todo de nuevo y reemplaza su copia. |
+
+Detalle técnico:
+
+- La aplicación compara el estado anterior y el nuevo del store (por referencia e ID) para detectar entidades creadas, editadas o eliminadas y jugadas nuevas o eliminadas. A cada registro le pone `updatedAt` (hora del cambio, siempre posterior a la versión anterior de ese registro) y lo guarda en la cola: un solo cambio pendiente por registro (`tipo:id`) y por jugada.
+- Un envío (`POST /api/sync/push`) lleva como máximo 500 registros y 2000 jugadas. Una eliminación viaja como marca (tombstone) con los últimos datos conocidos. Los partidos viajan sin jugadas; las jugadas van aparte.
+- La descarga (`GET /api/sync/pull?since=<cursor>`) trae todo lo que cambió después del cursor, de a páginas, y se aplica una sola vez al final. Lo descargado no vuelve a entrar en la cola.
+- Código: `src/core/application/sync/` (núcleo puro y probado), `src/core/infrastructure/sync-api/` (llamadas HTTP y SSE validadas con Zod) y `src/presentation/session/` (arranque, sesión y cierre de sesión).
 
 ---
 
-## 8. Identidad visual
+## 8. Servidor y base de datos
+
+El servidor es la propia aplicación Next.js: las rutas `src/app/api/**` atienden el inicio de sesión y la sincronización, y el código de servidor vive en `src/server/**` (nunca llega al navegador). Los datos están en PostgreSQL 17.
+
+### Base de datos con Docker
+
+| Paso | Comando |
+|------|---------|
+| Levantar PostgreSQL (contenedor `db`, volumen `hoop-pgdata`, puerto solo en `127.0.0.1`) | `npm run db:up` |
+| Crear o actualizar las tablas | `npm run db:migrate` |
+| Cargar el club de demostración y las cuentas | `npm run db:seed` |
+| Correr las pruebas de integración | `npm run test:db` |
+| Detener el contenedor (los datos quedan en el volumen) | `npm run db:down` |
+
+### Variables de entorno
+
+Se definen en `.env.local` (no se sube al repositorio; `.env.example` documenta los valores por defecto). Las variables del sistema tienen prioridad.
+
+| Variable | Para qué | Valor por defecto o ejemplo |
+|----------|----------|-----------------------------|
+| `DATABASE_URL` | Conexión de la aplicación, las migraciones y el seed. Obligatoria. | `postgres://hoop:hoop@127.0.0.1:5432/hoop` |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` | Base, usuario, contraseña y puerto local del contenedor de `docker-compose.yml`. Deben coincidir con `DATABASE_URL`. | `hoop`, `hoop`, `hoop`, `5432` |
+| `SEED_DEMO_PASSWORD` | Contraseña de las cuentas de demostración que crea `npm run db:seed`. | `camg1922` |
+| `TEST_DATABASE_URL` | Base de `npm run test:db`. Si falta, se usa `DATABASE_URL` con `_test` al final del nombre (por ejemplo `hoop_test`), que se crea sola. Nunca toca los datos de desarrollo. | `postgres://hoop:hoop@127.0.0.1:5432/hoop_test` |
+| `SESSION_COOKIE_SECURE` | Fuerza el atributo `Secure` de la cookie de sesión: `true` o `false`. Sin definir, es seguro en producción y no en desarrollo. Poner `false` cuando las tablets entran a una compilación de producción por `http` en la red del club (por ejemplo `http://192.168.0.10:3000`): el navegador descarta las cookies `Secure` en `http` y el inicio de sesión no quedaría guardado. Solo en una red de confianza; detrás de HTTPS dejar el valor por defecto. | sin definir |
+
+### Datos de demostración en el servidor
+
+`npm run db:seed` carga el mismo club de demostración de la [sección 7](#datos-de-demostración) y las [cuentas de demostración](#cuentas-de-demostración). Solo inserta: nunca sobrescribe ni revive registros o jugadas que ya existen (tampoco los que alguien eliminó), así que se puede correr varias veces sin pisar lo cargado por los usuarios. Al terminar informa cuántos registros y jugadas nuevos insertó (`recordsInserted`, `eventsInserted`) y lista las cuentas. Las cuentas se actualizan por ID con la contraseña de `SEED_DEMO_PASSWORD`.
+
+### API
+
+| Ruta | Qué hace |
+|------|----------|
+| `POST /api/auth/login` | `{ email, password }` en JSON. Responde `{ user }` y crea la cookie de sesión, o 401 con "Email o contraseña incorrectos". |
+| `POST /api/auth/logout` | Cierra la sesión y borra la cookie. Exige `Content-Type: application/json` (cuerpo `{}`); sin él responde 415. |
+| `GET /api/auth/me` | El usuario de la sesión (`id`, `email`, `name`, `role`) o 401. |
+| `POST /api/sync/push` | Recibe registros y jugadas; responde `{ accepted, rejected: [{ id, reason }], cursor }`. |
+| `GET /api/sync/pull?since=<cursor>` | Cambios posteriores al cursor (incluye eliminaciones), de a páginas (`hasMore`). Sin `since`, todo. |
+| `GET /api/sync/stream` | Server-Sent Events: `event: changed` con el cursor nuevo tras cada escritura aceptada, y un latido cada 25 s. |
+
+Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el esquema del dominio, o un `updatedAt` más de 5 minutos adelantado respecto del reloj del servidor), `FORBIDDEN` (el rol no tiene el permiso) y `STALE` (el servidor ya tiene una versión igual o más nueva, o la jugada fue eliminada).
+
+### Seguridad
+
+- Contraseñas con hash scrypt y sal aleatoria; la sesión es un token aleatorio del que el servidor solo guarda el hash.
+- Cookie `hoop_session` httpOnly, `SameSite=Lax`, `Secure` en producción (ver `SESSION_COOKIE_SECURE`).
+- Mensaje genérico ante credenciales incorrectas: no revela qué correos existen.
+- `login`, `logout` y `push` exigen JSON y rechazan con 403 ("Solicitud rechazada: el origen no está permitido.") los pedidos cuyo encabezado `Origin` no coincide con el host del servidor. Detrás de un proxy inverso, el proxy debe enviar `X-Forwarded-Host` (o conservar `Host`).
+- Los permisos de cada cambio se validan en el servidor con la misma matriz de roles que usa la interfaz.
+- `updatedAt` más de 5 minutos en el futuro se rechaza, para que un reloj adelantado no gane todos los conflictos.
+
+### Solución de problemas
+
+| Síntoma | Causa probable | Qué hacer |
+|---------|----------------|-----------|
+| Después de ingresar, la tablet vuelve a la pantalla de inicio de sesión | Compilación de producción servida por `http`: el navegador descarta la cookie `Secure`. | Definir `SESSION_COOKIE_SECURE=false` (solo en la red del club) o servir por HTTPS. |
+| El estado queda en **Sin conexión** con conexión | El servidor no responde o no llega a la base. | Revisar que la aplicación esté corriendo, `npm run db:up` y `DATABASE_URL`. |
+| "Sin conexión" al iniciar sesión | El primer ingreso necesita el servidor. | Conectar la tablet a la red del club. |
+| Después de ingresar no hay divisiones ni partidos | La base está vacía. | `npm run db:migrate` y `npm run db:seed`. |
+| **Error**: "El servidor rechazó N cambios" | El rol no tiene permiso, el dato no es válido o el reloj de la tablet está más de 5 minutos adelantado. | Revisar el rol de la cuenta y activar la fecha y hora automáticas en la tablet. |
+| 403 "Solicitud rechazada: el origen no está permitido." | Un proxy cambia el `Host` sin enviar `X-Forwarded-Host`. | Configurar el proxy para conservar el host original. |
+| Una tablet no ve cambios de otra | El canal en vivo se cortó. | Tocar el estado de sincronización para descargar; el canal se reabre solo. |
+| Después de reiniciar la base, una tablet muestra datos viejos | Todavía no detectó el reinicio (lo hace con el próximo envío o aviso en vivo). | Cerrar sesión y volver a ingresar. |
+| `npm run test:db` no conecta | Falta `TEST_DATABASE_URL` o `DATABASE_URL`, o el contenedor no está levantado. | `npm run db:up` y revisar `.env.local`. |
+
+---
+
+## 9. Identidad visual
 
 ### Paleta (tokens de `src/app/globals.css`)
 
@@ -437,51 +595,42 @@ El store tiene la acción `resetToSeedData`, pero en esta versión ninguna panta
 
 ---
 
-## 9. Limitaciones conocidas y roadmap
-
-### Limitaciones de esta versión
+## 10. Limitaciones conocidas
 
 | Limitación | Detalle |
 |------------|---------|
-| Sin pruebas E2E de navegador | Las pruebas cubren el núcleo (dominio, casos de uso, hooks puros, datos de demostración). La interfaz no tiene pruebas automatizadas en navegador. |
+| Sin pruebas E2E de navegador | Las pruebas cubren el núcleo (dominio, casos de uso, hooks puros, sincronización, datos de demostración) y el servidor. La interfaz no tiene pruebas automatizadas en navegador. |
+| Conflictos por registro completo | Dos ediciones del mismo registro desde tablets distintas no se combinan campo por campo: gana la más reciente entera. En un partido en vivo conviene que una sola tablet maneje reloj, quinteto y tiempos muertos. Las jugadas no tienen este problema. |
+| Una pestaña por dispositivo | Dos pestañas de HoopOS abiertas en el mismo navegador comparten el `localStorage` sin coordinarse. Usar una sola. |
+| Reinicio de la base | La tablet detecta un reinicio de la base del servidor recién con su próximo envío o aviso en vivo. |
+| Cambios rechazados | Un cambio que el servidor rechaza por permiso o validez se descarta y solo se informa la cantidad, no cuál fue. |
+| Consola en vivo sin indicador | La consola en vivo usa toda la pantalla y no muestra el estado de sincronización; se ve al volver a cualquier otra pantalla. |
 | Entretiempo no gestionado | El estado `HALFTIME` existe en el modelo, pero la consola no lo activa: el partido sigue "En vivo" entre el 2.º y el 3.er cuarto. |
 | Empate tras el 4.º suplementario | Si el reloj llega a 00:00 con empate al final del 4.º suplementario, solo se muestra un aviso. |
 | Tiempos muertos al final del partido | No se aplica el máximo de 2 tiempos muertos en los últimos 2 minutos del 4.º cuarto. |
 | Dorsal repetido | No se impide que dos jugadores del mismo equipo usen el mismo dorsal. |
-| Roles simulados | No hay inicio de sesión. Los permisos solo se aplican en la interfaz. |
-| Datos por dispositivo | Cada navegador tiene sus propios datos. No se comparten entre dispositivos. |
-| Reinicio sin botón | `resetToSeedData` no está expuesto en la interfaz (ver [sección 7](#volver-a-los-datos-de-demostración)). |
-
-### Roadmap: sincronización con servidor (en desarrollo)
-
-Objetivo: que el sistema siga funcionando sin conexión y además se sincronice con un servidor central.
-
-| Pieza | Decisión |
-|-------|----------|
-| Base de datos | PostgreSQL (Docker para desarrollo). |
-| Acceso | Inicio de sesión real con correo y contraseña (contraseñas con hash, sesión en cookie segura) y roles validados en el servidor. |
-| Escritura local primero | Cada cambio se guarda en el navegador y en una cola de salida (outbox) persistente. La cola se envía al servidor cuando hay conexión y se reintenta cuando vuelve. |
-| Fusión de datos | Divisiones, equipos, jugadores y datos del partido: gana la última escritura según `updatedAt` (LWW). Jugadas: solo se agregan, por ID, y nunca se sobrescriben. |
-| Tiempo real | Envío en vivo de cambios a otros dispositivos con Server-Sent Events (SSE). |
-
-Nada de esto está disponible todavía. Este manual se actualizará cuando se incorpore.
+| Usuarios sin pantalla de gestión | Las cuentas se crean con `npm run db:seed`. No hay pantalla para crear usuarios ni cambiar contraseñas. |
+| Reinicio sin botón | `resetToSeedData` no está expuesto en la interfaz (ver [sección 7](#volver-a-los-datos-del-servidor-en-una-tablet)). |
 
 ---
 
-## 10. Arquitectura
+## 11. Arquitectura
 
 ### Capas (Clean Architecture)
 
 | Capa | Carpeta | Contenido |
 |------|---------|-----------|
 | Dominio | `src/core/domain/` | Entidades y esquemas Zod (`entities/`), objetos de valor (`value-objects/coordinates.ts`) y reglas puras (`rules/`): FIBA, derivaciones del partido, reloj, tiempos muertos, convocatoria, analítica de temporada y permisos. Sin React ni Zustand. |
-| Aplicación | `src/core/application/` | Casos de uso puros (`use-cases/`: entra un estado, sale uno nuevo o un rechazo tipado), el store `useClubStore` con su estado persistido y migración (`stores/`) y hooks (`hooks/`): `useLiveMatchConsole`, `useGameClock` y su lógica pura testeable. |
-| Infraestructura | `src/core/infrastructure/` | Datos de demostración determinísticos (`mocks/`: semilla, generador de jugadas, PRNG). |
-| Presentación | `src/presentation/` y `src/app/` | Diseño atómico (`atoms/`, `molecules/`, `organisms/`, `templates/`), movimiento (`motion/`), diálogos (`organisms/DialogHost/`), marca (`brand.ts`) y tamaños de icono (`icon-sizes.ts`). Las rutas viven en `src/app/` (App Router de Next.js). |
+| Aplicación | `src/core/application/` | Casos de uso puros (`use-cases/`: entra un estado, sale uno nuevo o un rechazo tipado), los stores persistidos `useClubStore`, `useSyncStore` y `useAuthStore` (`stores/`), el motor de sincronización y sus reglas puras (`sync/`: diferencias, cola de salida, fusión de lo descargado), la sesión del cliente (`auth/`) y hooks (`hooks/`): `useLiveMatchConsole`, `useGameClock` y su lógica pura testeable. |
+| Infraestructura | `src/core/infrastructure/` | Datos de demostración determinísticos (`mocks/`: semilla, generador de jugadas, PRNG) y adaptadores de la API (`sync-api/`: `fetch` y `EventSource`, con respuestas validadas por Zod). |
+| Presentación | `src/presentation/` y `src/app/` | Diseño atómico (`atoms/`, `molecules/`, `organisms/`, `templates/`), movimiento (`motion/`), diálogos (`organisms/DialogHost/`), sesión (`session/`: `SessionProvider` montado en el layout, arranque del motor y cierre de sesión), marca (`brand.ts`) y tamaños de icono (`icon-sizes.ts`). Las rutas viven en `src/app/` (App Router de Next.js). |
+| Servidor | `src/server/` y `src/app/api/` | Base de datos (Drizzle + `pg`), autenticación y sesiones, RBAC del servidor y sincronización (push, pull, SSE). Marcado `server-only`: nunca se importa desde componentes del cliente. Reutiliza los esquemas y permisos del dominio. |
 
 ### Regla de dependencias
 
 Las dependencias apuntan hacia adentro: presentación usa aplicación y dominio; aplicación usa dominio; dominio no importa nada de las otras capas. Los casos de uso reciben el ID y la hora desde afuera (`UseCaseContext`), así que son determinísticos y se prueban sin mocks. El store solo orquesta: busca el partido, ejecuta el caso de uso y guarda el resultado si fue exitoso.
+
+El motor de sincronización (`createSyncEngine`) no conoce el navegador: recibe la API, los stores, la conectividad, el canal SSE y los temporizadores como puertos. `src/presentation/session/sync-runtime.ts` es el único lugar que los conecta.
 
 ### Árbol resumido
 
@@ -489,14 +638,18 @@ Las dependencias apuntan hacia adentro: presentación usa aplicación y dominio;
 src/
   app/                      rutas: /, /divisions, /players, /matches,
                             /matches/live, /matches/[id]/{lineup,live,stats}
+                            /login, /api/auth/*, /api/sync/*
   core/
     domain/                 entities/, rules/, value-objects/
-    application/            use-cases/, stores/, hooks/
-    infrastructure/mocks/   seed-data.ts, play-by-play-generator.ts, prng.ts
+    application/            use-cases/, stores/, hooks/, sync/, auth/
+    infrastructure/         mocks/ (semilla), sync-api/ (fetch, SSE)
     testing/fixtures.ts     fixtures compartidas de las pruebas
   presentation/
     atoms/ molecules/ organisms/ templates/
     motion/                 useMotion, usePageEnter, useNavIndicator
+    session/                SessionProvider, sync-runtime, logout
+  server/                   db/, auth/, sync/, http/ (server-only)
+drizzle/                    migraciones SQL versionadas
 public/brand/               escudo del club
 ```
 
@@ -524,12 +677,14 @@ public/brand/               escudo del club
 
 - Runner: `node:test` con `node:assert`, ejecutado por `tsx` (`npm test`). Los archivos `*.test.ts` viven junto al código que prueban.
 - Cubren: reglas FIBA (faltas, bonus, PIR, +/-, box score), reloj y períodos, tiempos muertos, convocatoria, permisos, clasificación de jugadas, esquemas, derivación del marcador y parciales, analítica de temporada, casos de uso de club y de partido, estado del store y migración, reducer del reloj, reglas de la consola, efectividad de tiros, integridad e identidad de los datos de demostración.
+- Sincronización del cliente: diferencias entre estados, coalescencia de la cola, límites del envío, resultado del envío (aceptado, `STALE`, `FORBIDDEN`, `INVALID`), fusión last-write-wins, eliminaciones, orden de jugadas, primera sincronización, reinicio del cursor, motor (debounce, reintentos con espera creciente, 401, sin conexión, SSE), adaptador HTTP y textos del indicador.
+- Servidor: hash de contraseñas, sesiones, RBAC, esquemas de la API, reglas de fusión, SSE y, con `npm run test:db`, integración contra PostgreSQL.
 - No cubren: componentes React ni flujos en navegador.
 - Controles de calidad antes de integrar: `npx tsc --noEmit`, `npm run lint`, `npm test` y `npm run build`.
 
 ---
 
-## 11. Glosario
+## 12. Glosario
 
 | Término | Significado |
 |---------|-------------|
@@ -549,7 +704,9 @@ public/brand/               escudo del club
 | Convocado | Juvenil sumado al plantel de otro equipo (por ejemplo, Primera) sin dejar su división. |
 | Jugada a jugada (play-by-play) | Lista ordenada de jugadas del partido; fuente única del marcador y las estadísticas. |
 | Offline-first | Diseño en el que la aplicación funciona sin conexión y guarda todo localmente. |
-| Outbox (cola de salida) | Cola persistente de cambios pendientes de enviar al servidor (en desarrollo). |
-| LWW (last-write-wins) | Estrategia de fusión en la que gana el cambio más reciente según `updatedAt` (en desarrollo). |
-| SSE (Server-Sent Events) | Canal del servidor al navegador para avisar cambios en vivo (en desarrollo). |
+| Outbox (cola de salida) | Cola persistente de cambios pendientes de enviar al servidor (`hoop-sync-storage`). |
+| LWW (last-write-wins) | Estrategia de fusión en la que gana el cambio más reciente según `updatedAt`. |
+| Tombstone (marca de eliminación) | Registro o jugada marcado como eliminado en lugar de borrarse, para que la eliminación llegue a todas las tablets. |
+| Cursor | Posición de la última descarga: la siguiente trae solo lo que cambió después. |
+| SSE (Server-Sent Events) | Canal del servidor al navegador para avisar cambios en vivo. |
 | RBAC | Control de acceso basado en roles. |
