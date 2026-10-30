@@ -1,0 +1,240 @@
+.shellContainer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+}
+
+@media (min-width: 768px) {
+  .shellContainer {
+    flex-direction: row;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   TABLET NAVIGATION RAIL (LEFT COLUMN)
+   ----------------------------------------------------------------------------- */
+.navRail {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .navRail {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 220px;
+    background-color: var(--bg-surface-1);
+    border-right: 1px solid var(--border-subtle);
+    padding: var(--space-4);
+    height: 100dvh;
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+    flex-shrink: 0;
+  }
+}
+
+.brandSection {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-6) var(--space-2);
+}
+
+.logoIcon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background-color: var(--color-orange);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-black);
+  box-shadow: 0 0 12px var(--color-orange-glow);
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+}
+
+.brandTitle {
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-black);
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+.brandSubtitle {
+  font-size: var(--text-2xs);
+  color: var(--color-orange);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.1em;
+}
+
+.navLinks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3);
+  min-height: var(--touch-min);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--text-sm);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  text-decoration: none;
+  touch-action: manipulation;
+}
+
+.navItem:hover {
+  background-color: var(--bg-surface-2);
+  color: var(--text-primary);
+}
+
+.navItemActive {
+  background-color: var(--color-orange-subtle);
+  color: var(--color-orange);
+  font-weight: var(--font-weight-bold);
+}
+
+.liveButtonRail {
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  min-height: var(--touch-min);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-orange) 0%, #E05E00 100%);
+  color: #FFFFFF;
+  font-weight: var(--font-weight-black);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 14px var(--color-orange-glow);
+  text-decoration: none;
+  animation: pulseGlow 2.5s infinite;
+  touch-action: manipulation;
+}
+
+@keyframes pulseGlow {
+  0% { box-shadow: 0 0 10px var(--color-orange-glow); }
+  50% { box-shadow: 0 0 20px var(--color-orange-glow); }
+  100% { box-shadow: 0 0 10px var(--color-orange-glow); }
+}
+
+.roleSection {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.roleSelector {
+  width: 100%;
+  padding: var(--space-2);
+  background-color: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.userLabel {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* -----------------------------------------------------------------------------
+   MOBILE BOTTOM NAVIGATION BAR (FIXED IN THUMB-ZONE)
+   ----------------------------------------------------------------------------- */
+.bottomBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background-color: var(--bg-surface-1);
+  border-top: 1px solid var(--border-strong);
+  z-index: var(--z-sticky);
+  padding: 0 var(--space-2);
+}
+
+@media (min-width: 768px) {
+  .bottomBar {
+    display: none;
+  }
+}
+
+.bottomItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 48px;
+  height: 100%;
+  color: var(--text-secondary);
+  font-size: var(--text-2xs);
+  text-decoration: none;
+  touch-action: manipulation;
+}
+
+.bottomItemActive {
+  color: var(--color-orange);
+  font-weight: var(--font-weight-bold);
+}
+
+.bottomLiveAction {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-orange);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px var(--color-orange-glow);
+  transform: translateY(-8px);
+}
+
+/* -----------------------------------------------------------------------------
+   MAIN CONTENT AREA
+   ----------------------------------------------------------------------------- */
+.mainContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-bottom: 72px; /* clearance for mobile bottom bar */
+}
+
+@media (min-width: 768px) {
+  .mainContent {
+    padding-bottom: 0;
+    height: 100dvh;
+    overflow-y: auto;
+  }
+}

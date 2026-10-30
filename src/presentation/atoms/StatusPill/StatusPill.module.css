@@ -1,0 +1,62 @@
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-0-5) var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  line-height: 1;
+}
+
+.indicatorDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+}
+
+.statusActive {
+  background-color: var(--color-green-subtle);
+  color: var(--color-green);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.statusActive .indicatorDot {
+  background-color: var(--color-green);
+  box-shadow: 0 0 4px var(--color-green);
+}
+
+.statusInjured {
+  background-color: var(--color-red-subtle);
+  color: var(--color-red);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.statusInjured .indicatorDot {
+  background-color: var(--color-red);
+  box-shadow: 0 0 4px var(--color-red);
+}
+
+.statusSuspended {
+  background-color: var(--color-amber-subtle);
+  color: var(--color-amber);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.statusSuspended .indicatorDot {
+  background-color: var(--color-amber);
+  box-shadow: 0 0 4px var(--color-amber);
+}
+
+.statusNeutral {
+  background-color: var(--bg-surface-2);
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}
+
+.statusNeutral .indicatorDot {
+  background-color: var(--text-muted);
+}

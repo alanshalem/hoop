@@ -1,0 +1,46 @@
+.foulDotsContainer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-surface-3);
+  border: 1px solid var(--border-subtle);
+  transition: background-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.dotActiveGreen {
+  background-color: var(--color-green);
+  border-color: var(--color-green);
+  box-shadow: 0 0 6px var(--color-green-glow);
+}
+
+.dotActiveAmber {
+  background-color: var(--color-amber);
+  border-color: var(--color-amber);
+  box-shadow: 0 0 8px var(--color-amber-glow);
+  transform: scale(1.15);
+}
+
+.dotActiveRed {
+  background-color: var(--color-red);
+  border-color: var(--color-red);
+  box-shadow: 0 0 10px var(--color-red-glow);
+  transform: scale(1.25);
+  animation: pulseFouledOut 1.5s infinite;
+}
+
+@keyframes pulseFouledOut {
+  0% { transform: scale(1.2); }
+  50% { transform: scale(1.4); }
+  100% { transform: scale(1.2); }
+}
+
+.sizeLg .dot {
+  width: 12px;
+  height: 12px;
+}

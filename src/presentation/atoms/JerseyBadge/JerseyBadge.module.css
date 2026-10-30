@@ -1,0 +1,83 @@
+.jerseyBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border-radius: var(--radius-md);
+  font-family: var(--font-athletic), var(--font-mono);
+  font-weight: var(--font-weight-black);
+  user-select: none;
+  border: 2px solid transparent;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* SIZES */
+.sizeSm {
+  width: 36px;
+  height: 36px;
+  font-size: var(--text-sm);
+  border-radius: var(--radius-sm);
+}
+
+.sizeMd {
+  width: 48px;
+  height: 48px;
+  font-size: var(--text-lg);
+  border-radius: var(--radius-md);
+}
+
+.sizeLg {
+  width: 64px;
+  height: 64px;
+  font-size: var(--text-2xl);
+  border-radius: var(--radius-lg);
+}
+
+/* STATES */
+.stateDefault {
+  background-color: var(--bg-surface-2);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+
+.stateOnCourt {
+  background-color: var(--color-orange-subtle);
+  color: var(--color-orange);
+  border-color: var(--color-orange);
+  box-shadow: 0 0 16px var(--color-orange-glow);
+}
+
+.stateBench {
+  background-color: var(--bg-surface-1);
+  color: var(--text-muted);
+  border-color: var(--border-subtle);
+  opacity: 0.85;
+}
+
+.stateFoulWarning {
+  background-color: var(--color-amber-subtle);
+  color: var(--color-amber);
+  border-color: var(--color-amber);
+  box-shadow: 0 0 16px var(--color-amber-glow);
+}
+
+.stateFouledOut {
+  background-color: var(--color-red-subtle);
+  color: var(--color-red);
+  border-color: var(--color-red);
+  box-shadow: 0 0 16px var(--color-red-glow);
+}
+
+.fouledOutStrikethrough::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 10%;
+  right: 10%;
+  height: 3px;
+  background-color: var(--color-red);
+  transform: rotate(-35deg);
+  border-radius: var(--radius-full);
+}

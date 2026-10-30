@@ -1,5 +1,1 @@
-/**
- * Presentation Templates barrel
- */
-export {};
-
+export * from './TabletAppShell/TabletAppShell';

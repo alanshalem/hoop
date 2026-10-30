@@ -1,0 +1,118 @@
+.touchButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  will-change: transform;
+}
+
+.touchButton:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.touchButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* SIZES (Ensuring >= 48px touch targets) */
+.sizeMd {
+  min-height: var(--touch-min);
+  padding: 0 var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.sizeLg {
+  min-height: var(--touch-lg);
+  padding: 0 var(--space-6);
+  font-size: var(--text-base);
+}
+
+.sizeXl {
+  min-height: var(--touch-xl);
+  padding: 0 var(--space-8);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+/* VARIANTS */
+.variantPrimary {
+  background-color: var(--color-orange);
+  color: var(--text-primary);
+  box-shadow: 0 4px 12px var(--color-orange-glow);
+}
+
+.variantPrimary:hover {
+  background-color: var(--color-orange-hover);
+}
+
+.variantSecondary {
+  background-color: var(--bg-surface-2);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+
+.variantSecondary:hover {
+  background-color: var(--bg-surface-3);
+  border-color: var(--border-strong);
+}
+
+.variantSuccess {
+  background-color: var(--color-green);
+  color: var(--text-primary);
+  box-shadow: 0 4px 12px var(--color-green-glow);
+}
+
+.variantSuccess:hover {
+  background-color: var(--color-green-hover);
+}
+
+.variantDanger {
+  background-color: var(--color-red);
+  color: var(--text-primary);
+  box-shadow: 0 4px 12px var(--color-red-glow);
+}
+
+.variantDanger:hover {
+  background-color: var(--color-red-hover);
+}
+
+.variantGhost {
+  background-color: transparent;
+  color: var(--text-secondary);
+}
+
+.variantGhost:hover {
+  background-color: var(--color-orange-subtle);
+  color: var(--color-orange);
+}
+
+.variantCourtAction {
+  background-color: var(--bg-surface-1);
+  color: var(--text-primary);
+  border: 2px solid var(--border-strong);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.variantCourtAction:hover {
+  border-color: var(--color-orange);
+  background-color: var(--bg-surface-2);
+}
+
+.fullWidth {
+  width: 100%;
+}
