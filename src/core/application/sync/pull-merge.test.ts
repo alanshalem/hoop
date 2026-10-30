@@ -7,6 +7,7 @@ import {
   reconcileSelection,
 } from './pull-merge';
 import { toMatchRecord } from './sync-records';
+import { readFieldVersions, resolveFieldVersions, writeFieldVersions, type CompleteFieldVersions } from './match-fields';
 import { createEmptyOutbox, enqueueChanges } from './outbox';
 import type { PulledChanges, SyncableClubData, SyncEvent, SyncRecord } from './sync-types';
 import { makeDivision, makeEvent, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
@@ -182,6 +183,115 @@ describe('mergePulledChanges: events append-only (S10.7)', () => {
   });
 });
 
+describe('mergePulledChanges: match records merge per field (S13.1)', () => {
+  const T3 = '2026-10-30T18:00:03.000Z';
+  const allAt = (iso: string): CompleteFieldVersions => resolveFieldVersions(undefined, iso);
+  const remoteMatch = (
+    overrides: Partial<ReturnType<typeof makeMatch>>,
+    updatedAt: string,
+    fieldVersions?: Partial<CompleteFieldVersions>
+  ): SyncRecord => ({
+    kind: 'match',
+    id: 'm-test',
+    data: toMatchRecord(makeMatch(overrides)),
+    updatedAt,
+    deleted: false,
+    ...(fieldVersions ? { fieldVersions: { ...allAt(T0), ...fieldVersions } } : {}),
+  });
+
+  /** A device whose match changed `status` locally at T3 (pending push). */
+  function deviceWithLocalStatusEdit() {
+    const base = club({ matches: [makeMatch({ status: 'HALFTIME', venue: 'Club' })] });
+    const known = writeFieldVersions({ 'match:m-test': T0 }, 'm-test', allAt(T0));
+    const local = enqueueChanges(
+      { outbox: createEmptyOutbox(), versions: known },
+      { records: [{ kind: 'match', id: 'm-test', data: toMatchRecord(base.matches[0]), deleted: false, changedFields: ['status'] }], events: [] },
+      Date.parse(T3)
+    );
+    return { data: base, ...local };
+  }
+
+  it('keeps the local edit and applies the remote edit of another field', () => {
+    const state = deviceWithLocalStatusEdit();
+    const result = mergePulledChanges(state, pulled({
+      records: [remoteMatch({ status: 'LIVE', venue: 'Remote venue' }, T2, { venue: T2 })],
+    }));
+    const [match] = result.data.matches;
+    assert.strictEqual(match.status, 'HALFTIME', 'the newer local field wins');
+    assert.strictEqual(match.venue, 'Remote venue', 'the newer remote field wins');
+    const versions = readFieldVersions(result.versions, 'm-test');
+    assert.strictEqual(versions.status, T3);
+    assert.strictEqual(versions.venue, T2);
+    assert.strictEqual(result.versions['match:m-test'], T3);
+    assert.ok(result.outbox.records['match:m-test'], 'the local edit is still pending');
+  });
+
+  it('applies a newer remote value of the same field and drops the pending entry it covers', () => {
+    const state = deviceWithLocalStatusEdit();
+    const T4 = '2026-10-30T18:00:04.000Z';
+    const result = mergePulledChanges(state, pulled({
+      records: [remoteMatch({ status: 'FINISHED', venue: 'Club' }, T4, { status: T4 })],
+    }));
+    assert.strictEqual(result.data.matches[0].status, 'FINISHED');
+    assert.strictEqual(result.outbox.records['match:m-test'], undefined);
+  });
+
+  it('keeps the remote value on a tie (the server already decided)', () => {
+    const state = deviceWithLocalStatusEdit();
+    const result = mergePulledChanges(state, pulled({
+      records: [remoteMatch({ status: 'LIVE', venue: 'Club' }, T3, { status: T3 })],
+    }));
+    assert.strictEqual(result.data.matches[0].status, 'LIVE');
+    assert.strictEqual(result.outbox.records['match:m-test'], undefined);
+  });
+
+  it('treats a record without field versions as written at updatedAt on every field', () => {
+    const state = deviceWithLocalStatusEdit();
+    const result = mergePulledChanges(state, pulled({
+      records: [remoteMatch({ status: 'LIVE', venue: 'Legacy venue' }, T2)],
+    }));
+    const [match] = result.data.matches;
+    assert.strictEqual(match.status, 'HALFTIME');
+    assert.strictEqual(match.venue, 'Legacy venue');
+  });
+
+  it('removes the match only when the tombstone is newer than every local field', () => {
+    const state = deviceWithLocalStatusEdit();
+    const older = mergePulledChanges(state, pulled({ records: [{ ...remoteMatch({}, T2), deleted: true }] }));
+    assert.deepStrictEqual(older.data.matches.map((match) => match.id), ['m-test']);
+    assert.strictEqual(older.changed, false);
+
+    const newer = mergePulledChanges(state, pulled({ records: [{ ...remoteMatch({}, T3), deleted: true }] }));
+    assert.deepStrictEqual(newer.data.matches, []);
+  });
+
+  it('leaves the data untouched when every local field is newer', () => {
+    const state = deviceWithLocalStatusEdit();
+    const result = mergePulledChanges(state, pulled({
+      records: [remoteMatch({ status: 'LIVE', venue: 'Club' }, T1, { status: T1 })],
+    }));
+    assert.strictEqual(result.changed, false);
+    assert.strictEqual(result.data, state.data);
+  });
+
+  it('re-applies a pending match edit over the snapshot field by field', () => {
+    const state = deviceWithLocalStatusEdit();
+    const snapshot = applyServerSnapshot(
+      pulled({ records: [remoteMatch({ status: 'LIVE', venue: 'Server venue' }, T2, { venue: T2 })] }),
+      state.outbox
+    );
+    const [match] = snapshot.data.matches;
+    assert.strictEqual(match.status, 'HALFTIME');
+    assert.strictEqual(match.venue, 'Server venue');
+    assert.strictEqual(readFieldVersions(snapshot.versions, 'm-test').status, T3);
+    assert.ok(snapshot.outbox.records['match:m-test']);
+  });
+});
+
+/** Record-level versions only (match field versions use `match:<id>#<field>` keys). */
+const recordVersions = (versions: Record<string, string>) =>
+  Object.fromEntries(Object.entries(versions).filter(([key]) => !key.includes('#')));
+
 describe('applyServerSnapshot (first sync on a device)', () => {
   it('replaces local data with the server snapshot and resets the outbox', () => {
     const remote = toMatchRecord(makeMatch({ id: 'm-server' }));
@@ -200,11 +310,12 @@ describe('applyServerSnapshot (first sync on a device)', () => {
     assert.deepStrictEqual(snapshot.data.players.map((p) => p.id), ['p-server']);
     assert.deepStrictEqual(snapshot.data.matches[0].events.map((e) => e.id), ['ev-1', 'ev-2']);
     assert.strictEqual(snapshot.data.matches[0].homeScore, 5);
-    assert.deepStrictEqual(snapshot.versions, {
+    assert.deepStrictEqual(recordVersions(snapshot.versions), {
       'player:p-server': T1,
       'player:p-gone': T1,
       'match:m-server': T1,
     });
+    assert.deepStrictEqual(readFieldVersions(snapshot.versions, 'm-server'), resolveFieldVersions(undefined, T1));
     assert.deepStrictEqual(snapshot.outbox, createEmptyOutbox());
   });
 
@@ -256,7 +367,7 @@ describe('applyServerSnapshot (first sync on a device)', () => {
     assert.deepStrictEqual(Object.keys(snapshot.outbox.records).sort(), ['player:p-local', 'player:p-server']);
     assert.deepStrictEqual(Object.keys(snapshot.outbox.events).sort(), ['ev-1', 'ev-3']);
     assert.strictEqual(snapshot.outbox.nextRev, local.outbox.nextRev);
-    assert.deepStrictEqual(snapshot.versions, {
+    assert.deepStrictEqual(recordVersions(snapshot.versions), {
       'player:p-server': T3,
       'player:p-stale': T2,
       'player:p-local': T3,

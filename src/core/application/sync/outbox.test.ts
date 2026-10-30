@@ -9,6 +9,8 @@ import {
   markBatchAttempted,
   nextUpdatedAt,
 } from './outbox';
+import { readFieldVersions, resolveFieldVersions, writeFieldVersions, type MatchField } from './match-fields';
+import { toMatchRecord } from './sync-records';
 import type { ClubDiff, EventChange, Outbox, RecordChange, VersionMap } from './sync-types';
 import { makeEvent, makeMatch, makePlayer } from '@/core/testing/fixtures';
 
@@ -99,7 +101,69 @@ describe('enqueueChanges (S10.7 outbox)', () => {
   });
 });
 
+describe('enqueueChanges: match field versions (S13.1)', () => {
+  const T0 = '2026-10-30T17:00:00.000Z';
+  const stamp = '2026-10-30T18:00:00.000Z';
+  const matchChange = (changedFields?: MatchField[]): RecordChange => ({
+    kind: 'match',
+    id: 'm-test',
+    data: toMatchRecord(makeMatch()),
+    deleted: false,
+    ...(changedFields ? { changedFields } : {}),
+  });
+
+  it('stamps only the changed fields and keeps the others at their known version', () => {
+    const known = writeFieldVersions({ 'match:m-test': T0 }, 'm-test', resolveFieldVersions(undefined, T0));
+    const { outbox, versions } = enqueue({ records: [matchChange(['status', 'venue'])] }, createEmptyOutbox(), known);
+    const entry = outbox.records['match:m-test'];
+    assert.strictEqual(entry.updatedAt, stamp);
+    assert.ok(entry.kind === 'match' && entry.fieldVersions);
+    assert.strictEqual(entry.fieldVersions.status, stamp);
+    assert.strictEqual(entry.fieldVersions.venue, stamp);
+    assert.strictEqual(entry.fieldVersions.rivalTeamName, T0);
+    assert.ok(!('changedFields' in entry), 'diff bookkeeping never reaches the outbox');
+    assert.strictEqual(versions['match:m-test'], stamp);
+    assert.deepStrictEqual(readFieldVersions(versions, 'm-test'), entry.fieldVersions);
+  });
+
+  it('stamps every field of a new match and keeps earlier pending stamps when edited again', () => {
+    const created = enqueue({ records: [matchChange()] });
+    const entry = created.outbox.records['match:m-test'];
+    assert.ok(entry.kind === 'match');
+    assert.deepStrictEqual(entry.fieldVersions, resolveFieldVersions(undefined, stamp));
+
+    const edited = enqueue({ records: [matchChange(['venue'])] }, created.outbox, created.versions, NOW + 1000);
+    const latest = edited.outbox.records['match:m-test'];
+    assert.ok(latest.kind === 'match' && latest.fieldVersions);
+    assert.strictEqual(latest.fieldVersions.venue, '2026-10-30T18:00:01.000Z');
+    assert.strictEqual(latest.fieldVersions.status, stamp);
+  });
+
+  it('sends a match removal as a whole-record tombstone', () => {
+    const { outbox } = enqueue({ records: [{ ...matchChange(), deleted: true }] });
+    const entry = outbox.records['match:m-test'];
+    assert.strictEqual(entry.deleted, true);
+    assert.ok(!('fieldVersions' in entry));
+  });
+});
+
 describe('buildPushBatch', () => {
+  it('holds back events whose pending match record does not fit in the batch (S13.2)', () => {
+    const { outbox } = enqueue({
+      records: [
+        playerChange('p1'),
+        { kind: 'match', id: 'm-test', data: toMatchRecord(makeMatch()), deleted: false },
+      ],
+      events: [eventChange('ev-1'), { ...eventChange('ev-2'), matchId: 'm-other' }],
+    });
+    const batch = buildPushBatch(outbox, { records: 1, events: 10 });
+    assert.deepStrictEqual(batch.payload.records.map((record) => record.id), ['p1']);
+    assert.deepStrictEqual(batch.payload.events.map((event) => event.id), ['ev-2']);
+
+    const full = buildPushBatch(outbox, { records: 2, events: 10 });
+    assert.deepStrictEqual(full.payload.events.map((event) => event.id), ['ev-1', 'ev-2']);
+  });
+
   it('builds the push payload without client bookkeeping', () => {
     const { outbox } = enqueue({ records: [playerChange('p1')], events: [eventChange('ev-1')] });
     const batch = buildPushBatch(outbox);

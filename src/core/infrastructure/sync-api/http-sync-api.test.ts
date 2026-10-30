@@ -61,6 +61,28 @@ describe('http sync api', () => {
     assert.strictEqual(result.value.hasMore, true);
   });
 
+  it('keeps the known field versions of pulled match records (S13.1)', async () => {
+    const T = '2026-10-30T18:00:00.000Z';
+    const { fetchImpl } = fakeFetch(() =>
+      json({
+        records: [
+          { kind: 'match', id: 'm-test', data: toMatchRecord(makeMatch()), updatedAt: T, deleted: false, fieldVersions: { status: T, unknownField: T } },
+          { kind: 'match', id: 'm-legacy', data: toMatchRecord(makeMatch({ id: 'm-legacy' })), updatedAt: T, deleted: false, fieldVersions: null },
+          { kind: 'division', id: 'div-test', data: makeDivision(), updatedAt: T, deleted: false, fieldVersions: null },
+        ],
+        events: [],
+        cursor: '7',
+        hasMore: false,
+      })
+    );
+    const result = await createHttpSyncApi(fetchImpl).pull('1');
+    assert.ok(result.ok);
+    const [match, legacy, division] = result.value.records;
+    assert.deepStrictEqual(match.kind === 'match' && match.fieldVersions, { status: T });
+    assert.ok(!('fieldVersions' in legacy), 'no field versions means every field changed at updatedAt');
+    assert.ok(!('fieldVersions' in division));
+  });
+
   it('posts the push batch as JSON and parses the result', async () => {
     const { fetchImpl, calls } = fakeFetch(() =>
       json({ accepted: ['m-test'], rejected: [{ id: 'ev-1', reason: 'STALE' }], cursor: '77' })

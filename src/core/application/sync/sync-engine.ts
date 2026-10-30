@@ -1,7 +1,7 @@
 import { diffClubState } from './club-diff';
 import { applyPushResult, buildPushBatch, countPending, enqueueChanges, markBatchAttempted } from './outbox';
 import { applyServerSnapshot, isServerCursorBehind, mergePulledChanges, type MergeState } from './pull-merge';
-import type { ApiResult, PullPage, SyncableClubData, SyncApi, SyncStoreData } from './sync-types';
+import type { ApiResult, ClubDiff, PullPage, SyncableClubData, SyncApi, SyncStoreData } from './sync-types';
 
 /**
  * =============================================================================
@@ -70,6 +70,8 @@ export interface SyncEngine {
   syncNow(): Promise<void>;
   /** Pushes everything pending; resolves with the number of changes still pending. */
   flush(): Promise<number>;
+  /** Stamps changes the club store already holds (made in another tab) into the outbox. */
+  enqueue(diff: ClubDiff): void;
   /** Resolves once no sync work is running. */
   whenIdle(): Promise<void>;
 }
@@ -114,11 +116,14 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     // the snapshot re-applies them (see `applyServerSnapshot`).
     if (applying || !previous) return;
 
-    const diff = diffClubState(previous, next);
+    enqueue(diffClubState(previous, next));
+  }
+
+  function enqueue(diff: ClubDiff): void {
     if (diff.records.length === 0 && diff.events.length === 0) return;
     const { outbox, versions } = store.getState();
     store.setState(enqueueChanges({ outbox, versions }, diff, now()));
-    scheduleFlush();
+    if (started) scheduleFlush();
   }
 
   function scheduleFlush(): void {
@@ -340,6 +345,8 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       }
       return countPending(store.getState().outbox);
     },
+
+    enqueue,
 
     whenIdle,
   };

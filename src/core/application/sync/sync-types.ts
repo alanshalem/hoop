@@ -1,5 +1,6 @@
 import type { Division, Player, Team } from '@/core/domain/entities/club.types';
 import type { Match, PlayByPlayEvent } from '@/core/domain/entities/match.types';
+import type { MatchField, MatchFieldVersions } from './match-fields';
 
 /**
  * =============================================================================
@@ -31,15 +32,23 @@ export interface SyncableClubData {
   matches: Match[];
 }
 
-type ByKind<Extra> = {
-  [K in SyncRecordKind]: { kind: K; id: string; data: SyncRecordDataByKind[K]; deleted: boolean } & Extra;
+type ByKind<Extra, MatchExtra = unknown> = {
+  [K in SyncRecordKind]: { kind: K; id: string; data: SyncRecordDataByKind[K]; deleted: boolean } & Extra &
+    (K extends 'match' ? MatchExtra : unknown);
 }[SyncRecordKind];
 
-/** A local record change; a removal (`deleted`) carries the last known data. */
-export type RecordChange = ByKind<unknown>;
+/**
+ * A local record change; a removal (`deleted`) carries the last known data.
+ * A match edit lists its changed fields; without them (a new match) every field changed.
+ */
+export type RecordChange = ByKind<unknown, { changedFields?: MatchField[] }>;
 
-/** A record as pushed to or pulled from the server; `updatedAt` is ISO 8601 (LWW). */
-export type SyncRecord = ByKind<{ updatedAt: string }>;
+/**
+ * A record as pushed to or pulled from the server; `updatedAt` is ISO 8601 (LWW).
+ * Live match records carry per-field versions (S13.1); without them every field
+ * changed at `updatedAt`.
+ */
+export type SyncRecord = ByKind<{ updatedAt: string }, { fieldVersions?: MatchFieldVersions }>;
 
 export interface SyncEvent {
   id: string;
@@ -55,7 +64,10 @@ export interface ClubDiff {
   events: EventChange[];
 }
 
-/** `kind:id` -> ISO `updatedAt` of the last version applied or written locally. */
+/**
+ * `kind:id` -> ISO `updatedAt` of the last version applied or written locally.
+ * Matches also keep one entry per field, `match:<id>#<field>` (see ./match-fields.ts).
+ */
 export type VersionMap = Record<string, string>;
 
 export type OutboxRecordEntry = SyncRecord & {

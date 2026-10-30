@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { DivisionSchema, PlayerSchema, TeamSchema, UserRoleSchema } from '@/core/domain/entities/club.types';
 import { MatchSchema, PlayByPlayEventSchema } from '@/core/domain/entities/match.types';
 import type { AuthUser } from '@/core/application/auth/auth-session';
+import { pickFieldVersions } from '@/core/application/sync/match-fields';
 import type { PullPage, PushResult, SyncEvent, SyncRecord } from '@/core/application/sync/sync-types';
 
 /**
@@ -40,6 +41,8 @@ const PullEnvelopeSchema = z.object({
       data: z.unknown(),
       updatedAt: z.iso.datetime({ offset: true }),
       deleted: z.boolean(),
+      /** Match records only (S13.1); null for rows written before field versions existed. */
+      fieldVersions: z.record(z.string(), z.iso.datetime({ offset: true })).nullish(),
     })
   ),
   events: z.array(
@@ -59,7 +62,7 @@ const MatchRecordSchema = MatchSchema.omit({ events: true });
 
 type PulledRecordEnvelope = z.infer<typeof PullEnvelopeSchema>['records'][number];
 
-function parseRecord({ kind, id, data, updatedAt, deleted }: PulledRecordEnvelope): SyncRecord | null {
+function parseRecord({ kind, id, data, updatedAt, deleted, fieldVersions }: PulledRecordEnvelope): SyncRecord | null {
   const base = { id, updatedAt, deleted };
   switch (kind) {
     case 'division': {
@@ -76,7 +79,10 @@ function parseRecord({ kind, id, data, updatedAt, deleted }: PulledRecordEnvelop
     }
     case 'match': {
       const parsed = MatchRecordSchema.safeParse(data);
-      return parsed.success ? { ...base, kind, data: parsed.data } : null;
+      if (!parsed.success) return null;
+      return fieldVersions
+        ? { ...base, kind, data: parsed.data, fieldVersions: pickFieldVersions(fieldVersions) }
+        : { ...base, kind, data: parsed.data };
     }
   }
 }

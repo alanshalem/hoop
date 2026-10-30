@@ -57,7 +57,7 @@ describe('diffClubState (S10.7)', () => {
     const undone = makeEvent({ id: 'ev-undone' });
     const prev = club({ matches: [makeMatch({ events: [kept, undone] })] });
     const added = makeEvent({ id: 'ev-added' });
-    const nextMatch = { ...prev.matches[0], homeScore: 4, events: [kept, added] };
+    const nextMatch = { ...prev.matches[0], homeScore: 4, quarterTimeRemainingSeconds: 480, events: [kept, added] };
 
     const diff = diffClubState(prev, { ...prev, matches: [nextMatch] });
 
@@ -67,6 +67,7 @@ describe('diffClubState (S10.7)', () => {
     assert.strictEqual(record.deleted, false);
     assert.ok(!('events' in record.data), 'match records never embed events');
     assert.strictEqual(record.data.homeScore, 4);
+    assert.deepStrictEqual(record.kind === 'match' && record.changedFields, ['quarterTimeRemainingSeconds']);
     assert.deepStrictEqual(diff.events, [
       { id: 'ev-added', matchId: 'm-test', data: added, deleted: false },
       { id: 'ev-undone', matchId: 'm-test', data: undone, deleted: true },
@@ -80,6 +81,28 @@ describe('diffClubState (S10.7)', () => {
     assert.deepStrictEqual(diff, { records: [], events: [] });
   });
 
+  it('skips the match record when only derived scoreboard fields changed (S13.1)', () => {
+    const prev = club();
+    const added = makeEvent({ id: 'ev-added' });
+    const nextMatch = { ...prev.matches[0], homeScore: 2, homeFoulsQuarter: 1, events: [added] };
+    const diff = diffClubState(prev, { ...prev, matches: [nextMatch] });
+    assert.deepStrictEqual(diff.records, []);
+    assert.deepStrictEqual(diff.events.map((event) => event.id), ['ev-added']);
+  });
+
+  it('lists the changed match fields, compared by value (S13.1)', () => {
+    const prev = club();
+    const before = prev.matches[0];
+    const nextMatch = {
+      ...before,
+      venue: 'Nuevo estadio',
+      status: 'HALFTIME' as const,
+      activeLineupOwn: [...before.activeLineupOwn],
+    };
+    const [record] = diffClubState(prev, { ...prev, matches: [nextMatch] }).records;
+    assert.deepStrictEqual(record.kind === 'match' && record.changedFields, ['venue', 'status']);
+  });
+
   it('sends every event of a new match and none for a removed match', () => {
     const event = makeEvent({ id: 'ev-1', matchId: 'm-new' });
     const prev = club();
@@ -90,6 +113,7 @@ describe('diffClubState (S10.7)', () => {
       added.records.map((change) => [change.kind, change.id, change.deleted]),
       [['match', 'm-new', false]]
     );
+    assert.ok(!('changedFields' in added.records[0]), 'a new match versions every field');
     assert.deepStrictEqual(added.events, [{ id: 'ev-1', matchId: 'm-new', data: event, deleted: false }]);
 
     const withMatch = { ...prev, matches: [...prev.matches, created] };

@@ -6,8 +6,7 @@ import { LOGIN_PATH, loginRedirectPath, toClubUser, type AuthUser } from '@/core
 import { useAuthStore } from '@/core/application/stores/useAuthStore';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { ClubCrest } from '@/presentation/atoms/ClubCrest/ClubCrest';
-import { claimSyncData } from './sync-ownership';
-import { authApi, getSyncEngine } from './sync-runtime';
+import { authApi, getSyncCoordinator } from './sync-runtime';
 import { useHydrated } from './useHydrated';
 import styles from './SessionProvider.module.css';
 
@@ -20,8 +19,9 @@ const sameUser = (a: AuthUser, b: AuthUser) =>
  * - with a cached user the app works offline; online, /api/auth/me confirms it
  *   (a 401 clears it and sends the user to /login);
  * - the authenticated user becomes the club store's `currentUser`;
- * - the sync engine runs while a user is logged in, on sync data claimed by
- *   that user (another user's unsynced changes are discarded first).
+ * - while a user is logged in, the tab coordinator runs the sync engine in one
+ *   tab only (S13.3), on sync data claimed by that user (another user's
+ *   unsynced changes are discarded first).
  */
 export function SessionProvider() {
   const hydrated = useHydrated();
@@ -38,12 +38,10 @@ export function SessionProvider() {
   }, [user]);
 
   useEffect(() => {
-    const current = useAuthStore.getState().user;
-    if (!userId || !current) return;
-    claimSyncData(current);
-    const engine = getSyncEngine();
-    engine.start();
-    return () => engine.stop();
+    if (!userId || !useAuthStore.getState().user) return;
+    const coordinator = getSyncCoordinator();
+    coordinator.start();
+    return () => coordinator.stop();
   }, [userId]);
 
   useEffect(() => {

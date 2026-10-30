@@ -1,8 +1,31 @@
 import type { Match, PlayByPlayEvent } from '@/core/domain/entities/match.types';
-import { withDerivedScoreboard } from '@/core/domain/rules/match-derivations';
+import {
+  changedMatchFields,
+  coversFieldVersions,
+  fieldVersionEntries,
+  mergeMatchFields,
+  readFieldVersions,
+  resolveFieldVersions,
+  type CompleteFieldVersions,
+} from './match-fields';
+import {
+  applyEventChanges,
+  createCollections,
+  hasCollectionChanges,
+  toData,
+  type Collections,
+} from './club-collections';
 import { createEmptyOutbox } from './outbox';
-import { compareEventsByTime, recordKey, timeOf } from './sync-records';
-import type { Outbox, PulledChanges, SyncableClubData, SyncRecord, VersionMap } from './sync-types';
+import { recordKey, timeOf, toMatchRecord } from './sync-records';
+import type {
+  MatchRecord,
+  Outbox,
+  OutboxRecordEntry,
+  PulledChanges,
+  SyncableClubData,
+  SyncRecord,
+  VersionMap,
+} from './sync-types';
 
 export interface MergeState {
   data: SyncableClubData;
@@ -20,6 +43,9 @@ export interface MergeResult extends MergeState {
  * - Records: last-write-wins against `versions`. A remote version equal to or
  *   newer than the local one is applied (a tombstone removes the entity) and
  *   supersedes a pending local change that is not newer.
+ * - Live matches present on both sides merge field by field, exactly like the
+ *   server (S13.1): each field keeps the newer version, a tie keeps the remote
+ *   value; a pending edit is dropped once the remote covers all its fields.
  * - Events: append-only by id, ordered by timestamp then id; a tombstone removes
  *   the event. A pending local tombstone is never undone by a pull.
  * - Touched matches get their scoreboard re-derived from their events.
@@ -34,11 +60,26 @@ export function mergePulledChanges(state: MergeState, pulled: PulledChanges): Me
 
   for (const record of pulled.records) {
     const key = recordKey(record.kind, record.id);
+    const localMatch = record.kind === 'match' ? collections.match.get(record.id) : undefined;
+    if (record.kind === 'match' && !record.deleted && localMatch) {
+      const remoteVersions = resolveFieldVersions(record.fieldVersions, record.updatedAt);
+      const pending = outboxRecords[key];
+      if (pending && coversFieldVersions(remoteVersions, pendingFieldVersions(pending))) delete outboxRecords[key];
+      mergeMatchRecord(collections, versions, touchedMatches, {
+        remote: { data: record.data, fieldVersions: remoteVersions, updatedAt: record.updatedAt },
+        local: localMatch,
+      });
+      continue;
+    }
+
     const remoteTime = timeOf(record.updatedAt);
     const local = versions[key];
     if (local !== undefined && remoteTime < timeOf(local)) continue;
 
     versions[key] = record.updatedAt;
+    if (record.kind === 'match' && !record.deleted) {
+      Object.assign(versions, fieldVersionEntries(record.id, resolveFieldVersions(record.fieldVersions, record.updatedAt)));
+    }
     const pending = outboxRecords[key];
     if (pending && timeOf(pending.updatedAt) <= remoteTime) delete outboxRecords[key];
     applyRecord(collections, record, touchedMatches);
@@ -64,7 +105,7 @@ export function mergePulledChanges(state: MergeState, pulled: PulledChanges): Me
 
   applyEventChanges(collections.match, touchedMatches, added, removed);
 
-  const changed = Object.values(collections).some((collection) => collection.changed);
+  const changed = hasCollectionChanges(collections);
   return {
     data: changed ? toData(collections) : state.data,
     versions,
@@ -73,49 +114,43 @@ export function mergePulledChanges(state: MergeState, pulled: PulledChanges): Me
   };
 }
 
-type Collections = {
-  division: Collection<SyncableClubData['divisions'][number]>;
-  team: Collection<SyncableClubData['teams'][number]>;
-  player: Collection<SyncableClubData['players'][number]>;
-  match: Collection<Match>;
-};
-
-function createCollections(data: SyncableClubData): Collections {
-  return {
-    division: new Collection(data.divisions),
-    team: new Collection(data.teams),
-    player: new Collection(data.players),
-    match: new Collection(data.matches),
-  };
+/** Field versions a pending match entry was stamped with (whole-record for tombstones). */
+function pendingFieldVersions(entry: OutboxRecordEntry): CompleteFieldVersions {
+  return resolveFieldVersions(entry.kind === 'match' ? entry.fieldVersions : undefined, entry.updatedAt);
 }
 
-function toData(collections: Collections): SyncableClubData {
-  return {
-    divisions: collections.division.toArray(),
-    teams: collections.team.toArray(),
-    players: collections.player.toArray(),
-    matches: collections.match.toArray(),
-  };
+interface MatchMergeInput {
+  /** The side that wins ties: the server's version. */
+  remote: { data: MatchRecord; fieldVersions: CompleteFieldVersions; updatedAt: string };
+  local: Match;
+  /** Local field versions; read from `versions` when omitted. */
+  localVersions?: CompleteFieldVersions;
 }
 
-/** Adds and removes events of the touched matches, then re-derives their scoreboard. */
-function applyEventChanges(
-  matches: Collection<Match>,
+/**
+ * Field-level merge of one match present on both sides (S13.1). Updates the
+ * versions map in place and replaces the match only when a remote field won.
+ */
+function mergeMatchRecord(
+  collections: Collections,
+  versions: VersionMap,
   touchedMatches: Set<string>,
-  added: Map<string, PlayByPlayEvent[]>,
-  removed: Set<string>
+  { remote, local, localVersions }: MatchMergeInput
 ): void {
-  for (const matchId of touchedMatches) {
-    const match = matches.get(matchId);
-    if (!match) continue;
-    const additions = added.get(matchId) ?? [];
-    const kept = match.events.filter((event) => !removed.has(event.id));
-    if (additions.length === 0 && kept.length === match.events.length && !matches.isReplaced(matchId)) {
-      continue;
-    }
-    const events = additions.length > 0 ? [...kept, ...additions].sort(compareEventsByTime) : kept;
-    matches.set(matchId, withDerivedScoreboard({ ...match, events }));
-  }
+  const key = recordKey('match', local.id);
+  const merged = mergeMatchFields<MatchRecord>(remote, {
+    data: toMatchRecord(local),
+    fieldVersions: localVersions ?? readFieldVersions(versions, local.id),
+  });
+  Object.assign(versions, fieldVersionEntries(local.id, merged.fieldVersions));
+  const recordVersion = versions[key];
+  if (recordVersion === undefined || timeOf(remote.updatedAt) > timeOf(recordVersion)) versions[key] = remote.updatedAt;
+
+  const current = collections.match.get(local.id) ?? local;
+  if (changedMatchFields(current, merged.data).length === 0) return;
+  collections.match.set(local.id, { ...merged.data, events: current.events });
+  collections.match.markReplaced(local.id);
+  touchedMatches.add(local.id);
 }
 
 function applyRecord(collections: Collections, record: SyncRecord, touchedMatches: Set<string>): void {
@@ -143,42 +178,6 @@ function applyRecord(collections: Collections, record: SyncRecord, touchedMatche
   }
 }
 
-/** Ordered id map over an entity list that keeps the original array when untouched. */
-class Collection<T extends { id: string }> {
-  private readonly byId: Map<string, T>;
-  private readonly replaced = new Set<string>();
-  changed = false;
-
-  constructor(private readonly original: T[]) {
-    this.byId = new Map(original.map((entity) => [entity.id, entity]));
-  }
-
-  get(id: string): T | undefined {
-    return this.byId.get(id);
-  }
-
-  set(id: string, entity: T): void {
-    this.byId.set(id, entity);
-    this.changed = true;
-  }
-
-  remove(id: string): void {
-    if (this.byId.delete(id)) this.changed = true;
-  }
-
-  markReplaced(id: string): void {
-    this.replaced.add(id);
-  }
-
-  isReplaced(id: string): boolean {
-    return this.replaced.has(id);
-  }
-
-  toArray(): T[] {
-    return this.changed ? [...this.byId.values()] : this.original;
-  }
-}
-
 /**
  * Full sync (first sync of a device, or after a server reset): the server
  * snapshot replaces the local data, then every pending local change is
@@ -200,7 +199,22 @@ function reapplyOutbox({ data, versions, outbox }: MergeState): MergeState {
   const touchedMatches = new Set<string>();
 
   for (const [key, entry] of Object.entries(outbox.records)) {
+    const serverMatch = entry.kind === 'match' ? collections.match.get(entry.id) : undefined;
+    if (entry.kind === 'match' && !entry.deleted && serverMatch) {
+      // The pending edit wins only the fields it changed after the server version;
+      // the record version becomes the pending stamp, as for any other kind.
+      const serverVersions = readFieldVersions(nextVersions, entry.id);
+      mergeMatchRecord(collections, nextVersions, touchedMatches, {
+        remote: { data: toMatchRecord(serverMatch), fieldVersions: serverVersions, updatedAt: entry.updatedAt },
+        local: { ...entry.data, events: serverMatch.events },
+        localVersions: pendingFieldVersions(entry),
+      });
+      continue;
+    }
     nextVersions[key] = entry.updatedAt;
+    if (entry.kind === 'match' && !entry.deleted) {
+      Object.assign(nextVersions, fieldVersionEntries(entry.id, pendingFieldVersions(entry)));
+    }
     applyRecord(collections, entry, touchedMatches);
   }
 

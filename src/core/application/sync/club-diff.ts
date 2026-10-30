@@ -1,4 +1,5 @@
 import type { Match } from '@/core/domain/entities/match.types';
+import { changedMatchFields } from './match-fields';
 import { toMatchRecord } from './sync-records';
 import type { ClubDiff, EventChange, RecordChange, SyncableClubData } from './sync-types';
 
@@ -6,6 +7,8 @@ import type { ClubDiff, EventChange, RecordChange, SyncableClubData } from './sy
  * Local changes between two club states. Store updates are immutable, so an
  * untouched entity keeps its reference: a new reference (or a new id) is a
  * change, a missing id is a removal that carries the last known data.
+ * A match record is sent only when a versioned field changed (S13.1): the
+ * derived scoreboard travels with its events.
  */
 export function diffClubState(prev: SyncableClubData, next: SyncableClubData): ClubDiff {
   const records: RecordChange[] = [];
@@ -21,8 +24,13 @@ export function diffClubState(prev: SyncableClubData, next: SyncableClubData): C
     const { upserts, removed, previous } = diffById(prev.matches, next.matches);
     for (const match of upserts) {
       const before = previous.get(match.id);
-      if (!before || hasMetadataChange(before, match)) {
+      if (!before) {
         records.push({ kind: 'match', id: match.id, data: toMatchRecord(match), deleted: false });
+      } else {
+        const changedFields = changedMatchFields(before, match);
+        if (changedFields.length > 0) {
+          records.push({ kind: 'match', id: match.id, data: toMatchRecord(match), deleted: false, changedFields });
+        }
       }
       events.push(...diffEvents(before, match));
     }
@@ -57,16 +65,6 @@ function diffById<T extends { id: string }>(prev: T[], next: T[]) {
     upserts: next.filter((entity) => previous.get(entity.id) !== entity),
     removed: prev.filter((entity) => !nextIds.has(entity.id)),
   };
-}
-
-/** Shallow comparison of every match field except the play-by-play. */
-function hasMetadataChange(before: Match, after: Match): boolean {
-  const keys = new Set([...Object.keys(before), ...Object.keys(after)] as (keyof Match)[]);
-  keys.delete('events');
-  for (const key of keys) {
-    if (!Object.is(before[key], after[key])) return true;
-  }
-  return false;
 }
 
 function diffEvents(before: Match | undefined, after: Match): EventChange[] {

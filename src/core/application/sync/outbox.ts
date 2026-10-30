@@ -1,3 +1,4 @@
+import { fieldVersionEntries, MATCH_VERSIONED_FIELDS, readFieldVersions } from './match-fields';
 import { recordKey, timeOf } from './sync-records';
 import type {
   ClubDiff,
@@ -6,6 +7,7 @@ import type {
   OutboxRecordEntry,
   PushPayload,
   PushResult,
+  RecordChange,
   SyncEvent,
   SyncRecord,
   VersionMap,
@@ -39,7 +41,8 @@ export interface OutboxState {
 /**
  * Adds local changes to the outbox, stamping `updatedAt` into the entry and the
  * versions map. One entry per `kind:id` (the latest wins) and per event id; an
- * event removed before any push attempt is simply dropped.
+ * event removed before any push attempt is simply dropped. A live match entry
+ * carries every field version, with only the changed fields stamped (S13.1).
  */
 export function enqueueChanges({ outbox, versions }: OutboxState, diff: ClubDiff, nowMs: number): OutboxState {
   const records = { ...outbox.records };
@@ -50,8 +53,8 @@ export function enqueueChanges({ outbox, versions }: OutboxState, diff: ClubDiff
   for (const change of diff.records) {
     const key = recordKey(change.kind, change.id);
     const updatedAt = nextUpdatedAt(nextVersions[key], nowMs);
+    records[key] = { ...toSyncRecord(change, updatedAt, nextVersions), rev: nextRev++ };
     nextVersions[key] = updatedAt;
-    records[key] = { ...change, updatedAt, rev: nextRev++ };
   }
 
   for (const change of diff.events) {
@@ -69,6 +72,17 @@ export function enqueueChanges({ outbox, versions }: OutboxState, diff: ClubDiff
   return { outbox: { records, events, nextRev }, versions: nextVersions };
 }
 
+/** The record to push for a local change; stamps match field versions into `versions`. */
+function toSyncRecord(change: RecordChange, updatedAt: string, versions: VersionMap): SyncRecord {
+  if (change.kind !== 'match') return { ...change, updatedAt };
+  const { changedFields, ...record } = change;
+  if (record.deleted) return { ...record, updatedAt };
+  const fieldVersions = readFieldVersions(versions, record.id);
+  for (const field of changedFields ?? MATCH_VERSIONED_FIELDS) fieldVersions[field] = updatedAt;
+  Object.assign(versions, fieldVersionEntries(record.id, fieldVersions));
+  return { ...record, updatedAt, fieldVersions };
+}
+
 export interface PushBatch {
   payload: PushPayload;
   records: { key: string; id: string; rev: number }[];
@@ -76,10 +90,23 @@ export interface PushBatch {
   size: number;
 }
 
-/** The oldest pending changes that fit in one push. */
-export function buildPushBatch(outbox: Outbox, limits = PUSH_LIMITS): PushBatch {
-  const recordEntries = Object.entries(outbox.records).slice(0, limits.records);
-  const eventEntries = Object.values(outbox.events).slice(0, limits.events);
+/**
+ * The oldest pending changes that fit in one push. Events of a match whose
+ * pending record does not fit wait for it: the server refuses events of a
+ * match it does not know yet (S13.2).
+ */
+export function buildPushBatch(outbox: Outbox, limits: { records: number; events: number } = PUSH_LIMITS): PushBatch {
+  const pending = Object.entries(outbox.records);
+  const recordEntries = pending.slice(0, limits.records);
+  const waitingMatches = new Set(
+    pending
+      .slice(limits.records)
+      .filter(([, entry]) => entry.kind === 'match' && !entry.deleted)
+      .map(([, entry]) => entry.id)
+  );
+  const eventEntries = Object.values(outbox.events)
+    .filter((entry) => !waitingMatches.has(entry.matchId))
+    .slice(0, limits.events);
   return {
     payload: {
       records: recordEntries.map(([, entry]) => toPushRecord(entry)),

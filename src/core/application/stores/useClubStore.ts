@@ -37,6 +37,7 @@ import {
   createInitialClubState,
   migrateClubState,
 } from './club-state';
+import { CLUB_STORAGE_KEY, gatedLocalStorage } from './persistence-gate';
 
 export type ActionResult<Reason extends string> =
   | { ok: true }
@@ -106,7 +107,14 @@ export interface ClubStoreState extends ClubDataState {
     side: TeamSide,
     clockSeconds?: number
   ) => RequestTimeoutResult | MatchNotFound;
+  /** Q2 to Q3 passes through HALFTIME (see `startThirdQuarter`). */
   changeQuarter: (matchId: string, quarter: Quarter) => void;
+  /** End of Q2: the match goes to HALFTIME (no plays, no timeouts). */
+  startHalftime: (
+    matchId: string
+  ) => MatchResult<'MATCH_NOT_LIVE' | 'NOT_END_OF_FIRST_HALF'> | MatchNotFound;
+  /** Leaves HALFTIME: Q3, clock 10:00, LIVE. */
+  startThirdQuarter: (matchId: string) => MatchResult<'NOT_HALFTIME'> | MatchNotFound;
   setClock: (matchId: string, seconds: number) => void;
   finishMatch: (
     matchId: string,
@@ -268,6 +276,10 @@ export const useClubStore = create<ClubStoreState>()(
         changeQuarter: (matchId, quarter) =>
           mapMatch(matchId, (m) => matchUseCases.changeQuarter(m, quarter)),
 
+        startHalftime: (matchId) => runMatchUseCase(matchId, matchUseCases.startHalftime),
+
+        startThirdQuarter: (matchId) => runMatchUseCase(matchId, matchUseCases.startThirdQuarter),
+
         setClock: (matchId, seconds) =>
           mapMatch(matchId, (m) => matchUseCases.setClock(m, seconds)),
 
@@ -291,9 +303,10 @@ export const useClubStore = create<ClubStoreState>()(
       };
     },
     {
-      name: 'hoop-club-storage',
+      name: CLUB_STORAGE_KEY,
       version: CLUB_STORE_VERSION,
-      storage: createJSONStorage(() => localStorage),
+      // Only the tab running the sync engine writes it (S13.3).
+      storage: createJSONStorage(gatedLocalStorage),
       partialize: (state): ClubDataState => ({
         currentUser: state.currentUser,
         users: state.users,

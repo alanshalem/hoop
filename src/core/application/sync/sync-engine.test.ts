@@ -156,6 +156,22 @@ const snapshotPage = (cursor: string, hasMore = false): ApiResult<PullPage> => (
   },
 });
 
+describe('sync engine: changes from another tab (S13.3)', () => {
+  it('enqueues a diff the club store already holds and flushes it like a local edit', async () => {
+    const h = harness({ cursor: '1' });
+    h.engine.start();
+    await h.engine.whenIdle();
+    const player = makePlayer({ id: 'p9' });
+    h.engine.enqueue({ records: [{ kind: 'player', id: 'p9', data: player, deleted: false }], events: [] });
+    assert.strictEqual(h.store.outbox.records['player:p9']?.data, player);
+    assert.strictEqual(h.store.versions['player:p9'], '2026-10-30T18:00:00.000Z');
+
+    await h.runPendingTimers();
+    assert.deepStrictEqual(h.pushes.at(-1)?.records.map((record) => record.id), ['p9']);
+    h.engine.stop();
+  });
+});
+
 describe('sync engine (S10.7)', () => {
   it('replaces local seed data with the server snapshot on the first sync, without pushing it', async () => {
     const h = harness();

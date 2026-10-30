@@ -1,0 +1,139 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert';
+import { MatchSchema } from '@/core/domain/entities/match.types';
+import { makeMatch } from '@/core/testing/fixtures';
+import {
+  changedMatchFields,
+  coversFieldVersions,
+  EPOCH_VERSION,
+  latestFieldVersion,
+  MATCH_DERIVED_FIELDS,
+  MATCH_VERSIONED_FIELDS,
+  mergeMatchFields,
+  readFieldVersions,
+  resolveFieldVersions,
+  writeFieldVersions,
+  type CompleteFieldVersions,
+} from './match-fields';
+import { toMatchRecord } from './sync-records';
+import type { MatchRecord } from './sync-types';
+
+const T1 = '2026-10-30T18:00:01.000Z';
+const T2 = '2026-10-30T18:00:02.000Z';
+const T3 = '2026-10-30T18:00:03.000Z';
+
+const allAt = (iso: string): CompleteFieldVersions => resolveFieldVersions(undefined, iso);
+
+describe('match field classification (S13.1)', () => {
+  it('versions every top-level match field except id, events and the derived scoreboard', () => {
+    const keys = Object.keys(MatchSchema.shape).filter((key) => key !== 'id' && key !== 'events');
+    const derived: readonly string[] = MATCH_DERIVED_FIELDS;
+    assert.deepStrictEqual(
+      [...MATCH_VERSIONED_FIELDS].sort(),
+      keys.filter((key) => !derived.includes(key)).sort()
+    );
+    assert.deepStrictEqual([...MATCH_DERIVED_FIELDS].sort(), ['awayFoulsQuarter', 'awayScore', 'homeFoulsQuarter', 'homeScore']);
+  });
+});
+
+describe('changedMatchFields', () => {
+  it('compares values structurally and ignores derived fields', () => {
+    const before = toMatchRecord(makeMatch({ venue: 'Club' }));
+    const after = {
+      ...before,
+      activeLineupOwn: [...before.activeLineupOwn],
+      homeTimeouts: { ...before.homeTimeouts },
+      homeScore: 40,
+      status: 'HALFTIME' as const,
+    };
+    assert.deepStrictEqual(changedMatchFields(before, after), ['status']);
+  });
+
+  it('reports a removed optional field and a changed nested value', () => {
+    const before = toMatchRecord(makeMatch({ venue: 'Club' }));
+    const after = { ...before, venue: undefined, homeTimeouts: { ...before.homeTimeouts, firstHalfRemaining: 1 } };
+    assert.deepStrictEqual(changedMatchFields(before, after), ['venue', 'homeTimeouts']);
+  });
+});
+
+describe('resolveFieldVersions (backwards compatibility)', () => {
+  it('uses updatedAt for every field when the record has no field versions', () => {
+    const versions = resolveFieldVersions(null, T2);
+    for (const field of MATCH_VERSIONED_FIELDS) assert.strictEqual(versions[field], T2);
+  });
+
+  it('treats a field missing from partial versions as never written', () => {
+    const versions = resolveFieldVersions({ status: T2 }, T2);
+    assert.strictEqual(versions.status, T2);
+    assert.strictEqual(versions.venue, EPOCH_VERSION);
+    assert.strictEqual(latestFieldVersion(versions), T2);
+  });
+});
+
+describe('mergeMatchFields (field-level last-write-wins)', () => {
+  const base: MatchRecord = toMatchRecord(makeMatch({ venue: 'Club', rivalTeamName: 'Rival' }));
+
+  it('keeps both edits when two devices change different fields', () => {
+    const server = { data: { ...base, venue: 'Server venue' }, fieldVersions: { ...allAt(T1), venue: T2 } };
+    const incoming = { data: { ...base, status: 'HALFTIME' as const }, fieldVersions: { ...allAt(T1), status: T3 } };
+    const merged = mergeMatchFields<MatchRecord>(server, incoming);
+    assert.strictEqual(merged.data.venue, 'Server venue');
+    assert.strictEqual(merged.data.status, 'HALFTIME');
+    assert.strictEqual(merged.fieldVersions.venue, T2);
+    assert.strictEqual(merged.fieldVersions.status, T3);
+    assert.deepStrictEqual(merged.taken, ['status']);
+  });
+
+  it('lets the newer version of the same field win', () => {
+    const server = { data: { ...base, venue: 'Old' }, fieldVersions: { ...allAt(T1), venue: T2 } };
+    const newer = mergeMatchFields<MatchRecord>(server, { data: { ...base, venue: 'New' }, fieldVersions: { ...allAt(T1), venue: T3 } });
+    assert.strictEqual(newer.data.venue, 'New');
+    const older = mergeMatchFields<MatchRecord>(
+      { data: { ...base, venue: 'New' }, fieldVersions: { ...allAt(T1), venue: T3 } },
+      { data: { ...base, venue: 'Old' }, fieldVersions: { ...allAt(T1), venue: T2 } }
+    );
+    assert.strictEqual(older.data.venue, 'New');
+    assert.deepStrictEqual(older.taken, []);
+  });
+
+  it('keeps the server value on a tie and returns the server data untouched when nothing wins', () => {
+    const server = { data: { ...base, venue: 'Server' }, fieldVersions: allAt(T2) };
+    const merged = mergeMatchFields<MatchRecord>(server, { data: { ...base, venue: 'Device' }, fieldVersions: allAt(T2) });
+    assert.strictEqual(merged.data, server.data);
+    assert.strictEqual(merged.fieldVersions, server.fieldVersions);
+    assert.deepStrictEqual(merged.taken, []);
+  });
+
+  it('removes an optional field the newer side cleared, and takes derived fields from the side that won', () => {
+    const server = { data: { ...base, venue: 'Club', homeScore: 10 }, fieldVersions: allAt(T1) };
+    const incomingData = { ...base, homeScore: 12 };
+    delete incomingData.venue;
+    const merged = mergeMatchFields<MatchRecord>(server, { data: incomingData, fieldVersions: { ...allAt(T1), venue: T2 } });
+    assert.ok(!('venue' in merged.data));
+    assert.strictEqual(merged.data.homeScore, 12);
+  });
+});
+
+describe('coversFieldVersions', () => {
+  it('is true only when every field of the other side is equal or older', () => {
+    assert.strictEqual(coversFieldVersions(allAt(T2), allAt(T2)), true);
+    assert.strictEqual(coversFieldVersions(allAt(T2), { ...allAt(T1), status: T2 }), true);
+    assert.strictEqual(coversFieldVersions(allAt(T2), { ...allAt(T1), status: T3 }), false);
+  });
+});
+
+describe('field versions in the client versions map', () => {
+  it('falls back to the record version (legacy) and then to the epoch', () => {
+    assert.deepStrictEqual(readFieldVersions({ 'match:m1': T1 }, 'm1'), allAt(T1));
+    assert.deepStrictEqual(readFieldVersions({}, 'm1'), allAt(EPOCH_VERSION));
+  });
+
+  it('round-trips per-field versions without touching other keys', () => {
+    const versions: Record<string, string> = { 'match:m1': T1, 'player:p1': T1 };
+    const written = writeFieldVersions(versions, 'm1', { ...allAt(T1), status: T3 });
+    assert.strictEqual(written['player:p1'], T1);
+    assert.strictEqual(readFieldVersions(written, 'm1').status, T3);
+    assert.strictEqual(readFieldVersions(written, 'm1').venue, T1);
+    assert.deepStrictEqual(versions, { 'match:m1': T1, 'player:p1': T1 }, 'the input map is not mutated');
+  });
+});

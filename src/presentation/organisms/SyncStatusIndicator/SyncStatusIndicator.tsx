@@ -6,7 +6,7 @@ import { AlertTriangle, Cloud, CloudOff, RefreshCw, type LucideIcon } from 'luci
 import { countPending } from '@/core/application/sync/outbox';
 import { useSyncStore } from '@/core/application/stores/useSyncStore';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
-import { getSyncEngine } from '@/presentation/session/sync-runtime';
+import { requestSyncNow } from '@/presentation/session/sync-runtime';
 import { useClock } from '@/presentation/session/useClock';
 import { useHydrated } from '@/presentation/session/useHydrated';
 import { describeSyncStatus, type SyncStatusInput, type SyncViewState } from './sync-status-view';
@@ -52,7 +52,7 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ compac
     <button
       type="button"
       className={clsx(styles.indicator, STATE_CLASS[view.state], compact && styles.compact, className)}
-      onClick={() => void getSyncEngine().syncNow()}
+      onClick={() => void requestSyncNow()}
       aria-label={`Sincronización: ${view.label}, ${view.detail}. ${action}.`}
       title={view.detail}
     >

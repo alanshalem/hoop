@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { createEmptyOutbox } from '@/core/application/sync/outbox';
 import type { SyncPersistedData, SyncStoreData } from '@/core/application/sync/sync-types';
+import { gatedLocalStorage, SYNC_STORAGE_KEY } from './persistence-gate';
 
 /** Bump when the persisted sync shape changes; older storage restarts with a full resync. */
 export const SYNC_STORE_VERSION = 2;
@@ -31,9 +32,10 @@ export const useSyncStore = create<SyncStoreState>()(
       resetSyncData: () => set(createInitialSyncData()),
     }),
     {
-      name: 'hoop-sync-storage',
+      name: SYNC_STORAGE_KEY,
       version: SYNC_STORE_VERSION,
-      storage: createJSONStorage(() => localStorage),
+      // Only the tab running the sync engine writes it (S13.3).
+      storage: createJSONStorage(gatedLocalStorage),
       partialize: (state): SyncPersistedData => ({
         owner: state.owner,
         cursor: state.cursor,
