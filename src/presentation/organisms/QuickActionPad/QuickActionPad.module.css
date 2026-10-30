@@ -1,0 +1,76 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--bg-surface-1);
+  border-left: 1px solid var(--border-subtle);
+  padding: var(--space-3);
+  gap: var(--space-3);
+  overflow-y: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.padHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.title {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-black);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.actionGrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.groupTitle {
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-1);
+}
+
+.buttonGrid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+.buttonGrid2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2);
+}
+
+/* FOUL EXCLUSION MODAL / POPUP */
+.exclusionBanner {
+  background-color: var(--color-red-subtle);
+  border: 2px solid var(--color-red);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  color: var(--color-red);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-bold);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}

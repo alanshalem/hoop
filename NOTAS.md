@@ -41,3 +41,23 @@
   - Selección táctil de 10 a 12 convocados en planilla según normativa FIBA.
   - Marcado de los 5 titulares (Starting Five).
   - Validación visual estricta: sólo habilita "Iniciar Partido en Vivo" cuando hay exactamente 5 titulares en cancha.
+
+## Fase 5: Consola "Live Match Day" en Cancha (Tablet Touch-First)
+- **Viewport táctil**: 100% de la altura de pantalla (`100dvh`), sin scroll vertical general.
+- **ScoreboardHeader**:
+  - Marcador electrónico Local vs Rival con animación de rebote GSAP en cambios de tanteador.
+  - Selector de cuartos (`Q1` a `OT1`) y cronómetro integrado con Play/Pausa.
+  - 4 luces indicadoras de faltas de equipo por cuarto con activación del indicador luminoso **BONUS** (Art. 41 FIBA).
+  - Botones rápidos para sumar puntos al Rival (`+1`, `+2`, `+3`) y control de tiempos muertos.
+- **OnCourtLineup**:
+  - Columna izquierda con los 5 jugadores en cancha y 7 en banca.
+  - Flujo de sustitución en 2 toques con feedback animado en GSAP.
+- **HalfCourtShotChart**:
+  - Media cancha reglamentaria dibujada en SVG con geometría FIBA (arco de triple a 6.75m, zona pintada y tiro libre).
+  - Detección automática por geometría entre tiros de 2P y 3P.
+  - Micro-selector radial en el punto de contacto (`¡ADENTRO!` vs `FALLO`).
+  - Timeline de las últimas 5 jugadas con botón de un toque **DESHACER (Undo)** para corrección instantánea.
+- **QuickActionPad**:
+  - Columna derecha con teclado ergonómico de 56px (`--touch-lg`).
+  - Botones de tiros convertidos/fallados, rebotes ofensivos/defensivos, asistencias, robos, bloqueos y pérdidas.
+  - Alerta inmediata de exclusión reglamentaria (5ta falta personal/técnica) con bloqueo de acciones y requerimiento de cambio forzoso.
