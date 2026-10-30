@@ -33,7 +33,7 @@ Abrir `http://localhost:3000` e iniciar sesión, por ejemplo con `admin@camg.com
 | `npm run test:db` | Pruebas de integración contra PostgreSQL (base `_test` aparte). |
 | `npm run db:up` / `npm run db:down` | Levanta o detiene PostgreSQL en Docker. |
 | `npm run db:migrate` | Aplica las migraciones de `drizzle/`. |
-| `npm run db:seed` | Carga el club de demostración y las cuentas; nunca sobrescribe datos existentes. |
+| `npm run db:seed` | Carga el club de demostración y las cuentas. Nunca sobrescribe datos del club, pero restablece las cuentas de demostración (nombre, correo, rol y contraseña). |
 
 ## Stack
 

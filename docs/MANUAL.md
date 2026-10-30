@@ -270,6 +270,7 @@ Después del primer ingreso, la tablet abre aunque no haya conexión: guarda el 
 2. Si hay cambios pendientes, la aplicación intenta enviarlos primero.
 3. Si no puede (por ejemplo, sin conexión), un modal avisa "Hay N cambios sin sincronizar. Si cierras sesión ahora, se perderán en este dispositivo." con las opciones **Seguir conectado** y **Cerrar sesión igual**.
 4. Al cerrar sesión se borran de la tablet la sesión, el perfil guardado y la cola de cambios. El próximo ingreso vuelve a descargar todo del servidor.
+5. Sin conexión la sesión se cierra igual en la tablet, pero el servidor no se entera: un aviso explica que la sesión del servidor sigue activa hasta que venza (30 días) o hasta el próximo inicio de sesión en esa tablet, que la revoca. La cookie queda en el navegador hasta entonces, así que en una tablet compartida conviene cerrar sesión con conexión.
 
 ### Crear una división
 
@@ -410,7 +411,7 @@ Fuente única de verdad: el marcador, las faltas de equipo, los parciales y el b
 | Divisiones, equipos, jugadores, partidos y jugadas (copia del servidor) | PostgreSQL: tablas `sync_records` y `match_events` (ver [Servidor y base de datos](#8-servidor-y-base-de-datos)). |
 | Usuarios y sesiones | PostgreSQL: tablas `users` (contraseñas con hash scrypt) y `sessions` (solo el hash del token). |
 | Copia local del club: divisiones, equipos, jugadores, partidos y jugadas, usuario actual, división y partido activos | `localStorage`, clave `hoop-club-storage` (Zustand con el middleware `persist`). |
-| Cola de cambios pendientes (outbox), cursor de sincronización, versiones y hora de la última sincronización | `localStorage`, clave `hoop-sync-storage`. |
+| Cola de cambios pendientes (outbox), usuario dueño de esa cola, cursor de sincronización, versiones y hora de la última sincronización | `localStorage`, clave `hoop-sync-storage`. |
 | Perfil del último usuario (id, correo, nombre, rol) | `localStorage`, clave `hoop-auth-storage`. Nunca la contraseña ni el token. |
 | Sesión | Cookie `hoop_session` (httpOnly: el JavaScript de la página no puede leerla), 30 días. |
 | Tema claro u oscuro | `localStorage`, clave `hoop-theme`. |
@@ -422,7 +423,7 @@ El reloj de juego se guarda en el partido al pausar, al corregirlo, al llegar a 
 
 El almacenamiento lleva una versión (`CLUB_STORE_VERSION = 3`, en `src/core/application/stores/club-state.ts`). Si el navegador tiene datos de una versión anterior, se descartan y se cargan los datos de demostración actuales en lugar de fallar. Cada cambio en la forma de los datos guardados debe subir esa versión.
 
-La cola de sincronización (`SYNC_STORE_VERSION`, en `useSyncStore.ts`) y el perfil guardado (`AUTH_STORE_VERSION`, en `useAuthStore.ts`) tienen su propia versión. Con una versión vieja, la cola vuelve a empezar sin cursor (la próxima sincronización descarga todo del servidor) y el perfil se descarta (hay que volver a iniciar sesión).
+La cola de sincronización (`SYNC_STORE_VERSION`, en `useSyncStore.ts`) y el perfil guardado (`AUTH_STORE_VERSION`, en `useAuthStore.ts`) tienen su propia versión. Con una versión vieja, la cola vuelve a empezar sin cursor (la próxima sincronización descarga todo del servidor) y el perfil se descarta (hay que volver a iniciar sesión). La versión 1 de la cola no guardaba dueño: se conserva y queda a nombre del próximo usuario que inicia sesión.
 
 ### Datos de demostración
 
@@ -438,7 +439,7 @@ Se generan en `src/core/infrastructure/mocks/seed-data.ts`, de forma determinís
 | Partido en vivo | Contra Obras Sanitarias, hoy, en el Estadio CAMG: 2.º cuarto con 07:08 en el reloj y el rival en bonus. |
 | Partido programado | Contra Boca Juniors como visitante, dentro de 7 días, con convocatoria precargada. |
 
-Los mismos datos cargan el servidor con `npm run db:seed`. El navegador los usa solo hasta el primer ingreso: en la primera sincronización de una tablet, la copia del servidor reemplaza los datos locales de demostración (nunca se envían al servidor).
+Los mismos datos cargan el servidor con `npm run db:seed`. El navegador los usa solo hasta el primer ingreso: en la primera sincronización de una tablet, la copia del servidor reemplaza los datos locales de demostración (nunca se envían al servidor). Los cambios que alguien haya hecho antes de esa primera sincronización no se pierden: se vuelven a aplicar sobre la copia del servidor y se envían.
 
 ### Volver a los datos del servidor en una tablet
 
@@ -447,7 +448,7 @@ La fuente de verdad es el servidor. Para que una tablet descarte su copia local 
 1. Esperar a que el estado diga **Sincronizado** (si no, los cambios pendientes se pierden).
 2. Pulsar **Cerrar sesión** y volver a iniciar sesión: la primera sincronización descarga todo de nuevo.
 
-Como alternativa, en las herramientas de desarrollo del navegador se pueden borrar las claves `hoop-club-storage` y `hoop-sync-storage` de `localStorage` y recargar. La acción `resetToSeedData` del store sigue sin estar expuesta en la interfaz.
+Como alternativa, en las herramientas de desarrollo del navegador se pueden borrar las claves `hoop-club-storage` y `hoop-sync-storage` de `localStorage` y recargar. No hay un botón para reiniciar la copia local.
 
 ### Sincronización
 
@@ -457,20 +458,24 @@ Cómo funciona para quien usa la aplicación:
 |-----------|-----------------|
 | Cualquier cambio (crear un jugador, registrar una jugada, mover el reloj) | Se guarda al instante en la tablet y entra en la cola de salida. Medio segundo después se envía al servidor. |
 | Sin conexión | Todo sigue funcionando igual. El estado muestra **Sin conexión** y cuántos cambios esperan. La cola se guarda en el navegador y sobrevive a recargas y reinicios. |
+| Cambios antes de la primera sincronización (tablet nueva o sin conexión desde el primer ingreso) | También entran en la cola y el estado los cuenta como pendientes. Cuando llega la primera copia completa del servidor, reemplaza los datos locales y los cambios pendientes se vuelven a aplicar encima; después se envían. |
 | Vuelve la conexión | La cola se envía sola y la tablet descarga lo que cambiaron las demás. Si el servidor no responde, reintenta cada vez más espaciado (1 s, 2 s, 4 s... hasta 60 s). |
 | Otra tablet guarda un cambio | El servidor avisa en vivo (Server-Sent Events) y esta tablet lo descarga en segundos. |
 | Dos tablets editan lo mismo (un jugador, una división, los datos de un partido) | Gana el cambio más reciente según la hora en que se hizo (last-write-wins). El registro se reemplaza completo: si una tablet edita el estadio y otra cambia el quinteto en cancha del mismo partido, queda la versión que se guardó última. |
 | Jugadas | Nunca se pisan: cada jugada tiene su propio ID y se suma a la lista, ordenada por hora y luego por ID. Dos tablets pueden cargar jugadas del mismo partido a la vez sin perder ninguna. El marcador y las faltas se recalculan con todas. |
 | **Deshacer** una jugada | La jugada queda marcada como eliminada en el servidor (no se borra) y desaparece en todas las tablets. Una jugada eliminada no vuelve. |
 | El servidor rechaza un cambio | Si el rol no tiene permiso o el dato no es válido, el cambio se descarta y el estado muestra **Error** con la cantidad de cambios rechazados. Si el servidor tiene una versión más nueva, se descarta el cambio local y se descarga la del servidor. |
-| La sesión venció | La aplicación pide iniciar sesión de nuevo. La cola se conserva y se envía después del ingreso. |
-| Se reinició la base del servidor | Cuando la tablet detecta que el servidor volvió atrás (con el próximo envío o aviso en vivo), descarga todo de nuevo y reemplaza su copia. |
+| La sesión venció | La aplicación pide iniciar sesión de nuevo. Si vuelve a entrar la misma cuenta, la cola se conserva y se envía después del ingreso. |
+| Otra persona inicia sesión en la misma tablet | La cola guarda quién hizo los cambios. Si entra una cuenta distinta, los cambios pendientes de la anterior se descartan (nunca se envían con la identidad de otra persona), un aviso informa "Se descartaron N cambios sin sincronizar de <nombre>" y la tablet descarga todo de nuevo del servidor. |
+| Se reinició la base del servidor | Cuando la tablet detecta que el servidor volvió atrás (con el próximo envío o aviso en vivo), descarga todo de nuevo, reemplaza su copia y vuelve a aplicar encima los cambios pendientes, que se envían a continuación. |
 
 Detalle técnico:
 
 - La aplicación compara el estado anterior y el nuevo del store (por referencia e ID) para detectar entidades creadas, editadas o eliminadas y jugadas nuevas o eliminadas. A cada registro le pone `updatedAt` (hora del cambio, siempre posterior a la versión anterior de ese registro) y lo guarda en la cola: un solo cambio pendiente por registro (`tipo:id`) y por jugada.
 - Un envío (`POST /api/sync/push`) lleva como máximo 500 registros y 2000 jugadas. Una eliminación viaja como marca (tombstone) con los últimos datos conocidos. Los partidos viajan sin jugadas; las jugadas van aparte.
 - La descarga (`GET /api/sync/pull?since=<cursor>`) trae todo lo que cambió después del cursor, de a páginas, y se aplica una sola vez al final. Lo descargado no vuelve a entrar en la cola.
+- Sin cursor (primera sincronización o reinicio de la base) primero se descarga la copia completa y después se envía la cola. La copia reemplaza los datos locales y la cola se vuelve a aplicar encima (`applyServerSnapshot`): registros pendientes creados, editados o eliminados, jugadas nuevas agregadas y jugadas eliminadas quitadas; luego se recalculan los marcadores. Un registro pendiente del que el servidor ya tiene una versión igual o más nueva se descarta, igual que en una descarga normal.
+- La cola tiene dueño (`owner`: id y nombre del usuario). Antes de arrancar la sincronización, `resolveSyncOwnership` (en `src/core/application/sync/sync-owner.ts`) decide: sin dueño o mismo usuario, la cola se conserva; otro usuario, se vacían cola, cursor y versiones.
 - Código: `src/core/application/sync/` (núcleo puro y probado), `src/core/infrastructure/sync-api/` (llamadas HTTP y SSE validadas con Zod) y `src/presentation/session/` (arranque, sesión y cierre de sesión).
 
 ---
@@ -503,7 +508,7 @@ Se definen en `.env.local` (no se sube al repositorio; `.env.example` documenta 
 
 ### Datos de demostración en el servidor
 
-`npm run db:seed` carga el mismo club de demostración de la [sección 7](#datos-de-demostración) y las [cuentas de demostración](#cuentas-de-demostración). Solo inserta: nunca sobrescribe ni revive registros o jugadas que ya existen (tampoco los que alguien eliminó), así que se puede correr varias veces sin pisar lo cargado por los usuarios. Al terminar informa cuántos registros y jugadas nuevos insertó (`recordsInserted`, `eventsInserted`) y lista las cuentas. Las cuentas se actualizan por ID con la contraseña de `SEED_DEMO_PASSWORD`.
+`npm run db:seed` carga el mismo club de demostración de la [sección 7](#datos-de-demostración) y las [cuentas de demostración](#cuentas-de-demostración). Con los datos del club solo inserta: nunca sobrescribe ni revive registros o jugadas que ya existen (tampoco los que alguien eliminó), así que se puede correr varias veces sin pisar lo cargado por los usuarios. Al terminar informa cuántos registros y jugadas nuevos insertó (`recordsInserted`, `eventsInserted`) y lista las cuentas. Las cuentas de demostración, en cambio, se actualizan por ID: cada corrida restablece su nombre, correo y rol, y su contraseña a la de `SEED_DEMO_PASSWORD`.
 
 ### API
 
@@ -610,7 +615,8 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 | Tiempos muertos al final del partido | No se aplica el máximo de 2 tiempos muertos en los últimos 2 minutos del 4.º cuarto. |
 | Dorsal repetido | No se impide que dos jugadores del mismo equipo usen el mismo dorsal. |
 | Usuarios sin pantalla de gestión | Las cuentas se crean con `npm run db:seed`. No hay pantalla para crear usuarios ni cambiar contraseñas. |
-| Reinicio sin botón | `resetToSeedData` no está expuesto en la interfaz (ver [sección 7](#volver-a-los-datos-del-servidor-en-una-tablet)). |
+| Cambio de usuario sin conexión | Si otra cuenta entra en la tablet sin conexión, se descarta la cola de la anterior, pero sus cambios siguen a la vista hasta que llega la copia completa del servidor. |
+| Cierre de sesión sin conexión | La sesión del servidor sigue válida hasta que vence (30 días) o hasta el próximo ingreso en esa tablet. La aplicación lo avisa al cerrar sesión. |
 
 ---
 
@@ -647,7 +653,7 @@ src/
   presentation/
     atoms/ molecules/ organisms/ templates/
     motion/                 useMotion, usePageEnter, useNavIndicator
-    session/                SessionProvider, sync-runtime, logout
+    session/                SessionProvider, sync-runtime, sync-ownership, logout
   server/                   db/, auth/, sync/, http/ (server-only)
 drizzle/                    migraciones SQL versionadas
 public/brand/               escudo del club
@@ -677,7 +683,7 @@ public/brand/               escudo del club
 
 - Runner: `node:test` con `node:assert`, ejecutado por `tsx` (`npm test`). Los archivos `*.test.ts` viven junto al código que prueban.
 - Cubren: reglas FIBA (faltas, bonus, PIR, +/-, box score), reloj y períodos, tiempos muertos, convocatoria, permisos, clasificación de jugadas, esquemas, derivación del marcador y parciales, analítica de temporada, casos de uso de club y de partido, estado del store y migración, reducer del reloj, reglas de la consola, efectividad de tiros, integridad e identidad de los datos de demostración.
-- Sincronización del cliente: diferencias entre estados, coalescencia de la cola, límites del envío, resultado del envío (aceptado, `STALE`, `FORBIDDEN`, `INVALID`), fusión last-write-wins, eliminaciones, orden de jugadas, primera sincronización, reinicio del cursor, motor (debounce, reintentos con espera creciente, 401, sin conexión, SSE), adaptador HTTP y textos del indicador.
+- Sincronización del cliente: diferencias entre estados, coalescencia de la cola, límites del envío, resultado del envío (aceptado, `STALE`, `FORBIDDEN`, `INVALID`), fusión last-write-wins, eliminaciones, orden de jugadas, primera sincronización, cambios hechos antes de la primera sincronización, cola reaplicada sobre la copia completa, reinicio del cursor, dueño de la cola al cambiar de usuario, motor (debounce, reintentos con espera creciente, 401, sin conexión, SSE), cierre de sesión sin conexión, destino seguro tras el ingreso, adaptador HTTP y textos del indicador.
 - Servidor: hash de contraseñas, sesiones, RBAC, esquemas de la API, reglas de fusión, SSE y, con `npm run test:db`, integración contra PostgreSQL.
 - No cubren: componentes React ni flujos en navegador.
 - Controles de calidad antes de integrar: `npx tsc --noEmit`, `npm run lint`, `npm test` y `npm run build`.
