@@ -1,0 +1,178 @@
+.pageContainer {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .pageContainer {
+    padding: var(--space-6);
+  }
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+@media (min-width: 640px) {
+  .header {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.titleArea {
+  display: flex;
+  flex-direction: column;
+}
+
+.pageTitle {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-black);
+  color: var(--text-primary);
+}
+
+.pageSubtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* SEARCH & FILTERS */
+.filterBar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background-color: var(--bg-surface-1);
+  padding: var(--space-4);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle);
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background-color: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 0 var(--space-3);
+  min-height: var(--touch-min);
+}
+
+.searchInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  outline: none;
+}
+
+.filterScrollRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+  -webkit-overflow-scrolling: touch;
+}
+
+.filterChip {
+  padding: var(--space-1-5) var(--space-3);
+  min-height: 36px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface-2);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  touch-action: manipulation;
+  transition: all var(--transition-fast);
+}
+
+.filterChip:hover {
+  background-color: var(--bg-surface-3);
+  color: var(--text-primary);
+}
+
+.filterChipActive {
+  background-color: var(--color-orange-subtle);
+  border-color: var(--color-orange);
+  color: var(--color-orange);
+}
+
+.playersGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+@media (min-width: 640px) {
+  .playersGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .playersGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.playerCardWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background-color: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: var(--space-3);
+  transition: border-color var(--transition-fast);
+}
+
+.playerCardWrapper:hover {
+  border-color: var(--border-strong);
+}
+
+.playerActionsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.actionButton {
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-orange);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-orange-subtle);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast);
+}
+
+.actionButton:hover {
+  background-color: var(--color-orange);
+  color: #FFFFFF;
+}
+
+.emptyState {
+  padding: var(--space-12) var(--space-4);
+  text-align: center;
+  background-color: var(--bg-surface-1);
+  border-radius: var(--radius-xl);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-secondary);
+}

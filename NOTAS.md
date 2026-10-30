@@ -14,3 +14,15 @@
 - **Atoms**: `TouchButton` (con GSAP spring/scale), `JerseyBadge` (con estados onCourt, bench, foulWarning, fouledOut), `FoulDots` (con pulsación en 5ta falta), `StatBadge` (con colores por posición FIBA), `StatusPill`.
 - **Molecules**: `PlayerCard` (tarjeta ergonómica de toque rápido), `ModalSheet` (bottom-sheet en móvil / modal centrado en tablet con GSAP timeline).
 - **Templates**: `TabletAppShell` con Navigation Rail lateral para tablets y Bottom Navigation Bar fija en la zona del pulgar para smartphones. Selector de roles reactivo simulando RBAC.
+
+## Fase 3: Stores Persistentes, Datos Semilla de Básquet y Gestión de Club
+- **Persistencia con Zustand**: Implementado `useClubStore` persistido en `localStorage` con middleware `persist`.
+- **Datos Semilla (Seed Data)**:
+  - 3 Divisiones: Primera División, Sub-19 (U19) y Sub-17 (U17).
+  - 12 Jugadores de Primera División con posiciones reales FIBA (PG, SG, SF, PF, C), dorsales oficiales y características físicas (1.82m a 2.08m).
+  - Juveniles Sub-19 y Sub-17 disponibles para convocatorias.
+  - 3 Partidos en calendario: 1 finalizado (con historial play-by-play), 1 EN VIVO hoy (`match-live-today`), y 1 programado.
+- **Módulos de Gestión**:
+  - `/divisions`: Grilla táctil de divisiones, planteles y asignación de cuerpo técnico.
+  - `/players`: Filtros rápidos por toque (división, posición, estado físico), buscador instantáneo, formulario `PlayerFormModal` con `react-hook-form` + `zod`, y acción para convocar juveniles al plantel superior.
+  - `UserRoleSwitcher`: Simulación de inicio de sesión y cambio rápido de roles RBAC (Entrenador, Planillero, Administrador).
