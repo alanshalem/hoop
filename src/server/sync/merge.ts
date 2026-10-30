@@ -6,7 +6,8 @@ import type { SyncRecordKind } from './record-kinds';
 /**
  * =============================================================================
  * HOOP OS - SYNC MERGE RULES (pure)
- * Records: last-write-wins by client `updatedAt` (ties keep the stored row).
+ * Records: last-write-wins by client `updatedAt` (ties keep the stored row);
+ * an `updatedAt` more than MAX_CLOCK_SKEW_MS ahead of the server is refused.
  * Events: append-only by id; data is immutable and a tombstone is permanent.
  * =============================================================================
  */
@@ -68,6 +69,18 @@ export function recordWriteOperation(incomingDeleted: boolean, stored: StoredRec
 /** Last-write-wins: only a strictly newer `updatedAt` replaces the stored row. */
 export function isNewerThanStored(updatedAt: Date, stored: StoredRecordState | undefined): boolean {
   return !stored || updatedAt.getTime() > stored.updatedAt.getTime();
+}
+
+/** Client clocks may run this far ahead of the server before a record is refused. */
+export const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
+/**
+ * Future guard for last-write-wins: a record stamped by a clock that runs
+ * ahead would beat every honest write until real time catches up (or forever,
+ * with a far-future date), so it is rejected instead of stored.
+ */
+export function isTooFarInFuture(updatedAt: Date, now: Date): boolean {
+  return updatedAt.getTime() > now.getTime() + MAX_CLOCK_SKEW_MS;
 }
 
 /**

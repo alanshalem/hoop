@@ -1,5 +1,6 @@
 import 'server-only';
 import { Client } from 'pg';
+import { logServerError } from '../http/log-server-error';
 import { CURRENT_CURSOR_SQL, SYNC_CHANNEL } from './repository';
 
 export { SYNC_CHANNEL };
@@ -52,7 +53,7 @@ export function createSyncChangeListener({
       try {
         listener(cursor);
       } catch (error) {
-        console.error('[sync/listener] subscriber failed', error);
+        logServerError('sync/listener subscriber', error);
       }
     }
   }
@@ -88,7 +89,7 @@ export function createSyncChangeListener({
       if (channel === SYNC_CHANNEL && payload && CURSOR_PATTERN.test(payload)) emit(payload);
     });
     next.on('error', (error) => {
-      console.error('[sync/listener] connection error', error.message);
+      logServerError('sync/listener connection', error);
       drop(next);
     });
     next.on('end', () => drop(next));
@@ -97,7 +98,7 @@ export function createSyncChangeListener({
       await next.connect();
       await next.query(`LISTEN ${SYNC_CHANNEL}`);
     } catch (error) {
-      console.error('[sync/listener] could not listen', error);
+      logServerError('sync/listener listen', error);
       next.end().catch(() => {});
       connecting = false;
       scheduleReconnect();
@@ -122,7 +123,7 @@ export function createSyncChangeListener({
       const cursor = result.rows[0]?.cursor;
       if (cursor) emit(cursor);
     } catch (error) {
-      console.error('[sync/listener] could not read the cursor after reconnecting', error);
+      logServerError('sync/listener cursor after reconnect', error);
     }
   }
 

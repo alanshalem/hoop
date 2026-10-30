@@ -114,6 +114,24 @@ export async function upsertRecordsLww(db: DbExecutor, records: readonly RecordW
   return accepted;
 }
 
+/**
+ * Insert-only: records whose (kind, id) already exists are left untouched,
+ * whatever their `updatedAt` or tombstone. Used by the seed, which must never
+ * overwrite user edits or resurrect deletions. Returns the rows inserted.
+ */
+export async function insertRecordsIfNew(db: DbExecutor, records: readonly RecordWrite[]): Promise<AcceptedRecord[]> {
+  const accepted: AcceptedRecord[] = [];
+  for (const batch of chunk(records)) {
+    const rows = await db
+      .insert(syncRecords)
+      .values(batch.map(({ kind, id, data, updatedAt, deleted }) => ({ kind, id, data, updatedAt, deleted })))
+      .onConflictDoNothing({ target: [syncRecords.kind, syncRecords.id] })
+      .returning({ kind: syncRecords.kind, id: syncRecords.id, seq: syncRecords.seq });
+    accepted.push(...rows);
+  }
+  return accepted;
+}
+
 /** Stored LWW state keyed by `recordKey(kind, id)`; ids not found are absent. */
 export async function findRecordStates(
   db: DbExecutor,

@@ -8,6 +8,7 @@ import {
   dedupeEvents,
   dedupeRecords,
   isNewerThanStored,
+  isTooFarInFuture,
   recordKey,
   recordWriteOperation,
   type RejectReason,
@@ -36,15 +37,22 @@ export interface PushResult {
 
 /**
  * Applies one push in a single transaction. Each item is checked in order:
- * domain schema (INVALID), role permissions (FORBIDDEN), then the merge rule
- * (STALE). Accepted writes take a new seq; if any, `hoop_sync` is notified on
+ * domain schema and, for records, an `updatedAt` at most 5 minutes ahead of
+ * `now` (INVALID), role permissions (FORBIDDEN), then the merge rule (STALE). Accepted writes take a new seq; if any, `hoop_sync` is notified on
  * commit with the new cursor.
  */
-export async function applyPush(db: Database, user: { role: UserRole }, body: PushBody): Promise<PushResult> {
+export async function applyPush(
+  db: Database,
+  user: { role: UserRole },
+  body: PushBody,
+  now: Date = new Date()
+): Promise<PushResult> {
   // Schema validation needs no database, so it runs before the write lock is taken.
   const records = dedupeRecords(body.records).map((input) => ({
     input,
-    parsed: parseRecordData(input.kind, input.id, input.data),
+    parsed: isTooFarInFuture(input.updatedAt, now)
+      ? ({ ok: false, reason: 'updatedAt is too far in the future' } as const)
+      : parseRecordData(input.kind, input.id, input.data),
   }));
   const events = dedupeEvents(body.events).map((input) => ({
     input,

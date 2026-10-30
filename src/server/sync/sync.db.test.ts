@@ -240,6 +240,30 @@ describe('sync push / pull (database)', () => {
     assert.strictEqual(stored.updatedAt.toISOString(), at(41).toISOString());
   });
 
+  it('rejects records dated more than 5 minutes ahead of the server clock as INVALID', async () => {
+    const now = new Date();
+    const tooFar = uid('player');
+    const withinSkew = uid('player');
+    const cursorBefore = await readCurrentCursor(connection.db);
+
+    const result = await push(
+      ADMIN,
+      body([
+        playerRecord(tooFar, new Date(now.getTime() + 6 * 60 * 1000)),
+        playerRecord(withinSkew, new Date(now.getTime() + 4 * 60 * 1000)),
+      ])
+    );
+    assert.deepStrictEqual(result.accepted, [withinSkew]);
+    assert.deepStrictEqual(result.rejected, [{ id: tooFar, reason: 'INVALID' }]);
+    assert.strictEqual(await storedRecord('player', tooFar), undefined);
+    assert.ok(Number(result.cursor) > Number(cursorBefore));
+
+    // A far-future tombstone cannot pin a record forever either.
+    const pinned = await push(ADMIN, body([playerRecord(withinSkew, new Date('2099-01-01T00:00:00.000Z'), {}, true)]));
+    assert.deepStrictEqual(pinned.rejected, [{ id: withinSkew, reason: 'INVALID' }]);
+    assert.strictEqual((await storedRecord('player', withinSkew)).deleted, false);
+  });
+
   it('merges events append-only: insert once, immutable data, permanent tombstones', async () => {
     const matchId = uid('match');
     const eventId = uid('event');

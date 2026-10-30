@@ -4,6 +4,7 @@ import { AUTH_MESSAGES } from '@/server/auth/messages';
 import { validateSessionToken } from '@/server/auth/session';
 import { getDb } from '@/server/db/client';
 import { INTERNAL_ERROR_MESSAGE, jsonError } from '@/server/http/json';
+import { logServerError } from '@/server/http/log-server-error';
 import { getSyncChangeListener } from '@/server/sync/listener';
 import { createSyncEventStream, SSE_HEADERS } from '@/server/sync/sse';
 
@@ -30,7 +31,7 @@ export async function GET(request: Request): Promise<Response> {
     return new Response(stream, { headers: SSE_HEADERS });
   } catch (error) {
     unstable_rethrow(error);
-    console.error('[sync/stream] failed', error);
+    logServerError('sync/stream', error);
     return jsonError(500, INTERNAL_ERROR_MESSAGE);
   }
 }

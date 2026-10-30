@@ -1,4 +1,5 @@
 import 'server-only';
+import { logServerError } from '../http/log-server-error';
 
 /**
  * =============================================================================
@@ -84,7 +85,7 @@ export function createSyncEventStream({
           }
           send(HEARTBEAT_COMMENT);
         } catch (error) {
-          console.error('[sync/stream] heartbeat failed', error);
+          logServerError('sync/stream heartbeat', error);
           close();
         }
       }

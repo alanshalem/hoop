@@ -1,12 +1,12 @@
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import type { DatabaseConnection } from '../db/client';
 import { sessions, users } from '../db/schema';
 import { openTestDatabase } from '../testing/test-database';
 import { authenticateUser } from './authenticate';
-import { hashPassword } from './password';
+import { hashPassword, needsRehash } from './password';
 import { createSession, hashSessionToken, revokeSession, SESSION_TTL_MS, validateSessionToken } from './session';
 
 const PASSWORD = 'secret-1922';
@@ -96,6 +96,35 @@ describe('sessions and credentials (database)', () => {
         passwordHash: 'x',
       })
     );
+  });
+
+  it('upgrades a hash with older cost parameters on the next successful login only', async () => {
+    const legacyId = `test-user-${randomUUID()}`;
+    const salt = randomBytes(16);
+    const key = scryptSync(PASSWORD, salt, 64, { N: 16384, r: 8, p: 1, maxmem: 2 * 128 * 16384 * 8 });
+    const legacyHash = ['scrypt', 16384, 8, 1, salt.toString('base64url'), key.toString('base64url')].join('$');
+    const legacyEmail = `${legacyId}@test.camg.com.ar`;
+    await connection.db
+      .insert(users)
+      .values({ id: legacyId, email: legacyEmail, name: 'Hash antiguo', role: 'ADMIN', passwordHash: legacyHash });
+    const storedHash = async () =>
+      (await connection.db.select({ hash: users.passwordHash }).from(users).where(eq(users.id, legacyId)))[0].hash;
+
+    try {
+      assert.strictEqual(await authenticateUser(connection.db, legacyEmail, 'wrong-password'), null);
+      assert.strictEqual(await storedHash(), legacyHash, 'a failed login never rewrites the hash');
+
+      assert.ok(await authenticateUser(connection.db, legacyEmail, PASSWORD));
+      const upgraded = await storedHash();
+      assert.notStrictEqual(upgraded, legacyHash);
+      assert.deepStrictEqual(upgraded.split('$').slice(0, 4), ['scrypt', '131072', '8', '1']);
+      assert.strictEqual(needsRehash(upgraded), false);
+
+      assert.ok(await authenticateUser(connection.db, legacyEmail, PASSWORD), 'the new hash still verifies');
+      assert.strictEqual(await storedHash(), upgraded, 'a current hash is not rewritten');
+    } finally {
+      await connection.db.delete(users).where(eq(users.id, legacyId));
+    }
   });
 
   it('authenticates with the right password only, matching the email case-insensitively', async () => {

@@ -5,6 +5,8 @@ import {
   dedupeEvents,
   dedupeRecords,
   isNewerThanStored,
+  isTooFarInFuture,
+  MAX_CLOCK_SKEW_MS,
   recordKey,
   recordWriteOperation,
 } from './merge';
@@ -113,6 +115,22 @@ describe('isNewerThanStored (last-write-wins)', () => {
     assert.strictEqual(isNewerThanStored(T2, { updatedAt: T1, deleted: false }), true);
     assert.strictEqual(isNewerThanStored(T1, { updatedAt: T1, deleted: false }), false);
     assert.strictEqual(isNewerThanStored(T1, { updatedAt: T2, deleted: true }), false);
+  });
+});
+
+describe('isTooFarInFuture (LWW guard against skewed client clocks)', () => {
+  const now = T3;
+
+  it('allows up to 5 minutes of client clock skew', () => {
+    assert.strictEqual(MAX_CLOCK_SKEW_MS, 5 * 60 * 1000);
+    assert.strictEqual(isTooFarInFuture(T1, now), false);
+    assert.strictEqual(isTooFarInFuture(now, now), false);
+    assert.strictEqual(isTooFarInFuture(new Date(now.getTime() + MAX_CLOCK_SKEW_MS), now), false);
+  });
+
+  it('flags anything more than 5 minutes ahead of the server clock', () => {
+    assert.strictEqual(isTooFarInFuture(new Date(now.getTime() + MAX_CLOCK_SKEW_MS + 1), now), true);
+    assert.strictEqual(isTooFarInFuture(new Date('2099-01-01T00:00:00.000Z'), now), true);
   });
 });
 

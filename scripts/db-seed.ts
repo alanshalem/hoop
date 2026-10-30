@@ -1,10 +1,12 @@
 /**
  * `npm run db:seed` - loads the demo club and demo users into PostgreSQL.
- * Safe to run repeatedly. Prints the demo accounts; never prints hashes.
+ * Safe to run repeatedly: existing records and events are never rewritten.
+ * Prints the demo accounts; never prints hashes or query parameters.
  */
 import { USER_ROLE_LABELS } from '@/core/domain/entities/club.types';
 import { createDatabase } from '@/server/db/client';
 import { DEFAULT_SEED_DEMO_PASSWORD, seedDatabase } from '@/server/db/seed';
+import { logServerError } from '@/server/http/log-server-error';
 
 async function main(): Promise<void> {
   const url = process.env.DATABASE_URL;
@@ -20,7 +22,7 @@ async function main(): Promise<void> {
   const { db, pool } = createDatabase(url);
   try {
     const summary = await seedDatabase(db, { now: new Date(), demoPassword });
-    console.log(`Seed complete: ${summary.recordsWritten} records written, ${summary.eventsInserted} new events.`);
+    console.log(`Seed complete: ${summary.recordsInserted} new records, ${summary.eventsInserted} new events.`);
     console.log(
       usesDefaultPassword
         ? 'Demo accounts (password: the documented default from .env.example):'
@@ -35,6 +37,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error('Seed failed:', error);
+  logServerError('db:seed', error);
   process.exitCode = 1;
 });

@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/server/auth/current-user';
 import { AUTH_MESSAGES } from '@/server/auth/messages';
 import { getDb } from '@/server/db/client';
 import { INTERNAL_ERROR_MESSAGE, jsonError, jsonOk } from '@/server/http/json';
+import { logServerError } from '@/server/http/log-server-error';
 import { parseSinceCursor } from '@/server/sync/api-schema';
 import { SYNC_MESSAGES } from '@/server/sync/messages';
 import { pullChanges } from '@/server/sync/pull';
@@ -26,7 +27,7 @@ export async function GET(request: Request): Promise<Response> {
     return jsonOk(await pullChanges(getDb(), since.value));
   } catch (error) {
     unstable_rethrow(error);
-    console.error('[sync/pull] failed', error);
+    logServerError('sync/pull', error);
     return jsonError(500, INTERNAL_ERROR_MESSAGE);
   }
 }

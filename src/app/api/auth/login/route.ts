@@ -6,16 +6,18 @@ import { AUTH_MESSAGES } from '@/server/auth/messages';
 import { createSession, revokeSession, SESSION_COOKIE_NAME, sessionCookieOptions } from '@/server/auth/session';
 import { getDb } from '@/server/db/client';
 import { INTERNAL_ERROR_MESSAGE, jsonError, jsonOk } from '@/server/http/json';
+import { logServerError } from '@/server/http/log-server-error';
+import { isJsonRequest } from '@/server/http/read-json';
+import { isSameOriginRequest } from '@/server/http/same-origin';
 
 /**
  * POST /api/auth/login  { email, password } -> 200 { user } + `hoop_session` cookie.
  * Any credential failure answers the same generic 401 (no user enumeration).
+ * 403 when a present `Origin` is not this host, 415 if not JSON, 400 for a malformed body.
  */
 export async function POST(request: Request): Promise<Response> {
-  // Requiring JSON also blocks cross-site HTML form posts (they cannot send this type).
-  if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
-    return jsonError(415, AUTH_MESSAGES.unsupportedMediaType);
-  }
+  if (!isSameOriginRequest(request)) return jsonError(403, AUTH_MESSAGES.forbiddenOrigin);
+  if (!isJsonRequest(request)) return jsonError(415, AUTH_MESSAGES.unsupportedMediaType);
 
   let body: unknown;
   try {
@@ -41,7 +43,7 @@ export async function POST(request: Request): Promise<Response> {
     return jsonOk({ user });
   } catch (error) {
     unstable_rethrow(error);
-    console.error('[auth/login] failed', error);
+    logServerError('auth/login', error);
     return jsonError(500, INTERNAL_ERROR_MESSAGE);
   }
 }

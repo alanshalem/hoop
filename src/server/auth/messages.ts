@@ -6,4 +6,5 @@ export const AUTH_MESSAGES = {
   invalidBody: 'Ingresa un email válido y tu contraseña.',
   unsupportedMediaType: 'La solicitud debe enviarse en formato JSON.',
   unauthenticated: 'No has iniciado sesión o tu sesión expiró.',
+  forbiddenOrigin: 'Solicitud rechazada: el origen no está permitido.',
 } as const;

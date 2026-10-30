@@ -2,14 +2,14 @@ import 'server-only';
 import { inArray, sql } from 'drizzle-orm';
 import type { UserRole } from '@/core/domain/entities/club.types';
 import { createSeedState } from '@/core/infrastructure/mocks/seed-data';
-import { hashPassword, verifyPassword } from '../auth/password';
+import { hashPassword, needsRehash, verifyPassword } from '../auth/password';
 import { normalizeEmail } from '../auth/users';
 import type { SyncRecordKind } from '../sync/record-kinds';
 import { parseEventData, parseRecordData } from '../sync/records';
 import {
   insertEventsIfNew,
+  insertRecordsIfNew,
   lockSyncWrites,
-  upsertRecordsLww,
   type EventWrite,
   type RecordWrite,
 } from '../sync/repository';
@@ -26,7 +26,7 @@ export interface SeedOptions {
 
 export interface SeedSummary {
   accounts: { email: string; name: string; role: UserRole }[];
-  recordsWritten: number;
+  recordsInserted: number;
   eventsInserted: number;
 }
 
@@ -40,10 +40,10 @@ function validRecord(kind: SyncRecordKind, entity: { id: string }, now: Date): R
  * Loads the shared demo club (`createSeedState`) and the demo users.
  *
  * Idempotent: users are upserted by id (an existing hash is kept when it still
- * matches the demo password), records go through the same last-write-wins
- * upsert as sync with `updatedAt = now` (re-running later restores the demo
- * entities; entities created by users are untouched), and events are
- * append-only (existing event ids are never rewritten).
+ * matches the demo password with the current cost), while records and events
+ * are insert-only: an id that already exists is never rewritten, so re-running
+ * the seed cannot overwrite user edits or resurrect a deleted (tombstoned)
+ * entity. Only demo entities missing from the database are added.
  */
 export async function seedDatabase(db: Database, { now, demoPassword }: SeedOptions): Promise<SeedSummary> {
   const seed = createSeedState(now);
@@ -58,7 +58,9 @@ export async function seedDatabase(db: Database, { now, demoPassword }: SeedOpti
     seed.users.map(async (user) => {
       const stored = existingHashes.get(user.id);
       const passwordHash =
-        stored && (await verifyPassword(demoPassword, stored)) ? stored : await hashPassword(demoPassword);
+        stored && !needsRehash(stored) && (await verifyPassword(demoPassword, stored))
+          ? stored
+          : await hashPassword(demoPassword);
       return {
         id: user.id,
         email: normalizeEmail(user.email),
@@ -102,12 +104,12 @@ export async function seedDatabase(db: Database, { now, demoPassword }: SeedOpti
           updatedAt: sql`excluded.updated_at`,
         },
       });
-    const writtenRecords = await upsertRecordsLww(tx, records);
+    const insertedRecords = await insertRecordsIfNew(tx, records);
     const insertedEvents = await insertEventsIfNew(tx, events);
 
     return {
       accounts: userRows.map(({ email, name, role }) => ({ email, name, role })),
-      recordsWritten: writtenRecords.length,
+      recordsInserted: insertedRecords.length,
       eventsInserted: insertedEvents.length,
     };
   });

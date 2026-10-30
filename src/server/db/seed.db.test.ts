@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { createSeedState } from '@/core/infrastructure/mocks/seed-data';
 import { authenticateUser } from '../auth/authenticate';
+import { applyPush } from '../sync/push';
 import { openTestDatabase } from '../testing/test-database';
 import type { DatabaseConnection } from './client';
 import { matchEvents, syncRecords, users } from './schema';
@@ -57,14 +58,56 @@ describe('database seed', () => {
 
     const again = await seedDatabase(connection.db, { now, demoPassword: DEMO_PASSWORD });
     assert.deepStrictEqual(await counts(), expected);
-    assert.strictEqual(again.recordsWritten, 0, 'same updatedAt: last-write-wins keeps the stored rows');
+    assert.strictEqual(again.recordsInserted, 0, 'records are insert-only');
     assert.strictEqual(again.eventsInserted, 0, 'events are append-only');
     assert.deepStrictEqual(await passwordHashes(), hashesAfterFirstRun, 'matching hashes are kept');
 
     const later = await seedDatabase(connection.db, { now: new Date(now.getTime() + 1000), demoPassword: DEMO_PASSWORD });
     assert.deepStrictEqual(await counts(), expected);
-    assert.strictEqual(later.recordsWritten, recordIds.length, 'a newer seed restores the demo records');
+    assert.strictEqual(later.recordsInserted, 0, 'a later seed never rewrites existing records');
     assert.strictEqual(later.eventsInserted, 0);
+  });
+
+  it('never resurrects a tombstone or overwrites user edits on a later re-seed', async () => {
+    const division = seed.divisions[0];
+    const storedDivision = async () => {
+      const [row] = await connection.db
+        .select()
+        .from(syncRecords)
+        .where(and(eq(syncRecords.kind, 'division'), eq(syncRecords.id, division.id)));
+      return row;
+    };
+
+    await seedDatabase(connection.db, { now: new Date(), demoPassword: DEMO_PASSWORD });
+    const deletedAt = new Date(Date.now() + 1000);
+    const renamed = 'Division renombrada por el usuario';
+    try {
+      const result = await applyPush(
+        connection.db,
+        { role: 'ADMIN' },
+        { records: [{ kind: 'division', id: division.id, data: { ...division, name: renamed }, updatedAt: deletedAt, deleted: true }], events: [] }
+      );
+      assert.deepStrictEqual(result.accepted, [division.id]);
+      const tombstone = await storedDivision();
+
+      const later = await seedDatabase(connection.db, {
+        now: new Date(deletedAt.getTime() + 60 * 60 * 1000),
+        demoPassword: DEMO_PASSWORD,
+      });
+      const after = await storedDivision();
+      assert.strictEqual(after.deleted, true);
+      assert.strictEqual(after.data.name, renamed);
+      assert.strictEqual(after.updatedAt.toISOString(), deletedAt.toISOString());
+      assert.strictEqual(after.seq, tombstone.seq, 'the re-seed did not write the row');
+      assert.strictEqual(later.recordsInserted, 0);
+    } finally {
+      // Restore the demo division so later runs start from the seed again.
+      await connection.db
+        .delete(syncRecords)
+        .where(and(eq(syncRecords.kind, 'division'), eq(syncRecords.id, division.id)));
+      await seedDatabase(connection.db, { now: new Date(), demoPassword: DEMO_PASSWORD });
+    }
+    assert.strictEqual((await storedDivision()).deleted, false);
   });
 
   it('creates users that can log in with the demo password', async () => {

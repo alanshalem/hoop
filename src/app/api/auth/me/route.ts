@@ -2,6 +2,7 @@ import { unstable_rethrow } from 'next/navigation';
 import { getCurrentUser } from '@/server/auth/current-user';
 import { AUTH_MESSAGES } from '@/server/auth/messages';
 import { INTERNAL_ERROR_MESSAGE, jsonError, jsonOk } from '@/server/http/json';
+import { logServerError } from '@/server/http/log-server-error';
 
 /**
  * GET /api/auth/me -> 200 { user } (id, email, name, role) or 401.
@@ -14,7 +15,7 @@ export async function GET(): Promise<Response> {
     return jsonOk({ user });
   } catch (error) {
     unstable_rethrow(error);
-    console.error('[auth/me] failed', error);
+    logServerError('auth/me', error);
     return jsonError(500, INTERNAL_ERROR_MESSAGE);
   }
 }
