@@ -9,6 +9,7 @@ import { getPlayerFoulsFromEvents } from '@/core/domain/rules/basketball-rules';
 import { RIVAL_TEAM_ID } from '@/core/domain/rules/event-rules';
 import {
   clampGameClock,
+  crossesHalftime,
   formatGameClock,
   getQuarterLengthSeconds,
   isOvertime,
@@ -251,16 +252,17 @@ export function requestTimeout(match: Match, side: TeamSide): RequestTimeoutResu
 }
 
 /**
- * Moves to `quarter` with a full clock. Leaving Q2 for Q3 while live passes
- * through HALFTIME (see `startThirdQuarter`); during HALFTIME only Q3 is accepted.
+ * Moves to `quarter` with a full clock. Leaving the first half for any later
+ * period while live passes through HALFTIME (at the end of Q2, see
+ * `startThirdQuarter`); during HALFTIME only Q3 is accepted.
  */
 export function changeQuarter(match: Match, quarter: Quarter): Match {
   if (match.status === 'HALFTIME') {
     const resumed = quarter === 'Q3' ? startThirdQuarter(match) : null;
     return resumed?.ok ? resumed.match : match;
   }
-  if (isLive(match) && match.currentQuarter === 'Q2' && quarter === 'Q3') {
-    const halftime = startHalftime(match);
+  if (isLive(match) && crossesHalftime(match.currentQuarter, quarter)) {
+    const halftime = startHalftime({ ...match, currentQuarter: 'Q2' });
     if (halftime.ok) return halftime.match;
   }
   const entersNewOvertime = isOvertime(quarter) && quarter !== match.currentQuarter;
@@ -320,8 +322,12 @@ export function startThirdQuarter(match: Match): MatchResult<'NOT_HALFTIME'> {
   };
 }
 
-/** A live match, or one suspended at halftime, can be finished. */
+/** A live match, or one suspended at halftime (its Q2 clock stays at 00:00), can be finished. */
 export function finishMatch(match: Match): MatchResult<'MATCH_NOT_LIVE'> {
   if (!isLive(match) && match.status !== 'HALFTIME') return { ok: false, reason: 'MATCH_NOT_LIVE' };
-  return { ok: true, match: withDerivedScoreboard({ ...match, status: 'FINISHED' }) };
+  const clock = match.status === 'HALFTIME' ? 0 : match.quarterTimeRemainingSeconds;
+  return {
+    ok: true,
+    match: withDerivedScoreboard({ ...match, status: 'FINISHED', quarterTimeRemainingSeconds: clock }),
+  };
 }

@@ -20,6 +20,16 @@ export function isOvertime(quarter: Quarter): boolean {
   return quarter.startsWith('OT');
 }
 
+/** Q1 and Q2: the first half, followed by the halftime interval (FIBA). */
+export function isFirstHalf(quarter: Quarter): boolean {
+  return quarter === 'Q1' || quarter === 'Q2';
+}
+
+/** Moving from `from` to `to` leaves the first half, so it passes through halftime. */
+export function crossesHalftime(from: Quarter, to: Quarter): boolean {
+  return isFirstHalf(from) && !isFirstHalf(to);
+}
+
 /**
  * 10 minutes per regulation quarter, 5 minutes per overtime.
  */

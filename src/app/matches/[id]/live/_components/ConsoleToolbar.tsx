@@ -25,7 +25,11 @@ const RIVAL_ACTIONS: Array<{ type: PlayByPlayEventType; label: string; ariaLabel
   { type: 'FG3_MADE', label: '+3', ariaLabel: 'Sumar 3 puntos al rival' },
 ];
 
-/** Navigation, rival quick actions (points and team fouls), sync status and match closing. */
+/**
+ * Navigation, sync status, rival quick actions (points and team fouls) and match
+ * closing. The console has no app shell, so this is its only sync indicator; it
+ * sits at the start so the scrolling toolbar never hides it on phones.
+ */
 export const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
   matchId,
   rivalName,
@@ -35,9 +39,12 @@ export const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
   onFinish,
 }) => (
   <div className={styles.toolbar}>
-    <LinkButton href="/matches" variant="ghost" leftIcon={<ArrowLeft size={ICON_SIZE.md} />} className={styles.navBtn}>
-      Partidos
-    </LinkButton>
+    <div className={styles.startGroup}>
+      <LinkButton href="/matches" variant="ghost" leftIcon={<ArrowLeft size={ICON_SIZE.md} />} className={styles.navBtn}>
+        Partidos
+      </LinkButton>
+      <SyncStatusIndicator compact className={styles.syncStatus} />
+    </div>
 
     {!readOnly && !recordingLocked && (
       <div
@@ -73,7 +80,6 @@ export const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
     )}
 
     <div className={styles.endGroup}>
-      <SyncStatusIndicator compact className={styles.syncStatus} />
       <LinkButton
         href={`/matches/${matchId}/stats`}
         variant="secondary"

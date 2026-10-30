@@ -8,7 +8,7 @@ import { USER_ROLE_LABELS } from '@/core/domain/entities/club.types';
 import type { PlayByPlayEventType, Quarter } from '@/core/domain/entities/match.types';
 import type { CourtCoordinates } from '@/core/domain/value-objects/coordinates';
 import { isSameTeamFoulPeriod } from '@/core/domain/rules/event-rules';
-import { formatGameClock, getQuarterLengthSeconds } from '@/core/domain/rules/game-clock';
+import { crossesHalftime, formatGameClock, getQuarterLengthSeconds } from '@/core/domain/rules/game-clock';
 import { getTimeoutPeriod, isLastTwoMinutesOfFourthQuarter } from '@/core/domain/rules/timeouts';
 import type { TeamSide } from '@/core/application/use-cases/match-use-cases';
 import { useClubStore } from '@/core/application/stores/useClubStore';
@@ -204,7 +204,8 @@ export function LiveConsole({ matchId }: { matchId: string }) {
 
   const handleSelectQuarter = async (quarter: Quarter) => {
     if (quarter === match.currentQuarter) return;
-    if (match.currentQuarter === 'Q2' && quarter === 'Q3') {
+    // Any jump out of the first half stops at halftime first (the use case enforces it).
+    if (crossesHalftime(match.currentQuarter, quarter)) {
       const accepted = await confirm({
         title: 'Fin de la primera mitad',
         message: 'El partido pasa al entretiempo: no se registran jugadas ni tiempos muertos hasta comenzar el 3.er cuarto.',

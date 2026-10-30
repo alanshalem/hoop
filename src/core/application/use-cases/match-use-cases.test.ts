@@ -297,6 +297,39 @@ describe('halftime (FIBA: interval after Q2)', () => {
     const halftime = expectOk(startHalftime(endOfQ2())).match;
     assert.strictEqual(expectOk(finishMatch(halftime)).match.status, 'FINISHED');
   });
+
+  it('finishing from HALFTIME stores the clock at 00:00, whatever clock the console still held', () => {
+    const halftime = expectOk(startHalftime(endOfQ2())).match;
+    const finished = expectOk(finishMatch({ ...halftime, quarterTimeRemainingSeconds: 37 })).match;
+    assert.strictEqual(finished.quarterTimeRemainingSeconds, 0);
+    assert.strictEqual(finished.currentQuarter, 'Q2');
+  });
+
+  it('finishing a live match keeps its clock', () => {
+    const finished = expectOk(finishMatch(makeMatch({ currentQuarter: 'Q4', quarterTimeRemainingSeconds: 3 }))).match;
+    assert.strictEqual(finished.quarterTimeRemainingSeconds, 3);
+  });
+
+  it('any jump from the first half into the second half passes through HALFTIME first', () => {
+    for (const [from, to] of [
+      ['Q2', 'Q4'],
+      ['Q1', 'Q3'],
+      ['Q1', 'Q4'],
+      ['Q2', 'OT1'],
+    ] as const) {
+      const next = changeQuarter(makeMatch({ currentQuarter: from, quarterTimeRemainingSeconds: 140 }), to);
+      assert.strictEqual(next.status, 'HALFTIME', `${from} -> ${to}`);
+      assert.strictEqual(next.currentQuarter, 'Q2', `${from} -> ${to}`);
+      assert.strictEqual(next.quarterTimeRemainingSeconds, 0, `${from} -> ${to}`);
+    }
+  });
+
+  it('moves within a half without halftime (Q1 -> Q2, Q3 -> Q4, back to Q1)', () => {
+    assert.strictEqual(changeQuarter(makeMatch({ currentQuarter: 'Q1' }), 'Q2').status, 'LIVE');
+    assert.strictEqual(changeQuarter(makeMatch({ currentQuarter: 'Q3' }), 'Q4').status, 'LIVE');
+    const back = changeQuarter(makeMatch({ currentQuarter: 'Q2' }), 'Q1');
+    assert.deepStrictEqual([back.status, back.currentQuarter], ['LIVE', 'Q1']);
+  });
 });
 
 describe('requestTimeout in the last 2 minutes of Q4 (FIBA Art. 18.2.5)', () => {

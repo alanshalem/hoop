@@ -134,7 +134,7 @@ Cualquier otra pantalla, sin una sesión guardada, redirige a `/login` y despué
 
 ### Estado de sincronización
 
-Botón visible en el riel lateral (tablet), en la barra superior (teléfono), en el menú de usuario del Dashboard y en la barra de herramientas de la consola en vivo. Tocarlo sincroniza en ese momento; en una pestaña secundaria le pide a la pestaña principal que sincronice.
+Botón visible en el riel lateral (tablet), en la barra superior (teléfono), en el menú de usuario del Dashboard y en la barra de herramientas de la consola en vivo, junto a **Partidos** (la consola ocupa toda la pantalla sin el menú lateral, así que ese es su único indicador y queda a la vista también en el teléfono). Tocarlo sincroniza en ese momento; en una pestaña secundaria le pide a la pestaña principal que sincronice.
 
 | Estado | Icono | Significado |
 |--------|-------|-------------|
@@ -151,7 +151,7 @@ Este manual, dentro de la aplicación. Se abre desde **Ayuda** en el menú later
 
 La primera vez que inicias sesión, HoopOS muestra un recorrido de bienvenida: la pantalla se oscurece, se resalta un elemento por vez y una tarjeta con una flecha explica para qué sirve, muchas veces con un ejemplo concreto (por ejemplo, "toca #7 Campagna y después +2").
 
-- **Bienvenida**: presenta el menú (Dashboard, Divisiones, Jugadores, Partidos, Modo partido en vivo), el estado de sincronización, tu menú de usuario y la Ayuda.
+- **Bienvenida**: presenta el menú (Dashboard, Divisiones, Jugadores, Partidos, Modo partido en vivo), el estado de sincronización, tu menú de usuario y la Ayuda. Cuando la terminas o la saltas, el recorrido de la pantalla en la que estás no empieza enseguida: aparece la próxima vez que abras esa pantalla.
 - **Recorridos por pantalla**: la primera vez que abres Dashboard, Divisiones, Jugadores, Partidos, Quinteto y convocatoria, Consola en vivo, Planilla o Ayuda, se muestra un recorrido corto de esa pantalla.
 - **Según tu rol**: los pasos de acciones que tu rol no puede realizar (por ejemplo, crear divisiones) no se muestran.
 - **Controles**: Siguiente, Atrás y Saltar tutorial (Finalizar en el último paso). Con teclado: Enter o flecha derecha avanza, flecha izquierda retrocede y Escape salta el tutorial. Tocar la zona oscura no cierra el recorrido y el elemento resaltado no se puede tocar mientras dura.
@@ -251,7 +251,7 @@ Pantalla de registro del partido en cancha, a altura completa y sin desplazamien
 | Últimas jugadas | Las 6 jugadas más recientes, de la más nueva a la más vieja, con el botón **Deshacer**. |
 | Acciones rápidas | Grupos **Convertidos** (`+1 TL`, `+2`, `+3`), **Fallados** (`TL`, `2P`, `3P`), **Rebotes y juego** (Reb. ofensivo, Reb. defensivo, Asistencia, Robo, Tapa, Pérdida) y **Faltas** (Personal, Técnica, Antidep.). |
 
-**Entretiempo.** Al terminar el 2.º cuarto el partido pasa a **Entretiempo**: el tablero muestra "Entretiempo" en lugar del reloj, un aviso indica que no se registran jugadas ni tiempos muertos y el botón **Comenzar 3.er cuarto** reanuda el partido (3.er cuarto, reloj en 10:00, En vivo). Desde el entretiempo también se puede finalizar el partido.
+**Entretiempo.** Al terminar el 2.º cuarto el partido pasa a **Entretiempo**: el tablero muestra "Entretiempo" en lugar del reloj, un aviso indica que no se registran jugadas ni tiempos muertos y el botón **Comenzar 3.er cuarto** reanuda el partido (3.er cuarto, reloj en 10:00, En vivo). Cualquier salto desde el 1.º o el 2.º cuarto a la segunda mitad o a un suplementario pasa primero por el entretiempo. Desde el entretiempo también se puede finalizar el partido; el reloj queda guardado en 00:00.
 
 Sin el permiso `RECORD_LIVE` se muestra el banner "Modo lectura" y se ocultan o deshabilitan todos los controles.
 
@@ -372,7 +372,7 @@ Un jugador excluido no puede volver a entrar. Si el cambio no es válido, un mod
 ### Reloj y cambio de período
 
 - **-10s** y **+10s** corrigen el reloj, siempre dentro de la duración del período.
-- Tocar otro período en el selector pide confirmación, reinicia el reloj (10:00 o 05:00) e informa si las faltas de equipo vuelven a cero o se mantienen. Pasar del 2.º al 3.er cuarto lleva primero al entretiempo.
+- Tocar otro período en el selector pide confirmación, reinicia el reloj (10:00 o 05:00) e informa si las faltas de equipo vuelven a cero o se mantienen. Pasar de la primera mitad (1.º o 2.º cuarto) a cualquier período posterior lleva primero al entretiempo, con el 2.º cuarto en 00:00; desde ahí solo se puede seguir con **Comenzar 3.er cuarto**.
 - Los suplementarios se habilitan de a uno desde el 4.º cuarto.
 - Cuando el reloj llega a 00:00:
   - En el 1.º y el 3.er cuarto: el sistema ofrece pasar al período siguiente.
@@ -411,7 +411,7 @@ Con varias tablets en el mismo partido, **Deshacer** quita la última jugada de 
 | Exclusión por faltas | 5 faltas (personales, técnicas y antideportivas) excluyen al jugador. Con 4 se marca como advertencia. | `basketball-rules.ts` (`FIBA_MAX_PLAYER_FOULS`) |
 | Bonus de equipo | Con 4 o más faltas de equipo en el período se enciende **Bonus**. Las faltas de cualquier suplementario cuentan como parte del 4.º cuarto. | `basketball-rules.ts`, `event-rules.ts` (`isSameTeamFoulPeriod`) |
 | Tiempos muertos | 2 en la primera mitad, 3 en la segunda y 1 por cada suplementario. Los no usados no pasan a la mitad siguiente. Al entrar a un suplementario nuevo se repone 1. Con el reloj del 4.º cuarto en 2:00 o menos, como máximo 2 (Art. 18.2.5): si quedaban 3, uno se pierde. | `timeouts.ts` (`isLastTwoMinutesOfFourthQuarter`) |
-| Entretiempo | Al terminar el 2.º cuarto el partido pasa a `HALFTIME`: no se registran jugadas, cambios ni tiempos muertos hasta comenzar el 3.er cuarto. | `match-use-cases.ts` (`startHalftime`, `startThirdQuarter`) |
+| Entretiempo | Al terminar el 2.º cuarto el partido pasa a `HALFTIME`: no se registran jugadas, cambios ni tiempos muertos hasta comenzar el 3.er cuarto. Cualquier salto de la primera mitad a un período posterior pasa por el entretiempo, y finalizar desde el entretiempo guarda el reloj en 00:00. | `match-use-cases.ts` (`startHalftime`, `startThirdQuarter`, `changeQuarter`, `finishMatch`), `game-clock.ts` (`crossesHalftime`) |
 | Duración de períodos | 10 minutos por cuarto, 5 por suplementario, hasta 4 suplementarios. | `game-clock.ts` |
 | Convocatoria | Entre 5 y 12 jugadores, exactamente 5 titulares y todos ellos convocados. | `lineup-rules.ts` |
 | Valoración (PIR) | `(PTS + REB + AST + ROB + TAP) - (tiros de campo fallados + tiros libres fallados + PER + faltas cometidas)`. Cuenta todas las faltas del jugador. | `calculateFibaPir` |
@@ -436,6 +436,8 @@ Fuente única de verdad: el marcador, las faltas de equipo, los parciales y el b
 | Sesión | Cookie `hoop_session` (httpOnly: el JavaScript de la página no puede leerla), 30 días. |
 | Tema claro u oscuro | `localStorage`, clave `hoop-theme`. |
 | Tutoriales vistos o saltados, por usuario | `localStorage`, clave `hoop-tour-storage`. |
+| Pestaña principal cuando el navegador no tiene Web Locks (http en la red local) | `localStorage`, clave `hoop-sync-leader-lease` (id de la pestaña y vencimiento). |
+| Cambios de una pestaña secundaria que la principal todavía no confirmó | `localStorage`, una clave por pestaña: `hoop-sync-handoff:<id de pestaña>`. |
 | Cola de diálogos, estado del reloj en marcha, estado de la sincronización en curso | Memoria (no se guarda). |
 
 El reloj de juego se guarda en el partido al pausar, al corregirlo, al llegar a 00:00, con cada jugada, cambio, tiempo muerto o finalización, al ocultarse la página y al salir de la consola.
@@ -483,8 +485,8 @@ Cómo funciona para quien usa la aplicación:
 | Vuelve la conexión | La cola se envía sola y la tablet descarga lo que cambiaron las demás. Si el servidor no responde, reintenta cada vez más espaciado (1 s, 2 s, 4 s... hasta 60 s). |
 | Otra tablet guarda un cambio | El servidor avisa en vivo (Server-Sent Events) y esta tablet lo descarga en segundos. |
 | Dos tablets editan el mismo jugador o división | Gana el cambio más reciente según la hora en que se hizo (last-write-wins) y el registro se reemplaza completo. |
-| Dos tablets editan el mismo partido | Se combinan campo por campo: cada dato del partido (estado, período, reloj, tiempos muertos, quinteto, estadio, etc.) guarda la hora de su último cambio y gana el más reciente; con la misma hora queda el del servidor. Si una tablet maneja el reloj y otra corrige el estadio, se conservan los dos cambios. Eliminar un partido gana solo si es posterior a todos sus cambios. |
-| Varias pestañas abiertas en el mismo navegador | Solo una pestaña (la principal) sincroniza y guarda los datos en el navegador. Las demás muestran lo que guarda la principal y le envían sus cambios al instante. Si se cierra la principal, otra pestaña toma su lugar sola, sin perder cambios. |
+| Dos tablets editan el mismo partido | Se combinan campo por campo: cada dato del partido (tiempos muertos, quinteto, estadio, etc.) guarda la hora de su último cambio y gana el más reciente; con la misma hora queda el del servidor. Si una tablet maneja el reloj y otra corrige el estadio, se conservan los dos cambios. El estado, el período y el reloj forman un solo grupo (el estado de juego): gana completo el de la tablet que lo cambió último, así que nunca se mezcla el período de una tablet con el reloj de otra (por ejemplo, "2.º cuarto con 0:20" cuando una tablet pasó al 2.º cuarto y otra pausó el 1.º en 0:20). Los tiempos muertos de cada equipo también son un solo dato: si dos tablets piden a la vez un tiempo muerto del mismo equipo, queda el pedido más reciente. Eliminar un partido gana solo si es posterior a todos sus cambios. |
+| Varias pestañas abiertas en el mismo navegador | Solo una pestaña (la principal) sincroniza y guarda los datos en el navegador, también por http en la red local. Las demás muestran lo que guarda la principal y le envían sus cambios al instante. Si se cierra la principal, otra pestaña toma su lugar sola, sin perder cambios: lo que una pestaña secundaria cambió y la principal no llegó a confirmar queda guardado en el navegador, y la próxima pestaña principal lo envía aunque la secundaria ya se haya cerrado. |
 | Jugadas | Nunca se pisan: cada jugada tiene su propio ID y se suma a la lista, ordenada por hora y luego por ID. Dos tablets pueden cargar jugadas del mismo partido a la vez sin perder ninguna. El marcador y las faltas se recalculan con todas. |
 | **Deshacer** una jugada | La jugada queda marcada como eliminada en el servidor (no se borra) y desaparece en todas las tablets. Una jugada eliminada no vuelve. |
 | El servidor rechaza un cambio | Si el rol no tiene permiso o el dato no es válido, el cambio se descarta y el estado muestra **Error** con la cantidad de cambios rechazados. Si el servidor tiene una versión más nueva, se descarta el cambio local y se descarga la del servidor. |
@@ -496,8 +498,8 @@ Cómo funciona para quien usa la aplicación:
 Detalle técnico:
 
 - La aplicación compara el estado anterior y el nuevo del store para detectar entidades creadas, editadas o eliminadas y jugadas nuevas o eliminadas. A cada registro le pone `updatedAt` (hora del cambio, siempre posterior a la versión anterior de ese registro) y lo guarda en la cola: un solo cambio pendiente por registro (`tipo:id`) y por jugada. En un partido se marcan con esa hora solo los campos que cambiaron (`fieldVersions`); el marcador y las faltas no se versionan porque se recalculan desde las jugadas.
-- Fusión por campo de partidos (`src/core/application/sync/match-fields.ts`): la misma función se usa en el servidor al recibir y en la tablet al descargar. Los registros sin versiones por campo (anteriores a esta versión) cuentan con `updatedAt` en todos los campos.
-- Una sola pestaña sincroniza (`tab-coordinator.ts`): elección con el Web Lock `hoop-sync-leader`; las demás pestañas no escriben `hoop-club-storage` ni `hoop-sync-storage`, los recargan con el evento `storage` y envían sus cambios por `BroadcastChannel` hasta que la principal los confirma. Sin Web Locks (por ejemplo, la aplicación servida por http en la red local) o sin `BroadcastChannel`, cada pestaña sincroniza por su cuenta.
+- Fusión por campo de partidos (`src/core/application/sync/match-fields.ts`): la misma función se usa en el servidor al recibir y en la tablet al descargar. `status`, `currentQuarter` y `quarterTimeRemainingSeconds` comparten una sola versión, `game-state` (`MATCH_FIELD_GROUPS`): un lado gana los tres juntos. `homeTimeouts` y `awayTimeouts` se versionan cada uno como un objeto completo. Los registros sin versiones por campo (anteriores a S13.1) cuentan con `updatedAt` en todos los campos; las versiones por campo guardadas antes del grupo (`status`, `currentQuarter`, `quarterTimeRemainingSeconds`) se toman como `game-state` con la más reciente de las tres.
+- Una sola pestaña sincroniza (`tab-coordinator.ts`): elección con el Web Lock `hoop-sync-leader` o, sin Web Locks (la aplicación servida por http en la red local), con un lease en `localStorage` (`leader-lease.ts`, clave `hoop-sync-leader-lease`): la principal lo renueva cada 2 s por 6 s; otra pestaña lo toma solo cuando venció o se liberó (cierre de sesión o cierre de la pestaña, evento `pagehide`) y lidera si su reclamo sigue siendo suyo 200 ms después. Si el navegador congela la pestaña principal más de 6 s, otra toma su lugar y la congelada pasa a secundaria al despertar. Mientras no se sabe qué rol tiene, una pestaña no escribe `hoop-club-storage` ni `hoop-sync-storage`. Las secundarias tampoco: los recargan con el evento `storage` y envían sus cambios por `BroadcastChannel` hasta que la principal los confirma; mientras tanto los guardan en `hoop-sync-handoff:<id de pestaña>` (`edit-handoff.ts`), que la siguiente pestaña principal vacía y envía (los de otro usuario se descartan). Sin `BroadcastChannel`, o sin Web Locks y con un `localStorage` que no permite escribir, cada pestaña sincroniza por su cuenta.
 - Un envío (`POST /api/sync/push`) lleva como máximo 500 registros y 2000 jugadas. Una eliminación viaja como marca (tombstone) con los últimos datos conocidos. Los partidos viajan sin jugadas; las jugadas van aparte.
 - La descarga (`GET /api/sync/pull?since=<cursor>`) trae todo lo que cambió después del cursor, de a páginas, y se aplica una sola vez al final. Lo descargado no vuelve a entrar en la cola.
 - Sin cursor (primera sincronización o reinicio de la base) primero se descarga la copia completa y después se envía la cola. La copia reemplaza los datos locales y la cola se vuelve a aplicar encima (`applyServerSnapshot`): registros pendientes creados, editados o eliminados, jugadas nuevas agregadas y jugadas eliminadas quitadas; luego se recalculan los marcadores. Un registro pendiente del que el servidor ya tiene una versión igual o más nueva se descarta, igual que en una descarga normal.
@@ -628,12 +630,11 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 
 ## 10. Limitaciones conocidas
 
-Resueltas en esta versión: los partidos se combinan campo por campo entre tablets, el servidor rechaza jugadas de partidos inexistentes, una sola pestaña sincroniza por navegador, la consola en vivo muestra el estado de sincronización, y el entretiempo y la regla de tiempos muertos de los últimos 2 minutos del 4.º cuarto están implementados.
+Resueltas en esta versión: los partidos se combinan campo por campo entre tablets (con el estado, el período y el reloj como un solo grupo), el servidor rechaza jugadas de partidos inexistentes, una sola pestaña sincroniza por navegador (también por http en la red local), la consola en vivo muestra el estado de sincronización, y el entretiempo y la regla de tiempos muertos de los últimos 2 minutos del 4.º cuarto están implementados.
 
 | Limitación | Detalle |
 |------------|---------|
 | Sin pruebas E2E de navegador | Las pruebas cubren el núcleo (dominio, casos de uso, hooks puros, sincronización, coordinación de pestañas, datos de demostración) y el servidor. La interfaz no tiene pruebas automatizadas en navegador. |
-| Pestañas por http en la red local | La coordinación de pestañas usa Web Locks, que requiere https o `localhost`. Por http en la red local cada pestaña sincroniza por su cuenta: conviene usar una sola. |
 | Reinicio de la base | La tablet detecta un reinicio de la base del servidor recién con su próximo envío o aviso en vivo. |
 | Cambios rechazados | Un cambio que el servidor rechaza por permiso o validez se descarta y solo se informa la cantidad, no cuál fue. |
 | Correcciones en el entretiempo | Durante el entretiempo no se puede deshacer la última jugada del 2.º cuarto: hay que comenzar el 3.er cuarto primero. |

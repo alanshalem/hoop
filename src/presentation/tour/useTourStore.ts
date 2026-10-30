@@ -5,6 +5,7 @@ import {
   EMPTY_TOUR_SEEN_STATE,
   markTourSeen,
   resetUserTours,
+  screenTourToDefer,
   type TourOutcome,
   type TourSeenState,
 } from './tour-seen-state';
@@ -29,6 +30,8 @@ export interface TourStoreState extends TourPersistedData {
   pendingTourId: TourId | null;
   /** Screen currently open that declared a tour (one at a time). */
   screen: TourScreen | null;
+  /** Tour of the open screen held until its next visit (the welcome tour just ended there). */
+  deferredScreenTourId: ScreenTourId | null;
   registerScreen: (tourId: ScreenTourId) => void;
   unregisterScreen: (tourId: ScreenTourId) => void;
   setScreenBlocked: (tourId: ScreenTourId, blocked: boolean) => void;
@@ -47,9 +50,13 @@ export const useTourStore = create<TourStoreState>()(
       activeTourId: null,
       pendingTourId: null,
       screen: null,
+      deferredScreenTourId: null,
       registerScreen: (tourId) => set({ screen: { tourId, blocked: false } }),
+      // Leaving a screen ends its visit: a tour deferred there starts on the next one.
       unregisterScreen: (tourId) => {
-        if (get().screen?.tourId === tourId) set({ screen: null });
+        const { screen, deferredScreenTourId } = get();
+        if (screen?.tourId === tourId) set({ screen: null });
+        if (deferredScreenTourId === tourId) set({ deferredScreenTourId: null });
       },
       setScreenBlocked: (tourId, blocked) => {
         const { screen } = get();
@@ -59,11 +66,12 @@ export const useTourStore = create<TourStoreState>()(
       clearPendingTour: () => set({ pendingTourId: null }),
       beginTour: (tourId) => set({ activeTourId: tourId, pendingTourId: null }),
       endTour: (userId, outcome) => {
-        const { activeTourId, seen } = get();
+        const { activeTourId, seen, screen, deferredScreenTourId } = get();
         if (!activeTourId) return;
         set({
           activeTourId: null,
           seen: userId && outcome ? markTourSeen(seen, userId, activeTourId, outcome) : seen,
+          deferredScreenTourId: screenTourToDefer(activeTourId, outcome, screen?.tourId ?? null) ?? deferredScreenTourId,
         });
       },
       resetUserTours: (userId) => set((state) => ({ seen: resetUserTours(state.seen, userId) })),

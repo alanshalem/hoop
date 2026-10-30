@@ -5,6 +5,7 @@ import {
   markTourSeen,
   pickTourToStart,
   resetUserTours,
+  screenTourToDefer,
   tourStatus,
   type TourSeenState,
 } from './tour-seen-state';
@@ -43,6 +44,19 @@ describe('tour seen state (per user)', () => {
     state = resetUserTours(state, 'user-1');
     assert.strictEqual(tourStatus(state, 'user-1', 'welcome'), 'pending');
     assert.strictEqual(tourStatus(state, 'user-2', 'welcome'), 'skipped');
+  });
+});
+
+describe('screenTourToDefer (S12: the welcome tour ends the tutorials of this visit)', () => {
+  it('defers the open screen tour when the welcome tour is completed or skipped', () => {
+    assert.strictEqual(screenTourToDefer('welcome', 'completed', 'players'), 'players');
+    assert.strictEqual(screenTourToDefer('welcome', 'skipped', 'dashboard'), 'dashboard');
+  });
+
+  it('defers nothing when another tour ends, the welcome tour closes without an outcome, or no screen is open', () => {
+    assert.strictEqual(screenTourToDefer('players', 'completed', 'players'), null);
+    assert.strictEqual(screenTourToDefer('welcome', null, 'players'), null);
+    assert.strictEqual(screenTourToDefer('welcome', 'completed', null), null);
   });
 });
 
@@ -99,6 +113,42 @@ describe('pickTourToStart', () => {
     assert.deepStrictEqual(
       pickTourToStart({ activeTourId: null, pendingTourId: 'welcome', screen: screen('help'), isSeen: () => true }),
       { tourId: 'welcome', explicit: true }
+    );
+  });
+
+  it('does not auto-start the screen tour deferred by the welcome tour on this visit', () => {
+    const seenWelcome = (id: string) => id === 'welcome';
+    assert.strictEqual(
+      pickTourToStart({
+        activeTourId: null,
+        pendingTourId: null,
+        screen: screen('players'),
+        deferredTourId: 'players',
+        isSeen: seenWelcome,
+      }),
+      null
+    );
+    assert.deepStrictEqual(
+      pickTourToStart({
+        activeTourId: null,
+        pendingTourId: null,
+        screen: screen('matches'),
+        deferredTourId: 'players',
+        isSeen: seenWelcome,
+      }),
+      { tourId: 'matches', explicit: false },
+      'another screen is not affected'
+    );
+    assert.deepStrictEqual(
+      pickTourToStart({
+        activeTourId: null,
+        pendingTourId: 'players',
+        screen: screen('players'),
+        deferredTourId: 'players',
+        isSeen: seenWelcome,
+      }),
+      { tourId: 'players', explicit: true },
+      'an explicit replay still starts'
     );
   });
 

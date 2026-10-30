@@ -28,8 +28,9 @@ interface TourSession {
 /**
  * Runs the guided tours (S12). Mount once in the root layout: pages only
  * declare their tour with `useScreenTour`. Starts the welcome tour on the
- * first login of each user, then each screen tour on its first visit, never
- * while a dialog is open or the screen holds tours (live clock running).
+ * first login of each user, then each screen tour on its first visit (the
+ * screen where the welcome tour ended waits for its next visit), never while a
+ * dialog is open or the screen holds tours (live clock running).
  */
 export function TourHost() {
   const hydrated = useHydrated();
@@ -39,6 +40,7 @@ export function TourHost() {
   const activeTourId = useTourStore((state) => state.activeTourId);
   const pendingTourId = useTourStore((state) => state.pendingTourId);
   const screen = useTourStore((state) => state.screen);
+  const deferredTourId = useTourStore((state) => state.deferredScreenTourId);
   const [session, setSession] = useState<TourSession | null>(null);
 
   // Automatic first-time tours and explicit replays.
@@ -48,6 +50,7 @@ export function TourHost() {
       activeTourId,
       pendingTourId,
       screen,
+      deferredTourId,
       isSeen: (tourId) => tourStatus(seen, userId, tourId) !== 'pending',
     });
     if (!candidate || !isTourId(candidate.tourId)) return;
@@ -71,7 +74,7 @@ export function TourHost() {
     };
     timer = window.setTimeout(attempt, candidate.explicit ? REPLAY_DELAY_MS : AUTO_START_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [hydrated, userId, role, seen, activeTourId, pendingTourId, screen]);
+  }, [hydrated, userId, role, seen, activeTourId, pendingTourId, screen, deferredTourId]);
 
   // Leaving the screen closes its tour without marking it: it shows again next time.
   useEffect(() => {

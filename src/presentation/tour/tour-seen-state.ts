@@ -61,18 +61,35 @@ export interface PickTourInput {
   /** Tour explicitly requested (replay) and not started yet. */
   pendingTourId: string | null;
   screen: ScreenRegistration | null;
+  /** Screen tour put off until the next visit of its screen (see `screenTourToDefer`). */
+  deferredTourId?: string | null;
   isSeen: (tourId: string) => boolean;
+}
+
+/**
+ * Screen tour to put off when a tour ends: once the welcome tour is completed
+ * or skipped, the open screen's tour waits for the next visit of that screen
+ * instead of starting right after it.
+ */
+export function screenTourToDefer<T extends string>(
+  endedTourId: string,
+  outcome: TourOutcome | null,
+  screenTourId: T | null
+): T | null {
+  return endedTourId === WELCOME_TOUR_ID && outcome !== null ? screenTourId : null;
 }
 
 /**
  * Tour to start now, if any. An explicit replay starts on its own screen (the
  * welcome tour on any screen), even if seen or blocked. Otherwise the welcome
- * tour comes first, then the tour of the screen, each one only once.
+ * tour comes first, then the tour of the screen, each one only once and not on
+ * the visit where the welcome tour ended.
  */
 export function pickTourToStart({
   activeTourId,
   pendingTourId,
   screen,
+  deferredTourId = null,
   isSeen,
 }: PickTourInput): { tourId: string; explicit: boolean } | null {
   if (activeTourId || !screen) return null;
@@ -83,6 +100,6 @@ export function pickTourToStart({
   }
   if (screen.blocked) return null;
   if (!isSeen(WELCOME_TOUR_ID)) return { tourId: WELCOME_TOUR_ID, explicit: false };
-  if (!isSeen(screen.tourId)) return { tourId: screen.tourId, explicit: false };
+  if (!isSeen(screen.tourId) && screen.tourId !== deferredTourId) return { tourId: screen.tourId, explicit: false };
   return null;
 }

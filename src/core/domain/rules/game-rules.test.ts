@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import {
+  crossesHalftime,
   formatGameClock,
   getNextQuarter,
   getQuarterLengthSeconds,
@@ -17,6 +18,18 @@ import {
 import { FIBA_MAX_ROSTER, FIBA_STARTERS, validateLineup } from './lineup-rules';
 import { can } from './permissions';
 import { USER_ROLE_LABELS } from '../entities/club.types';
+
+describe('Halftime boundary', () => {
+  it('is crossed by any move from Q1/Q2 to a later half or overtime, and by nothing else', () => {
+    assert.strictEqual(crossesHalftime('Q2', 'Q3'), true);
+    assert.strictEqual(crossesHalftime('Q2', 'Q4'), true);
+    assert.strictEqual(crossesHalftime('Q1', 'Q3'), true);
+    assert.strictEqual(crossesHalftime('Q1', 'OT1'), true);
+    assert.strictEqual(crossesHalftime('Q1', 'Q2'), false);
+    assert.strictEqual(crossesHalftime('Q3', 'Q4'), false);
+    assert.strictEqual(crossesHalftime('Q3', 'Q2'), false);
+  });
+});
 
 describe('Game clock', () => {
   it('regulation quarters last 600s and overtimes 300s', () => {
