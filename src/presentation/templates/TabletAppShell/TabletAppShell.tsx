@@ -12,10 +12,9 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { USER_ROLE_LABELS, UserRoleSchema, type UserRole } from '@/core/domain/entities/club.types';
-import { useClubStore } from '@/core/application/stores/useClubStore';
-import { ThemeToggle } from '@/presentation/molecules/ThemeToggle/ThemeToggle';
 import { ClubCrest } from '@/presentation/atoms/ClubCrest/ClubCrest';
+import { UserMenu } from '@/presentation/organisms/UserMenu/UserMenu';
+import { SyncStatusIndicator } from '@/presentation/organisms/SyncStatusIndicator/SyncStatusIndicator';
 import { CLUB_BRAND } from '@/presentation/brand';
 import { usePageEnter, useStaggerReveal } from '@/presentation/motion/useMotion';
 import { useNavIndicator } from '@/presentation/motion/useNavIndicator';
@@ -56,8 +55,6 @@ const isNavItemActive = (pathname: string, href: string) => {
 
 export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
   const pathname = usePathname();
-  const currentUser = useClubStore((state) => state.currentUser);
-  const switchRole = useClubStore((state) => state.switchRole);
   const isLiveActive = isLivePath(pathname);
   const activeHref = NAV_ITEMS.find((item) => isNavItemActive(pathname, item.href))?.href ?? null;
 
@@ -131,28 +128,17 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
           </Link>
         </div>
 
-        <div className={styles.roleSection}>
-          <label htmlFor="shell-role-select" className={styles.userLabel}>
-            Rol activo
-          </label>
-          <select
-            id="shell-role-select"
-            className={styles.roleSelector}
-            value={currentUser.role}
-            onChange={(event) => switchRole(event.target.value as UserRole)}
-          >
-            {UserRoleSchema.options.map((role) => (
-              <option key={role} value={role}>
-                {USER_ROLE_LABELS[role]}
-              </option>
-            ))}
-          </select>
-          <div className={styles.userRow}>
-            <span className={styles.userName}>{currentUser.name}</span>
-            <ThemeToggle />
-          </div>
-        </div>
+        <UserMenu variant="rail" className={styles.userSection} />
       </aside>
+
+      {/* Mobile top bar: brand + sync status (the rail holds both on tablet) */}
+      <header className={styles.mobileTopBar}>
+        <Link href="/" className={styles.mobileBrand} aria-label={`${CLUB_BRAND.productName}, ir al inicio`}>
+          <ClubCrest size={32} eager />
+          <span className={styles.mobileBrandTitle}>{CLUB_BRAND.productName}</span>
+        </Link>
+        <SyncStatusIndicator compact />
+      </header>
 
       <main ref={mainRef} className={styles.mainContent}>
         {children}

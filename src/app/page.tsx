@@ -34,7 +34,7 @@ import { FilterChip } from '@/presentation/atoms/FilterChip/FilterChip';
 import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
 import { JerseyBadge } from '@/presentation/atoms/JerseyBadge/JerseyBadge';
 import { StatusPill } from '@/presentation/atoms/StatusPill/StatusPill';
-import { UserRoleSwitcher } from '@/presentation/organisms/UserRoleSwitcher/UserRoleSwitcher';
+import { UserMenu } from '@/presentation/organisms/UserMenu/UserMenu';
 import { ClubHero } from '@/presentation/organisms/ClubHero/ClubHero';
 import { MatchStatusBadge } from '@/presentation/organisms/MatchCard/MatchStatusBadge';
 import {
@@ -238,7 +238,7 @@ export default function DashboardPage() {
           actions={
             // The nav rail holds the role selector on tablet; phones get it here.
             <div className={styles.mobileRoleSwitcher}>
-              <UserRoleSwitcher />
+              <UserMenu />
             </div>
           }
         />

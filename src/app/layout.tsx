@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { Archivo, Archivo_Narrow } from "next/font/google";
 import { DialogHost } from "@/presentation/organisms/DialogHost/DialogHost";
+import { SessionProvider } from "@/presentation/session/SessionProvider";
 import { THEME_INIT_SCRIPT } from "@/presentation/molecules/ThemeToggle/theme";
 import "./globals.css";
 
@@ -47,6 +49,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body>
         {children}
+        {/* usePathname suspends on dynamic routes under cacheComponents; the session UI renders nothing until then. */}
+        <Suspense fallback={null}>
+          <SessionProvider />
+        </Suspense>
         <DialogHost />
       </body>
     </html>

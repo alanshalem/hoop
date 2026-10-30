@@ -11,7 +11,7 @@ import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
 import { ThemeToggle } from '@/presentation/molecules/ThemeToggle/ThemeToggle';
 import { SyncStatusIndicator } from '@/presentation/organisms/SyncStatusIndicator/SyncStatusIndicator';
 import { logoutWithConfirmation } from '@/presentation/session/logout';
-import styles from './UserRoleSwitcher.module.css';
+import styles from './UserMenu.module.css';
 
 export interface UserMenuProps {
   /** `rail`: stacked in the tablet nav rail. `inline`: horizontal card (phones). */
@@ -68,6 +68,3 @@ export const UserMenu: React.FC<UserMenuProps> = ({ variant = 'inline', classNam
     </section>
   );
 };
-
-/** @deprecated Former simulated role switcher; the role now comes from the login. Use `UserMenu`. */
-export const UserRoleSwitcher = UserMenu;

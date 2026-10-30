@@ -1,0 +1,78 @@
+'use client';
+
+import { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { LOGIN_PATH, loginRedirectPath, toClubUser, type AuthUser } from '@/core/application/auth/auth-session';
+import { useAuthStore } from '@/core/application/stores/useAuthStore';
+import { useClubStore } from '@/core/application/stores/useClubStore';
+import { ClubCrest } from '@/presentation/atoms/ClubCrest/ClubCrest';
+import { authApi, getSyncEngine } from './sync-runtime';
+import { useHydrated } from './useHydrated';
+import styles from './SessionProvider.module.css';
+
+const sameUser = (a: AuthUser, b: AuthUser) =>
+  a.id === b.id && a.email === b.email && a.name === b.name && a.role === b.role;
+
+/**
+ * Client session for every route (S10.8), mounted once in the root layout:
+ * - without a cached user, any page other than /login redirects to /login;
+ * - with a cached user the app works offline; online, /api/auth/me confirms it
+ *   (a 401 clears it and sends the user to /login);
+ * - the authenticated user becomes the club store's `currentUser`;
+ * - the sync engine runs while a user is logged in.
+ */
+export function SessionProvider() {
+  const hydrated = useHydrated();
+  const user = useAuthStore((state) => state.user);
+  const pathname = usePathname();
+  const router = useRouter();
+  const userId = user?.id ?? null;
+  const needsLogin = hydrated && !user && pathname !== LOGIN_PATH;
+
+  useEffect(() => {
+    if (!user) return;
+    const club = useClubStore.getState();
+    club.setCurrentUser(toClubUser(user, club.users));
+  }, [user]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const engine = getSyncEngine();
+    engine.start();
+    return () => engine.stop();
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    const validateSession = async () => {
+      const result = await authApi.me();
+      if (cancelled) return;
+      const auth = useAuthStore.getState();
+      if (result.ok) {
+        if (!auth.user || !sameUser(auth.user, result.value)) auth.setUser(result.value);
+      } else if (result.error === 'UNAUTHORIZED') {
+        auth.clearUser();
+      }
+      // Network or server errors keep the cached user: the app keeps working offline.
+    };
+    void validateSession();
+    window.addEventListener('online', validateSession);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('online', validateSession);
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (needsLogin) router.replace(loginRedirectPath(`${window.location.pathname}${window.location.search}`));
+  }, [needsLogin, router]);
+
+  if (!needsLogin) return null;
+  return (
+    <div className={styles.curtain} role="status" aria-live="polite">
+      <ClubCrest size={72} eager />
+      <p className={styles.message}>Redirigiendo al inicio de sesión...</p>
+    </div>
+  );
+}
