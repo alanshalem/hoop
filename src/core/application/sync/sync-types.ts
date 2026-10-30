@@ -125,8 +125,16 @@ export interface SyncApi {
 
 export type SyncStatus = 'idle' | 'syncing' | 'offline' | 'error';
 
+/** User whose session produced the local sync data (outbox, cursor, versions). */
+export interface SyncOwner {
+  id: string;
+  name: string;
+}
+
 /** Persisted across reloads. */
 export interface SyncPersistedData {
+  /** `null` until a user claims this device's sync data (see `resolveSyncOwnership`). */
+  owner: SyncOwner | null;
   /** Last pull cursor; `null` until the first sync of this device. */
   cursor: string | null;
   versions: VersionMap;

@@ -4,10 +4,11 @@ import { createEmptyOutbox } from '@/core/application/sync/outbox';
 import type { SyncPersistedData, SyncStoreData } from '@/core/application/sync/sync-types';
 
 /** Bump when the persisted sync shape changes; older storage restarts with a full resync. */
-export const SYNC_STORE_VERSION = 1;
+export const SYNC_STORE_VERSION = 2;
 
 export function createInitialSyncData(): SyncStoreData {
   return {
+    owner: null,
     cursor: null,
     versions: {},
     outbox: createEmptyOutbox(),
@@ -18,7 +19,7 @@ export function createInitialSyncData(): SyncStoreData {
 }
 
 export interface SyncStoreState extends SyncStoreData {
-  /** Forgets the server baseline and the outbox (logout). */
+  /** Forgets the owner, the server baseline and the outbox (logout). */
   resetSyncData: () => void;
 }
 
@@ -34,16 +35,19 @@ export const useSyncStore = create<SyncStoreState>()(
       version: SYNC_STORE_VERSION,
       storage: createJSONStorage(() => localStorage),
       partialize: (state): SyncPersistedData => ({
+        owner: state.owner,
         cursor: state.cursor,
         versions: state.versions,
         outbox: state.outbox,
         lastSyncedAt: state.lastSyncedAt,
       }),
       // A cursor-less store does a full resync: the server snapshot replaces local data.
+      // Version 1 had no owner: its outbox is claimed by the next user who logs in.
       migrate: (persisted, version): SyncPersistedData => {
         if (version === SYNC_STORE_VERSION) return persisted as SyncPersistedData;
-        const { cursor, versions, outbox, lastSyncedAt } = createInitialSyncData();
-        return { cursor, versions, outbox, lastSyncedAt };
+        if (version === 1) return { ...(persisted as Omit<SyncPersistedData, 'owner'>), owner: null };
+        const { owner, cursor, versions, outbox, lastSyncedAt } = createInitialSyncData();
+        return { owner, cursor, versions, outbox, lastSyncedAt };
       },
     }
   )

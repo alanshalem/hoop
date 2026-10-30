@@ -26,6 +26,7 @@ function harness(initial: Partial<SyncStoreData> = {}) {
   };
   const clubListeners = new Set<() => void>();
   let store: SyncStoreData = {
+    owner: null,
     cursor: null,
     versions: {},
     outbox: createEmptyOutbox(),
@@ -292,6 +293,90 @@ describe('sync engine (S10.7)', () => {
     assert.strictEqual(h.store.versions['division:div-local-seed'], undefined);
     h.engine.stop();
   });
+
+  it('keeps local edits made before the first successful sync', async () => {
+    const h = harness();
+    h.pullQueue.push({ ok: false, error: 'NETWORK' });
+    h.engine.start();
+    await h.engine.whenIdle();
+    assert.strictEqual(h.store.status, 'offline');
+
+    const offlinePlayer = makePlayer({ id: 'p-offline' });
+    h.edit({ players: [...h.data.players, offlinePlayer] });
+    assert.deepStrictEqual(Object.keys(h.store.outbox.records), ['player:p-offline'], 'pending while offline');
+    assert.strictEqual(h.store.status, 'offline');
+
+    h.pullQueue.push(snapshotPage('40'));
+    h.setOnline(true);
+    await h.engine.whenIdle();
+
+    assert.deepStrictEqual(h.pulls, [null, null]);
+    assert.deepStrictEqual(h.data.players.map((p) => p.id), ['p-offline'], 'the snapshot replaces the seed, the edit is re-applied');
+    assert.deepStrictEqual(h.data.divisions.map((d) => d.id), ['div-server']);
+    assert.strictEqual(h.pushes.length, 1);
+    assert.deepStrictEqual(h.pushes[0].records.map((r) => [r.kind, r.id, r.deleted]), [['player', 'p-offline', false]]);
+    assert.deepStrictEqual(h.store.outbox.records, {});
+    assert.strictEqual(h.store.cursor, '40');
+    assert.strictEqual(h.store.versions['player:p-offline'], '2026-10-30T18:00:00.000Z');
+    h.engine.stop();
+  });
+
+  it('does not drop a pending edit on a full resync', async () => {
+    const h = harness({ cursor: '1200' });
+    h.engine.start();
+    await h.engine.whenIdle();
+
+    h.edit({ players: [{ ...h.data.players[0], dorsal: 77 }] });
+    h.pullQueue.push(snapshotPage('30'));
+    h.emitChanged('25');
+    await h.engine.whenIdle();
+
+    assert.strictEqual(h.pulls.at(-1), null);
+    assert.strictEqual(h.store.cursor, '30');
+    assert.deepStrictEqual(h.data.divisions.map((d) => d.id), ['div-server']);
+    assert.strictEqual(h.data.players.find((p) => p.id === 'p1')?.dorsal, 77);
+    assert.strictEqual(h.store.versions['player:p1'], '2026-10-30T18:00:00.000Z');
+
+    await h.runPendingTimers(); // the pending debounce finds nothing left to push
+    const pushed = h.pushes.flatMap((push) => push.records);
+    assert.deepStrictEqual(pushed.map((r) => [r.kind, r.id]), [['player', 'p1']]);
+    assert.strictEqual(pushed[0].kind === 'player' ? pushed[0].data.dorsal : -1, 77);
+    assert.deepStrictEqual(h.store.outbox.records, {});
+    h.engine.stop();
+  });
+
+  for (const cursor of [null, '10']) {
+    it(`applies data pulled mid-edit without echoing it and keeps the edit (cursor ${cursor})`, async () => {
+      const h = harness({ cursor });
+      h.pullQueue.push(() => {
+        h.edit({ players: h.data.players.map((p) => (p.id === 'p1' ? { ...p, dorsal: 55 } : p)) });
+        return {
+          ok: true,
+          value: {
+            records: [
+              { kind: 'division', id: 'div-x', data: makeDivision({ id: 'div-x' }), updatedAt: '2026-10-29T10:00:00.000Z', deleted: false },
+            ],
+            events: [],
+            cursor: '50',
+            hasMore: false,
+          },
+        };
+      });
+      h.engine.start();
+      await h.engine.whenIdle();
+
+      assert.deepStrictEqual(h.pulls, [cursor]);
+      assert.ok(h.data.divisions.some((d) => d.id === 'div-x'));
+      assert.strictEqual(h.data.players.find((p) => p.id === 'p1')?.dorsal, 55);
+
+      await h.runPendingTimers();
+      assert.strictEqual(h.data.players.find((p) => p.id === 'p1')?.dorsal, 55);
+      assert.deepStrictEqual(h.store.outbox.records, {});
+      const pushed = h.pushes.flatMap((push) => push.records.map((r) => `${r.kind}:${r.id}`));
+      assert.deepStrictEqual(pushed, ['player:p1'], 'pulled data is never pushed back');
+      h.engine.stop();
+    });
+  }
 
   it('stops listening to the club store after stop()', async () => {
     const h = harness({ cursor: '10' });

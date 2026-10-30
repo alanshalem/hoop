@@ -120,9 +120,6 @@ export interface ClubStoreState extends ClubDataState {
   ) => void;
   /** @deprecated Use undoLastEvent. */
   undoLastPlayByPlayEvent: (matchId: string) => void;
-
-  // Reset
-  resetToSeedData: () => void;
 }
 
 type MatchOutcome = { ok: true; match: Match } | { ok: false; reason: string };
@@ -291,8 +288,6 @@ export const useClubStore = create<ClubStoreState>()(
         undoLastPlayByPlayEvent: (matchId) => {
           get().undoLastEvent(matchId);
         },
-
-        resetToSeedData: () => set(createInitialClubState()),
       };
     },
     {

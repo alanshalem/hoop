@@ -110,8 +110,9 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     const next = club.getData();
     const previous = baseline;
     baseline = next;
-    // Pulled data is not a local change, and before the first sync there is no server baseline.
-    if (applying || !previous || store.getState().cursor === null) return;
+    // Pulled data is not a local change. Edits made before the first sync are kept too:
+    // the snapshot re-applies them (see `applyServerSnapshot`).
+    if (applying || !previous) return;
 
     const diff = diffClubState(previous, next);
     if (diff.records.length === 0 && diff.events.length === 0) return;
@@ -155,7 +156,9 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       }
       store.setState({ status: 'syncing' });
 
-      const step = wantFlush ? 'flush' : 'pull';
+      // Without a cursor the snapshot comes first: pending changes are re-applied over it, then pushed.
+      const snapshotFirst = wantPull && store.getState().cursor === null;
+      const step = wantFlush && !snapshotFirst ? 'flush' : 'pull';
       if (step === 'flush') wantFlush = false;
       else wantPull = false;
 
@@ -251,7 +254,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     const state = store.getState();
     const merged: MergeState & { changed: boolean } =
       since === null
-        ? { ...applyServerSnapshot(pulled), changed: true }
+        ? { ...applyServerSnapshot(pulled, state.outbox), changed: true }
         : mergePulledChanges({ data: club.getData(), versions: state.versions, outbox: state.outbox }, pulled);
 
     if (merged.changed) {
@@ -263,6 +266,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       }
     }
     store.setState({ cursor, versions: merged.versions, outbox: merged.outbox });
+    if (since === null && countPending(merged.outbox) > 0) wantFlush = true;
     return { outcome: 'ok' };
   }
 

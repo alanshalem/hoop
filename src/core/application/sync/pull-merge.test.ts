@@ -207,6 +207,62 @@ describe('applyServerSnapshot (first sync on a device)', () => {
     });
     assert.deepStrictEqual(snapshot.outbox, createEmptyOutbox());
   });
+
+  it('re-applies the pending outbox over the snapshot and keeps it, unless the server version is newer', () => {
+    const T3 = '2026-10-30T18:00:03.000Z';
+    const serverEvent = (id: string, second: number, type: 'FG2_MADE' | 'FG3_MADE') => {
+      const timestamp = `2026-10-30T20:00:0${second}.000Z`;
+      return remoteEvent(id, timestamp, { matchId: 'm-server', data: makeEvent({ id, matchId: 'm-server', timestamp, type }) });
+    };
+    const stale = enqueueChanges(
+      { outbox: createEmptyOutbox(), versions: {} },
+      { records: [{ kind: 'player', id: 'p-stale', data: makePlayer({ id: 'p-stale', lastName: 'Local' }), deleted: false }], events: [] },
+      Date.parse(T0)
+    );
+    const local = enqueueChanges(
+      stale,
+      {
+        records: [
+          { kind: 'player', id: 'p-local', data: makePlayer({ id: 'p-local' }), deleted: false },
+          { kind: 'player', id: 'p-server', data: makePlayer({ id: 'p-server' }), deleted: true },
+        ],
+        events: [
+          { ...serverEvent('ev-3', 3, 'FG2_MADE'), deleted: false },
+          { ...serverEvent('ev-1', 1, 'FG3_MADE'), deleted: true },
+        ],
+      },
+      Date.parse(T3)
+    );
+
+    const snapshot = applyServerSnapshot(
+      pulled({
+        records: [
+          playerRecord('p-server', T1),
+          playerRecord('p-stale', T2),
+          { kind: 'match', id: 'm-server', data: toMatchRecord(makeMatch({ id: 'm-server' })), updatedAt: T1, deleted: false },
+        ],
+        events: [serverEvent('ev-1', 1, 'FG3_MADE'), serverEvent('ev-2', 2, 'FG2_MADE')],
+      }),
+      local.outbox
+    );
+
+    assert.deepStrictEqual(snapshot.data.players.map((p) => [p.id, p.lastName]), [
+      ['p-stale', `Remote ${T2}`],
+      ['p-local', 'Player'],
+    ]);
+    const match = snapshot.data.matches[0];
+    assert.deepStrictEqual(match.events.map((e) => e.id), ['ev-2', 'ev-3']);
+    assert.strictEqual(match.homeScore, 4, 'the scoreboard is re-derived');
+    assert.deepStrictEqual(Object.keys(snapshot.outbox.records).sort(), ['player:p-local', 'player:p-server']);
+    assert.deepStrictEqual(Object.keys(snapshot.outbox.events).sort(), ['ev-1', 'ev-3']);
+    assert.strictEqual(snapshot.outbox.nextRev, local.outbox.nextRev);
+    assert.deepStrictEqual(snapshot.versions, {
+      'player:p-server': T3,
+      'player:p-stale': T2,
+      'player:p-local': T3,
+      'match:m-server': T1,
+    });
+  });
 });
 
 describe('isServerCursorBehind (database reset)', () => {

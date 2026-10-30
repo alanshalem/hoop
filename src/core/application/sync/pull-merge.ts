@@ -26,12 +26,7 @@ export interface MergeResult extends MergeState {
  * Records are applied before events, so a match and its events can arrive together.
  */
 export function mergePulledChanges(state: MergeState, pulled: PulledChanges): MergeResult {
-  const collections = {
-    division: new Collection(state.data.divisions),
-    team: new Collection(state.data.teams),
-    player: new Collection(state.data.players),
-    match: new Collection(state.data.matches),
-  };
+  const collections = createCollections(state.data);
   const versions = { ...state.versions };
   const outboxRecords = { ...state.outbox.records };
   const outboxEvents = { ...state.outbox.events };
@@ -67,27 +62,11 @@ export function mergePulledChanges(state: MergeState, pulled: PulledChanges): Me
     touchedMatches.add(event.matchId);
   }
 
-  for (const matchId of touchedMatches) {
-    const match = collections.match.get(matchId);
-    if (!match) continue;
-    const additions = added.get(matchId) ?? [];
-    const kept = match.events.filter((event) => !removed.has(event.id));
-    if (additions.length === 0 && kept.length === match.events.length && !collections.match.isReplaced(matchId)) {
-      continue;
-    }
-    const events = additions.length > 0 ? [...kept, ...additions].sort(compareEventsByTime) : kept;
-    collections.match.set(matchId, withDerivedScoreboard({ ...match, events }));
-  }
+  applyEventChanges(collections.match, touchedMatches, added, removed);
 
-  const data: SyncableClubData = {
-    divisions: collections.division.toArray(),
-    teams: collections.team.toArray(),
-    players: collections.player.toArray(),
-    matches: collections.match.toArray(),
-  };
   const changed = Object.values(collections).some((collection) => collection.changed);
   return {
-    data: changed ? data : state.data,
+    data: changed ? toData(collections) : state.data,
     versions,
     outbox: { ...state.outbox, records: outboxRecords, events: outboxEvents },
     changed,
@@ -100,6 +79,44 @@ type Collections = {
   player: Collection<SyncableClubData['players'][number]>;
   match: Collection<Match>;
 };
+
+function createCollections(data: SyncableClubData): Collections {
+  return {
+    division: new Collection(data.divisions),
+    team: new Collection(data.teams),
+    player: new Collection(data.players),
+    match: new Collection(data.matches),
+  };
+}
+
+function toData(collections: Collections): SyncableClubData {
+  return {
+    divisions: collections.division.toArray(),
+    teams: collections.team.toArray(),
+    players: collections.player.toArray(),
+    matches: collections.match.toArray(),
+  };
+}
+
+/** Adds and removes events of the touched matches, then re-derives their scoreboard. */
+function applyEventChanges(
+  matches: Collection<Match>,
+  touchedMatches: Set<string>,
+  added: Map<string, PlayByPlayEvent[]>,
+  removed: Set<string>
+): void {
+  for (const matchId of touchedMatches) {
+    const match = matches.get(matchId);
+    if (!match) continue;
+    const additions = added.get(matchId) ?? [];
+    const kept = match.events.filter((event) => !removed.has(event.id));
+    if (additions.length === 0 && kept.length === match.events.length && !matches.isReplaced(matchId)) {
+      continue;
+    }
+    const events = additions.length > 0 ? [...kept, ...additions].sort(compareEventsByTime) : kept;
+    matches.set(matchId, withDerivedScoreboard({ ...match, events }));
+  }
+}
 
 function applyRecord(collections: Collections, record: SyncRecord, touchedMatches: Set<string>): void {
   if (record.deleted) {
@@ -163,16 +180,44 @@ class Collection<T extends { id: string }> {
 }
 
 /**
- * First sync of a device (no cursor yet): the server snapshot replaces the local
- * data (the bundled demo seed is never pushed) and the outbox starts empty.
+ * Full sync (first sync of a device, or after a server reset): the server
+ * snapshot replaces the local data (the bundled demo seed is never pushed), then
+ * every pending local change is re-applied over it and stays in the outbox to be
+ * flushed. A pending record the server already has a newer or equal version of
+ * is dropped (last-write-wins), exactly as in an incremental pull.
  */
-export function applyServerSnapshot(pulled: PulledChanges): MergeState {
+export function applyServerSnapshot(pulled: PulledChanges, outbox: Outbox = createEmptyOutbox()): MergeState {
   const empty: SyncableClubData = { divisions: [], teams: [], players: [], matches: [] };
-  const { data, versions, outbox } = mergePulledChanges(
-    { data: empty, versions: {}, outbox: createEmptyOutbox() },
-    pulled
-  );
-  return { data, versions, outbox };
+  const merged = mergePulledChanges({ data: empty, versions: {}, outbox }, pulled);
+  return reapplyOutbox(merged);
+}
+
+/** Pending local changes on top of server data: what the user keeps seeing until they are pushed. */
+function reapplyOutbox({ data, versions, outbox }: MergeState): MergeState {
+  const collections = createCollections(data);
+  const nextVersions = { ...versions };
+  const touchedMatches = new Set<string>();
+
+  for (const [key, entry] of Object.entries(outbox.records)) {
+    nextVersions[key] = entry.updatedAt;
+    applyRecord(collections, entry, touchedMatches);
+  }
+
+  const added = new Map<string, PlayByPlayEvent[]>();
+  const removed = new Set<string>();
+  for (const entry of Object.values(outbox.events)) {
+    const match = collections.match.get(entry.matchId);
+    if (!match) continue;
+    touchedMatches.add(entry.matchId);
+    if (entry.deleted) {
+      removed.add(entry.id);
+    } else if (!match.events.some((event) => event.id === entry.id)) {
+      added.set(entry.matchId, [...(added.get(entry.matchId) ?? []), entry.data]);
+    }
+  }
+
+  applyEventChanges(collections.match, touchedMatches, added, removed);
+  return { data: toData(collections), versions: nextVersions, outbox };
 }
 
 /**
