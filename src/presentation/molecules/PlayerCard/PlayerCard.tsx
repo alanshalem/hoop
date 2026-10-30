@@ -76,3 +76,4 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
     </button>
   );
 };
+

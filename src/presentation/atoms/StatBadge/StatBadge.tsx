@@ -32,3 +32,4 @@ export const StatBadge: React.FC<StatBadgeProps> = ({
     </span>
   );
 };
+

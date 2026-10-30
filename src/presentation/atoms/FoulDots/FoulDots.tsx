@@ -52,3 +52,4 @@ export const FoulDots: React.FC<FoulDotsProps> = ({
     </div>
   );
 };
+

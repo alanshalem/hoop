@@ -52,3 +52,4 @@ export const JerseyBadge: React.FC<JerseyBadgeProps> = ({
     </div>
   );
 };
+

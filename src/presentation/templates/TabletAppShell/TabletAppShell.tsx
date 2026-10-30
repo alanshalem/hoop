@@ -179,3 +179,4 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({
     </div>
   );
 };
+

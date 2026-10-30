@@ -6,3 +6,4 @@ import MatchLiveConsolePage from '../[id]/live/page';
 export default function GenericLivePage() {
   return <MatchLiveConsolePage />;
 }
+

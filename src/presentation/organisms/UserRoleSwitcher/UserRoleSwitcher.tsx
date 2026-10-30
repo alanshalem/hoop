@@ -52,3 +52,4 @@ export const UserRoleSwitcher: React.FC<{ className?: string }> = ({ className }
     </div>
   );
 };
+

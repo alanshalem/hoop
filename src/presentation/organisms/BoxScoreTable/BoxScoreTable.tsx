@@ -150,3 +150,4 @@ export const BoxScoreTable: React.FC<BoxScoreTableProps> = ({
     </div>
   );
 };
+
