@@ -1,4 +1,4 @@
-import { fieldVersionEntries, MATCH_VERSIONED_FIELDS, readFieldVersions } from './match-fields';
+import { fieldVersionEntries, MATCH_VERSIONED_FIELDS, readFieldVersions, versionKeyOf } from './match-fields';
 import { recordKey, timeOf } from './sync-records';
 import type {
   ClubDiff,
@@ -42,7 +42,8 @@ export interface OutboxState {
  * Adds local changes to the outbox, stamping `updatedAt` into the entry and the
  * versions map. One entry per `kind:id` (the latest wins) and per event id; an
  * event removed before any push attempt is simply dropped. A live match entry
- * carries every field version, with only the changed fields stamped (S13.1).
+ * carries every field version, with only the changed fields (a grouped field
+ * stamps its whole group, see MATCH_FIELD_GROUPS) stamped (S13.1).
  */
 export function enqueueChanges({ outbox, versions }: OutboxState, diff: ClubDiff, nowMs: number): OutboxState {
   const records = { ...outbox.records };
@@ -78,7 +79,7 @@ function toSyncRecord(change: RecordChange, updatedAt: string, versions: Version
   const { changedFields, ...record } = change;
   if (record.deleted) return { ...record, updatedAt };
   const fieldVersions = readFieldVersions(versions, record.id);
-  for (const field of changedFields ?? MATCH_VERSIONED_FIELDS) fieldVersions[field] = updatedAt;
+  for (const field of changedFields ?? MATCH_VERSIONED_FIELDS) fieldVersions[versionKeyOf(field)] = updatedAt;
   Object.assign(versions, fieldVersionEntries(record.id, fieldVersions));
   return { ...record, updatedAt, fieldVersions };
 }

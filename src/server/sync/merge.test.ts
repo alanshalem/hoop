@@ -146,7 +146,7 @@ describe('decideRecordWrite (S13.1: field-level merge for live matches)', () => 
         deleted: false,
         data: match({ status: 'HALFTIME', homeScore: 4 }),
         updatedAt: T3,
-        fieldVersions: { ...resolveFieldVersions(undefined, iso(T1)), status: iso(T3) },
+        fieldVersions: { ...resolveFieldVersions(undefined, iso(T1)), 'game-state': iso(T3) },
       },
       stored
     );
@@ -154,7 +154,7 @@ describe('decideRecordWrite (S13.1: field-level merge for live matches)', () => 
     if (decision.action !== 'merge') return;
     assert.deepStrictEqual(decision.data, { id: 'm-1', venue: 'Server venue', status: 'HALFTIME', homeScore: 4 });
     assert.strictEqual(decision.fieldVersions.venue, iso(T2));
-    assert.strictEqual(decision.fieldVersions.status, iso(T3));
+    assert.strictEqual(decision.fieldVersions['game-state'], iso(T3));
     assert.strictEqual(decision.updatedAt.toISOString(), iso(T3));
     assert.strictEqual(decision.expectedSeq, 7);
   });
@@ -206,8 +206,8 @@ describe('decideRecordWrite (S13.1: field-level merge for live matches)', () => 
   });
 
   it('flags field versions newer than the record updatedAt (inconsistent push)', () => {
-    assert.strictEqual(hasFieldVersionAfter(T2, { status: iso(T2), venue: iso(T1) }), false);
-    assert.strictEqual(hasFieldVersionAfter(T2, { status: iso(T3) }), true);
+    assert.strictEqual(hasFieldVersionAfter(T2, { 'game-state': iso(T2), venue: iso(T1) }), false);
+    assert.strictEqual(hasFieldVersionAfter(T2, { 'game-state': iso(T3) }), true);
     assert.strictEqual(hasFieldVersionAfter(T2, undefined), false);
   });
 

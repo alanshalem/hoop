@@ -1,5 +1,7 @@
+import { createLeaseLeaderLock } from '@/core/application/sync/leader-lease';
 import type { ConnectivityPort } from '@/core/application/sync/sync-engine';
 import type {
+  KeyValueStoragePort,
   LeaderLockPort,
   StorageEventsPort,
   TabChannelPort,
@@ -9,7 +11,8 @@ import { parseChangedEventData } from './sync-api-schemas';
 /**
  * Browser adapters for the sync engine: connectivity (`navigator.onLine` +
  * `online`/`offline` events), the SSE change stream, and the tab coordination
- * primitives (Web Locks, BroadcastChannel, `storage` events).
+ * primitives (Web Locks or a localStorage lease, BroadcastChannel, `storage`
+ * events).
  */
 
 /** Web Lock held by the tab that runs the sync engine (S13.3). */
@@ -57,6 +60,54 @@ export function createBrowserLeaderLock(name: string = SYNC_LEADER_LOCK): Leader
       };
     },
   };
+}
+
+/**
+ * `localStorage`, or null when it is missing or refuses writes (private modes,
+ * full quota): a lease nobody can write would leave every tab following.
+ */
+export function browserKeyValueStorage(): KeyValueStoragePort | null {
+  try {
+    const storage = window.localStorage;
+    const probe = 'hoop-storage-probe';
+    storage.setItem(probe, probe);
+    storage.removeItem(probe);
+    return {
+      getItem: (key) => storage.getItem(key),
+      setItem: (key, value) => storage.setItem(key, value),
+      removeItem: (key) => storage.removeItem(key),
+      keys: () => Array.from({ length: storage.length }, (_, index) => storage.key(index)).filter((key) => key !== null),
+    };
+  } catch {
+    return null;
+  }
+}
+
+const browserPageHide = {
+  subscribe: (listener: () => void) => {
+    window.addEventListener('pagehide', listener);
+    return () => window.removeEventListener('pagehide', listener);
+  },
+};
+
+/**
+ * Leader election for this browser: Web Locks when available, otherwise the
+ * localStorage lease (plain http on the LAN), or null when neither works.
+ */
+export function createBrowserLeaderElection(tabId: string, storage: KeyValueStoragePort | null): LeaderLockPort | null {
+  const webLock = createBrowserLeaderLock();
+  if (webLock || !storage) return webLock;
+  return createLeaseLeaderLock({
+    storage,
+    storageEvents: browserStorageEvents,
+    tabId,
+    now: Date.now,
+    timers: {
+      setTimeout: (callback, ms) => window.setTimeout(callback, ms),
+      clearTimeout: (handle) => window.clearTimeout(handle as number),
+    },
+    pageHide: browserPageHide,
+  });
 }
 
 /** Messages between the tabs of this origin, or null without BroadcastChannel. */

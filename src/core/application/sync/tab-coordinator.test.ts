@@ -1,10 +1,15 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import { createEditHandoff, type HandoffEdit } from './edit-handoff';
+import { createLeaseLeaderLock, LEASE_RENEW_MS, LEASE_SETTLE_MS, LEASE_TTL_MS, SYNC_LEADER_LEASE_KEY } from './leader-lease';
 import { createEmptyOutbox, enqueueChanges } from './outbox';
 import { createSyncEngine, type SyncEngine } from './sync-engine';
 import {
   createSyncTabCoordinator,
   TAB_PROTOCOL_VERSION,
+  type EditHandoffPort,
+  type KeyValueStoragePort,
+  type LeaderLockPort,
   type SyncTabCoordinatorDeps,
   type TabMessage,
 } from './tab-coordinator';
@@ -13,7 +18,16 @@ import { makeDivision, makeMatch, makePlayer, makeTeam } from '@/core/testing/fi
 
 const KEYS = { club: 'club-key', sync: 'sync-key' };
 
-function harness({ withLock = true, withChannel = true, realEngine = false } = {}) {
+interface HarnessOptions {
+  withLock?: boolean;
+  withChannel?: boolean;
+  realEngine?: boolean;
+  /** Replaces the scripted fake lock (e.g. a real lease lock). */
+  lock?: LeaderLockPort;
+  handoff?: EditHandoffPort;
+}
+
+function harness({ withLock = true, withChannel = true, realEngine = false, lock, handoff }: HarnessOptions = {}) {
   const log: string[] = [];
   let data: SyncableClubData = {
     divisions: [makeDivision()],
@@ -39,7 +53,10 @@ function harness({ withLock = true, withChannel = true, realEngine = false } = {
   const posted: TabMessage[] = [];
   const channelListeners = new Set<(message: unknown) => void>();
   const storageListeners = new Set<(key: string) => void>();
-  let lockCallbacks: { onAcquired: () => void; onQueued: () => void } | null = null;
+  let lockCallbacks: { onAcquired: () => void; onQueued: () => void; onLost?: () => void } | null = null;
+  /** Edits handed over through the (fake) persisted handoff, by save order. */
+  const handoffSaves: HandoffEdit[][] = [];
+  let handoffLeft: HandoffEdit[] = [];
   let lockReleased = 0;
   let writable = true;
   /** What another tab persisted: applied on the next club rehydrate. */
@@ -87,16 +104,29 @@ function harness({ withLock = true, withChannel = true, realEngine = false } = {
         log.push('sync.rehydrate');
       },
     },
-    lock: withLock
-      ? {
-          request: (onAcquired, onQueued) => {
-            lockCallbacks = { onAcquired, onQueued };
-            return () => {
-              lockReleased += 1;
-            };
-          },
-        }
-      : null,
+    lock:
+      lock ??
+      (withLock
+        ? {
+            request: (onAcquired, onQueued, onLost) => {
+              lockCallbacks = { onAcquired, onQueued, onLost };
+              return () => {
+                lockReleased += 1;
+              };
+            },
+          }
+        : null),
+    handoff: handoff ?? {
+      save: (edits) => {
+        handoffSaves.push([...edits]);
+      },
+      drain: () => {
+        const drained = handoffLeft;
+        handoffLeft = [];
+        log.push(`handoff.drain:${drained.length}`);
+        return drained;
+      },
+    },
     channel: withChannel
       ? {
           post: (message) => posted.push(message),
@@ -165,6 +195,12 @@ function harness({ withLock = true, withChannel = true, realEngine = false } = {
       await flushMicrotasks();
     },
     queue: () => lockCallbacks?.onQueued(),
+    lose: () => lockCallbacks?.onLost?.(),
+    handoffSaves,
+    /** Edits other (closed) tabs left in the persisted handoff. */
+    leaveInHandoff: (edits: HandoffEdit[]) => {
+      handoffLeft = edits;
+    },
     receive: async (message: unknown) => {
       channelListeners.forEach((listener) => listener(message));
       await flushMicrotasks();
@@ -181,13 +217,21 @@ function harness({ withLock = true, withChannel = true, realEngine = false } = {
 const message = <T extends Omit<TabMessage, 'v'>>(body: T) => ({ v: TAB_PROTOCOL_VERSION, ...body });
 
 describe('sync tab coordinator (S13.3)', () => {
-  it('leads at once without Web Locks (current behaviour)', async () => {
+  it('leads at once without any leader lock (current behaviour)', async () => {
     const tab = harness({ withLock: false });
     tab.coordinator.start();
     await tab.flushMicrotasks();
     assert.strictEqual(tab.coordinator.role(), 'leader');
-    assert.deepStrictEqual(tab.log, ['onLeader', 'engine.start']);
+    assert.deepStrictEqual(tab.log, ['writable:true', 'onLeader', 'engine.start', 'handoff.drain:0']);
     assert.strictEqual(tab.writable, true);
+  });
+
+  it('keeps the persisted stores read-only until the tab role is known (no pre-lock writes)', () => {
+    const tab = harness();
+    tab.coordinator.start();
+    assert.strictEqual(tab.coordinator.role(), 'idle');
+    assert.strictEqual(tab.writable, false);
+    assert.deepStrictEqual(tab.log, ['writable:false']);
   });
 
   it('leads at once without BroadcastChannel, since followers could not hand over their edits', async () => {
@@ -204,7 +248,60 @@ describe('sync tab coordinator (S13.3)', () => {
     assert.strictEqual(tab.coordinator.role(), 'idle');
     await tab.acquire();
     assert.strictEqual(tab.coordinator.role(), 'leader');
-    assert.deepStrictEqual(tab.log, ['club.rehydrate', 'sync.rehydrate', 'writable:true', 'onLeader', 'engine.start']);
+    assert.deepStrictEqual(tab.log, [
+      'writable:false',
+      'club.rehydrate',
+      'sync.rehydrate',
+      'writable:true',
+      'onLeader',
+      'engine.start',
+      'handoff.drain:0',
+    ]);
+  });
+
+  it('a leader that loses its lease steps down to follower: engine stopped, read-only, edits forwarded', async () => {
+    const tab = harness();
+    tab.coordinator.start();
+    await tab.acquire();
+    tab.lose();
+    assert.strictEqual(tab.coordinator.role(), 'follower');
+    assert.ok(tab.log.includes('engine.stop'));
+    assert.strictEqual(tab.writable, false);
+
+    tab.posted.length = 0;
+    const edited = { ...tab.data.players[0], dorsal: 31 };
+    tab.setData({ ...tab.data, players: [edited] });
+    assert.deepStrictEqual(tab.posted.map((posted) => posted.type), ['club-diff']);
+
+    await tab.acquire();
+    assert.strictEqual(tab.coordinator.role(), 'leader', 'it can lead again later');
+  });
+
+  it('persists unacknowledged follower edits for the next leader and forgets them once acknowledged', async () => {
+    const tab = harness();
+    tab.coordinator.start();
+    tab.queue();
+    const edited = { ...tab.data.players[0], dorsal: 21 };
+    tab.setData({ ...tab.data, players: [edited] });
+    assert.deepStrictEqual(tab.handoffSaves.at(-1)?.map((saved) => saved.id), ['msg-1']);
+    await tab.receive(message({ type: 'ack', id: 'msg-1' }));
+    assert.deepStrictEqual(tab.handoffSaves.at(-1), []);
+  });
+
+  it('a new leader drains the edits closed follower tabs left in the handoff (real sync engine)', async () => {
+    const tab = harness({ realEngine: true });
+    tab.coordinator.start();
+    const fromClosedTab = makePlayer({ id: 'p1', dorsal: 88 });
+    tab.leaveInHandoff([
+      { id: 'closed-1', diff: { records: [{ kind: 'player', id: 'p1', data: fromClosedTab, deleted: false }], events: [] } },
+    ]);
+    await tab.storageEvent('none', tab.data);
+    await tab.acquire();
+
+    const entry = tab.store.outbox.records['player:p1'];
+    assert.ok(entry, 'the closed tab edit is in the outbox of the new leader');
+    assert.strictEqual(entry.kind === 'player' && entry.data.dorsal, 88);
+    assert.deepStrictEqual(tab.data.players, [fromClosedTab]);
   });
 
   it('a follower does not run the engine nor write the persisted stores', () => {
@@ -342,7 +439,7 @@ describe('sync tab coordinator (S13.3)', () => {
     assert.deepStrictEqual(tab.data.players, [lost], 'the unacknowledged edit is applied after the engine started');
     const startAt = tab.log.indexOf('engine.start');
     assert.ok(startAt > tab.log.lastIndexOf('club.rehydrate'));
-    assert.deepStrictEqual(tab.log.slice(startAt + 1), ['engine.enqueue:player:p1'], 'only the unacknowledged edit is enqueued');
+    assert.deepStrictEqual(tab.log.slice(startAt + 1).filter((entry) => entry.startsWith('engine.')), ['engine.enqueue:player:p1'], 'only the unacknowledged edit is enqueued');
     assert.deepStrictEqual(tab.posted.at(-1), message({ type: 'leader' }));
   });
 
@@ -399,6 +496,62 @@ describe('sync tab coordinator (S13.3)', () => {
 
     await tab.receive(message({ type: 'leader' }));
     assert.deepStrictEqual(tab.posted.map((posted) => posted.type === 'club-diff' && posted.id), ['msg-2']);
+  });
+
+  it('hands a follower edit over through the localStorage lease when the leader tab dies (no Web Locks)', async () => {
+    let now = Date.parse('2026-10-30T18:00:00.000Z');
+    const timers = new Map<number, { at: number; callback: () => void }>();
+    let nextTimer = 1;
+    const advance = async (ms: number) => {
+      const end = now + ms;
+      for (;;) {
+        const due = [...timers.entries()].filter(([, timer]) => timer.at <= end).sort(([, a], [, b]) => a.at - b.at)[0];
+        if (!due) break;
+        timers.delete(due[0]);
+        now = Math.max(now, due[1].at);
+        due[1].callback();
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+      now = end;
+    };
+    const items = new Map<string, string>();
+    const storage: KeyValueStoragePort = {
+      getItem: (key) => items.get(key) ?? null,
+      setItem: (key, value) => items.set(key, value),
+      removeItem: (key) => items.delete(key),
+      keys: () => [...items.keys()],
+    };
+    // Another tab leads: it holds a valid lease, then dies without releasing it.
+    items.set(SYNC_LEADER_LEASE_KEY, JSON.stringify({ tabId: 'dead-tab', expiresAt: now + LEASE_TTL_MS }));
+    const lock = createLeaseLeaderLock({
+      storage,
+      storageEvents: { subscribe: () => () => undefined },
+      tabId: 'this-tab',
+      now: () => now,
+      timers: {
+        setTimeout: (callback, ms) => {
+          const id = nextTimer++;
+          timers.set(id, { at: now + ms, callback });
+          return id;
+        },
+        clearTimeout: (handle) => timers.delete(handle as number),
+      },
+    });
+    const handoff = createEditHandoff({ storage, tabId: 'this-tab', owner: () => 'user-1', now: () => now });
+    const tab = harness({ realEngine: true, lock, handoff });
+    tab.coordinator.start();
+    assert.strictEqual(tab.coordinator.role(), 'follower');
+
+    const edited = { ...tab.data.players[0], dorsal: 44 };
+    tab.setData({ ...tab.data, players: [edited] });
+    assert.deepStrictEqual(tab.posted.map((posted) => posted.type), ['club-diff'], 'sent to the (dead) leader');
+    assert.ok(items.has('hoop-sync-handoff:this-tab'), 'kept for the next leader');
+
+    await advance(LEASE_TTL_MS + LEASE_RENEW_MS + LEASE_SETTLE_MS);
+    assert.strictEqual(tab.coordinator.role(), 'leader');
+    const entry = tab.store.outbox.records['player:p1'];
+    assert.strictEqual(entry?.kind === 'player' && entry.data.dorsal, 44);
+    assert.ok(!items.has('hoop-sync-handoff:this-tab'), 'drained once enqueued');
   });
 
   it('stop releases the lock, stops the engine and re-enables persistence', async () => {

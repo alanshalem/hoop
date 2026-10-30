@@ -220,7 +220,7 @@ describe('mergePulledChanges: match records merge per field (S13.1)', () => {
     assert.strictEqual(match.status, 'HALFTIME', 'the newer local field wins');
     assert.strictEqual(match.venue, 'Remote venue', 'the newer remote field wins');
     const versions = readFieldVersions(result.versions, 'm-test');
-    assert.strictEqual(versions.status, T3);
+    assert.strictEqual(versions['game-state'], T3);
     assert.strictEqual(versions.venue, T2);
     assert.strictEqual(result.versions['match:m-test'], T3);
     assert.ok(result.outbox.records['match:m-test'], 'the local edit is still pending');
@@ -230,7 +230,7 @@ describe('mergePulledChanges: match records merge per field (S13.1)', () => {
     const state = deviceWithLocalStatusEdit();
     const T4 = '2026-10-30T18:00:04.000Z';
     const result = mergePulledChanges(state, pulled({
-      records: [remoteMatch({ status: 'FINISHED', venue: 'Club' }, T4, { status: T4 })],
+      records: [remoteMatch({ status: 'FINISHED', venue: 'Club' }, T4, { 'game-state': T4 })],
     }));
     assert.strictEqual(result.data.matches[0].status, 'FINISHED');
     assert.strictEqual(result.outbox.records['match:m-test'], undefined);
@@ -239,7 +239,7 @@ describe('mergePulledChanges: match records merge per field (S13.1)', () => {
   it('keeps the remote value on a tie (the server already decided)', () => {
     const state = deviceWithLocalStatusEdit();
     const result = mergePulledChanges(state, pulled({
-      records: [remoteMatch({ status: 'LIVE', venue: 'Club' }, T3, { status: T3 })],
+      records: [remoteMatch({ status: 'LIVE', venue: 'Club' }, T3, { 'game-state': T3 })],
     }));
     assert.strictEqual(result.data.matches[0].status, 'LIVE');
     assert.strictEqual(result.outbox.records['match:m-test'], undefined);
@@ -268,7 +268,7 @@ describe('mergePulledChanges: match records merge per field (S13.1)', () => {
   it('leaves the data untouched when every local field is newer', () => {
     const state = deviceWithLocalStatusEdit();
     const result = mergePulledChanges(state, pulled({
-      records: [remoteMatch({ status: 'LIVE', venue: 'Club' }, T1, { status: T1 })],
+      records: [remoteMatch({ status: 'LIVE', venue: 'Club' }, T1, { 'game-state': T1 })],
     }));
     assert.strictEqual(result.changed, false);
     assert.strictEqual(result.data, state.data);
@@ -283,7 +283,7 @@ describe('mergePulledChanges: match records merge per field (S13.1)', () => {
     const [match] = snapshot.data.matches;
     assert.strictEqual(match.status, 'HALFTIME');
     assert.strictEqual(match.venue, 'Server venue');
-    assert.strictEqual(readFieldVersions(snapshot.versions, 'm-test').status, T3);
+    assert.strictEqual(readFieldVersions(snapshot.versions, 'm-test')['game-state'], T3);
     assert.ok(snapshot.outbox.records['match:m-test']);
   });
 });
@@ -400,5 +400,10 @@ describe('reconcileSelection', () => {
       reconcileSelection({ activeDivisionId: 'gone', activeMatchId: 'gone' }, club({ divisions: [], matches: [] })),
       { activeDivisionId: '', activeMatchId: '' }
     );
+  });
+
+  it('falls back to a match at HALFTIME like a LIVE one (it is in play)', () => {
+    const data = club({ matches: [makeMatch({ id: 'm-a', status: 'FINISHED' }), makeMatch({ id: 'm-half', status: 'HALFTIME' })] });
+    assert.strictEqual(reconcileSelection({ activeDivisionId: 'div-test', activeMatchId: 'gone' }, data).activeMatchId, 'm-half');
   });
 });

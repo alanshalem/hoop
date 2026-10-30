@@ -38,7 +38,7 @@ describe('push body schema', () => {
     };
     const result = parsePushBody({ records: [record] });
     assert.ok(result.ok);
-    assert.deepStrictEqual(result.value.records[0].fieldVersions, { status: '2026-10-30T10:00:00.000Z' });
+    assert.deepStrictEqual(result.value.records[0].fieldVersions, { 'game-state': '2026-10-30T10:00:00.000Z' }, 'a legacy per-field version folds into its group');
     assert.deepStrictEqual(parsePushBody({ records: [{ ...record, fieldVersions: { status: 'yesterday' } }] }), {
       ok: false,
       status: 400,

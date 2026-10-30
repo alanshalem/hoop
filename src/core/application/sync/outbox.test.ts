@@ -118,7 +118,7 @@ describe('enqueueChanges: match field versions (S13.1)', () => {
     const entry = outbox.records['match:m-test'];
     assert.strictEqual(entry.updatedAt, stamp);
     assert.ok(entry.kind === 'match' && entry.fieldVersions);
-    assert.strictEqual(entry.fieldVersions.status, stamp);
+    assert.strictEqual(entry.fieldVersions['game-state'], stamp);
     assert.strictEqual(entry.fieldVersions.venue, stamp);
     assert.strictEqual(entry.fieldVersions.rivalTeamName, T0);
     assert.ok(!('changedFields' in entry), 'diff bookkeeping never reaches the outbox');
@@ -136,7 +136,7 @@ describe('enqueueChanges: match field versions (S13.1)', () => {
     const latest = edited.outbox.records['match:m-test'];
     assert.ok(latest.kind === 'match' && latest.fieldVersions);
     assert.strictEqual(latest.fieldVersions.venue, '2026-10-30T18:00:01.000Z');
-    assert.strictEqual(latest.fieldVersions.status, stamp);
+    assert.strictEqual(latest.fieldVersions['game-state'], stamp);
   });
 
   it('sends a match removal as a whole-record tombstone', () => {

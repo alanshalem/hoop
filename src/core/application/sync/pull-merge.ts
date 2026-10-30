@@ -248,11 +248,15 @@ export interface ClubSelection {
   activeMatchId: string;
 }
 
-/** Keeps the selected division and match when they still exist, otherwise picks sensible defaults. */
+/**
+ * Keeps the selected division and match when they still exist, otherwise picks
+ * sensible defaults (a match in play, LIVE or at HALFTIME, first).
+ */
 export function reconcileSelection(selection: ClubSelection, data: SyncableClubData): ClubSelection {
   const hasDivision = data.divisions.some((division) => division.id === selection.activeDivisionId);
   const hasMatch = data.matches.some((match) => match.id === selection.activeMatchId);
-  const fallbackMatch = data.matches.find((match) => match.status === 'LIVE') ?? data.matches[0];
+  const fallbackMatch =
+    data.matches.find((match) => match.status === 'LIVE' || match.status === 'HALFTIME') ?? data.matches[0];
   return {
     activeDivisionId: hasDivision ? selection.activeDivisionId : (data.divisions[0]?.id ?? ''),
     activeMatchId: hasMatch ? selection.activeMatchId : (fallbackMatch?.id ?? ''),

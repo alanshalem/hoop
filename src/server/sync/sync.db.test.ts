@@ -452,14 +452,14 @@ describe('field-level merge of match records (database, S13.1)', () => {
 
     const venueEdit = await devicePush(id, 3, { venue: 'Device A venue' }, { venue: 3 });
     assert.deepStrictEqual(venueEdit.accepted, [id]);
-    const statusEdit = await devicePush(id, 2, { venue: 'Club', status: 'HALFTIME' }, { status: 2 });
+    const statusEdit = await devicePush(id, 2, { venue: 'Club', status: 'HALFTIME' }, { 'game-state': 2 });
     assert.deepStrictEqual(statusEdit.accepted, [id]);
 
     const row = await stored(id);
     assert.strictEqual(row.data.venue, 'Device A venue');
     assert.strictEqual(row.data.status, 'HALFTIME');
     assert.strictEqual(row.fieldVersions?.venue, iso(3));
-    assert.strictEqual(row.fieldVersions?.status, iso(2));
+    assert.strictEqual(row.fieldVersions?.['game-state'], iso(2));
     assert.strictEqual(row.fieldVersions?.rivalTeamName, iso(0));
     assert.strictEqual(row.updatedAt.toISOString(), iso(3));
 
@@ -487,7 +487,7 @@ describe('field-level merge of match records (database, S13.1)', () => {
   it('applies a match tombstone as a whole only when it is newer than every field', async () => {
     const id = uid('match');
     await push(body([matchRecord(id, at(0))]));
-    await devicePush(id, 6, { status: 'HALFTIME' }, { status: 6 });
+    await devicePush(id, 6, { status: 'HALFTIME' }, { 'game-state': 6 });
 
     const older = await push(body([matchRecord(id, at(5), {}, true)]));
     assert.deepStrictEqual(older.rejected, [{ id, reason: 'STALE' }]);
@@ -515,13 +515,13 @@ describe('field-level merge of match records (database, S13.1)', () => {
       fieldVersions: null,
     });
 
-    const result = await devicePush(id, 6, { venue: 'Stale venue', status: 'HALFTIME' }, { status: 6, venue: 3 });
+    const result = await devicePush(id, 6, { venue: 'Stale venue', status: 'HALFTIME' }, { 'game-state': 6, venue: 3 });
     assert.deepStrictEqual(result.accepted, [id]);
     const row = await stored(id);
     assert.strictEqual(row.data.status, 'HALFTIME');
     assert.strictEqual(row.data.venue, 'Legacy venue', 'an older field loses to the legacy updatedAt');
     assert.strictEqual(row.fieldVersions?.venue, iso(4));
-    assert.strictEqual(row.fieldVersions?.status, iso(6));
+    assert.strictEqual(row.fieldVersions?.['game-state'], iso(6));
   });
 
   it('rejects field versions newer than the record updatedAt as INVALID', async () => {

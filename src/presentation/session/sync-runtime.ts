@@ -5,6 +5,7 @@ import {
   type SyncStorePort,
 } from '@/core/application/sync/sync-engine';
 import { reconcileSelection } from '@/core/application/sync/pull-merge';
+import { createEditHandoff } from '@/core/application/sync/edit-handoff';
 import { createSyncTabCoordinator, type SyncTabCoordinator } from '@/core/application/sync/tab-coordinator';
 import { useAuthStore } from '@/core/application/stores/useAuthStore';
 import { useClubStore } from '@/core/application/stores/useClubStore';
@@ -12,8 +13,9 @@ import { useSyncStore } from '@/core/application/stores/useSyncStore';
 import { CLUB_STORAGE_KEY, persistenceGate, SYNC_STORAGE_KEY } from '@/core/application/stores/persistence-gate';
 import {
   browserConnectivity,
+  browserKeyValueStorage,
   browserStorageEvents,
-  createBrowserLeaderLock,
+  createBrowserLeaderElection,
   createBrowserTabChannel,
   openSyncChangeStream,
 } from '@/core/infrastructure/sync-api/browser-adapters';
@@ -70,8 +72,10 @@ const newMessageId = () => `${Date.now().toString(36)}-${Math.random().toString(
 
 let coordinator: SyncTabCoordinator | null = null;
 
-export function getSyncCoordinator(): SyncTabCoordinator {
-  coordinator ??= createSyncTabCoordinator({
+function createCoordinator(): SyncTabCoordinator {
+  const tabId = newMessageId();
+  const storage = browserKeyValueStorage();
+  return createSyncTabCoordinator({
     engine: getSyncEngine(),
     club: { ...clubPort, rehydrate: rehydrateClub },
     syncStore: {
@@ -81,8 +85,12 @@ export function getSyncCoordinator(): SyncTabCoordinator {
         await useSyncStore.persist.rehydrate();
       },
     },
-    lock: createBrowserLeaderLock(),
+    // Web Locks, or the localStorage lease on plain http (LAN tablets).
+    lock: createBrowserLeaderElection(tabId, storage),
     channel: createBrowserTabChannel(),
+    handoff: storage
+      ? createEditHandoff({ storage, tabId, owner: () => useAuthStore.getState().user?.id ?? null, now: Date.now })
+      : undefined,
     storageEvents: browserStorageEvents,
     persistence: persistenceGate,
     storageKeys: { club: CLUB_STORAGE_KEY, sync: SYNC_STORAGE_KEY },
@@ -93,6 +101,10 @@ export function getSyncCoordinator(): SyncTabCoordinator {
     },
     newId: newMessageId,
   });
+}
+
+export function getSyncCoordinator(): SyncTabCoordinator {
+  coordinator ??= createCoordinator();
   return coordinator;
 }
 

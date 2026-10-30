@@ -24,8 +24,16 @@ describe('gatedLocalStorage (S13.3: only the leader tab writes)', () => {
     else Reflect.deleteProperty(globalThis, 'localStorage');
   });
 
+  it('starts read-only until a tab role is known (no pre-lock writes), but still reads', () => {
+    const storage = gatedLocalStorage();
+    storage.setItem('hoop-club-storage', 'before the role is known');
+    storage.removeItem('hoop-club-storage');
+    assert.strictEqual(storage.getItem('hoop-club-storage'), 'persisted');
+  });
+
   it('writes through while writable', () => {
     const storage = gatedLocalStorage();
+    persistenceGate.setWritable(true);
     storage.setItem('hoop-club-storage', 'next');
     assert.strictEqual(storage.getItem('hoop-club-storage'), 'next');
   });

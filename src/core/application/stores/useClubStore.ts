@@ -107,7 +107,7 @@ export interface ClubStoreState extends ClubDataState {
     side: TeamSide,
     clockSeconds?: number
   ) => RequestTimeoutResult | MatchNotFound;
-  /** Q2 to Q3 passes through HALFTIME (see `startThirdQuarter`). */
+  /** Leaving the first half (Q1/Q2) passes through HALFTIME (see `startThirdQuarter`). */
   changeQuarter: (matchId: string, quarter: Quarter) => void;
   /** End of Q2: the match goes to HALFTIME (no plays, no timeouts). */
   startHalftime: (

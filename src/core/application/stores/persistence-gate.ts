@@ -4,8 +4,10 @@ import type { StateStorage } from 'zustand/middleware';
  * Write switch for the persisted club and sync stores (S13.3). Only the tab
  * that runs the sync engine writes them; follower tabs keep their state in
  * memory and reload it when the leader writes (see tab-coordinator.ts).
+ * Read-only until the tab coordinator knows this tab's role: a tab that has
+ * not won the leader election yet never overwrites the leader's data.
  */
-let writable = true;
+let writable = false;
 
 export const persistenceGate = {
   setWritable(value: boolean): void {

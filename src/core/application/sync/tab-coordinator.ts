@@ -9,17 +9,25 @@ import type { ClubDiff, SyncableClubData, SyncStatus, SyncStoreData } from './sy
  * HOOP OS - ONE SYNC ENGINE PER BROWSER (S13.3)
  * Tabs share localStorage, so only one of them may run the sync engine and
  * write the persisted club and sync stores: the holder of the Web Lock
- * `hoop-sync-leader`. The other tabs are followers:
+ * `hoop-sync-leader` or, where Web Locks are missing (plain http on the LAN),
+ * of the localStorage lease (./leader-lease.ts). Until its role is known a tab
+ * keeps the persisted stores read-only. The other tabs are followers:
  * - they never write the persisted stores, and reload them on `storage` events;
  * - their local edits travel to the leader as club diffs (BroadcastChannel);
  *   the leader applies them to its store, so its engine enqueues them through
  *   the usual diff/outbox path, and acknowledges them;
  * - an edit stays unacknowledged until the leader confirms it: a new leader
  *   announces itself and followers send their unacknowledged edits again;
+ *   meanwhile it is also kept in localStorage (./edit-handoff.ts), so it
+ *   survives its tab closing while no tab leads;
  * - when the leader tab closes the lock passes to a follower, which reloads the
  *   persisted state, starts the engine and enqueues its own unacknowledged
- *   edits (also those made before the lock was decided).
- * Without Web Locks or BroadcastChannel every tab leads (behaviour before S13.3).
+ *   edits (also those made before the lock was decided) and the ones closed
+ *   tabs left in the handoff;
+ * - a leader that loses its lease (its tab was frozen past the lease) steps
+ *   down to follower.
+ * Without any leader lock or without BroadcastChannel every tab leads
+ * (behaviour before S13.3).
  * =============================================================================
  */
 
@@ -38,9 +46,31 @@ type TabMessageBody = TabMessage extends infer M ? (M extends TabMessage ? Omit<
 export interface LeaderLockPort {
   /**
    * Asks for the leader lock: `onAcquired` once it is held; `onQueued` first
-   * when another tab holds it. The returned function releases it (or stops waiting).
+   * when another tab holds it; `onLost` if it is taken away (a lease that
+   * expired), after which `onAcquired` may come again. The returned function
+   * releases it (or stops waiting).
    */
-  request(onAcquired: () => void, onQueued: () => void): () => void;
+  request(onAcquired: () => void, onQueued: () => void, onLost?: () => void): () => void;
+}
+
+/** localStorage as the lease and the edit handoff need it. */
+export interface KeyValueStoragePort {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+  keys(): string[];
+}
+
+export interface HandoffEdit {
+  id: string;
+  diff: ClubDiff;
+}
+
+export interface EditHandoffPort {
+  /** Keeps this tab's unacknowledged edits for the next leader (an empty list forgets them). */
+  save(edits: readonly HandoffEdit[]): void;
+  /** Takes the edits every tab of the current user left, oldest first. */
+  drain(): HandoffEdit[];
 }
 
 export interface TabChannelPort {
@@ -68,8 +98,10 @@ export interface SyncTabCoordinatorDeps {
     subscribe(listener: () => void): () => void;
     rehydrate(): Promise<void>;
   };
-  /** Null when the browser has no Web Locks API. */
+  /** Null when the browser offers no way to elect a leader. */
   lock: LeaderLockPort | null;
+  /** Persisted copy of unacknowledged edits; none when omitted. */
+  handoff?: EditHandoffPort;
   /** Null when the browser has no BroadcastChannel. */
   channel: TabChannelPort | null;
   storageEvents: StorageEventsPort;
@@ -132,6 +164,7 @@ export function createSyncTabCoordinator(deps: SyncTabCoordinatorDeps): SyncTabC
   let currentRole: TabRole = 'idle';
   let releaseLock: (() => void) | null = null;
   let channelCleanup: (() => void) | null = null;
+  let clubCleanup: (() => void) | null = null;
   let roleCleanups: (() => void)[] = [];
 
   /** Edits made while not leading, in order, until a leader acknowledges them. */
@@ -141,6 +174,8 @@ export function createSyncTabCoordinator(deps: SyncTabCoordinatorDeps): SyncTabC
   let sharedStatus: string | null = null;
 
   const post = (body: TabMessageBody) => channel?.post({ v: TAB_PROTOCOL_VERSION, ...body } as TabMessage);
+
+  const persistUnacked = () => deps.handoff?.save([...unacked].map(([id, diff]) => ({ id, diff })));
 
   function clearRoleListeners(): void {
     roleCleanups.forEach((cleanup) => cleanup());
@@ -158,8 +193,9 @@ export function createSyncTabCoordinator(deps: SyncTabCoordinatorDeps): SyncTabC
         void engine.syncNow();
       }
     } else if (currentRole === 'follower') {
-      if (message.type === 'ack') unacked.delete(message.id);
-      else if (message.type === 'status') syncStore.setState({ status: message.status, lastError: message.lastError });
+      if (message.type === 'ack') {
+        if (unacked.delete(message.id)) persistUnacked();
+      } else if (message.type === 'status') syncStore.setState({ status: message.status, lastError: message.lastError });
       else if (message.type === 'leader') resendUnacked();
     }
   }
@@ -190,6 +226,7 @@ export function createSyncTabCoordinator(deps: SyncTabCoordinatorDeps): SyncTabC
     if (diff.records.length === 0 && diff.events.length === 0) return;
     const id = deps.newId();
     unacked.set(id, diff);
+    persistUnacked();
     if (currentRole === 'follower') post({ type: 'club-diff', id, diff });
   }
 
@@ -204,6 +241,18 @@ export function createSyncTabCoordinator(deps: SyncTabCoordinatorDeps): SyncTabC
       })
     );
     resendUnacked();
+  }
+
+  /** The lock was taken away while leading or promoting: back to follower. */
+  function stepDown(): void {
+    if (!started) return;
+    generation += 1; // abandons a promotion still reloading
+    clearRoleListeners();
+    if (currentRole === 'leader') engine.stop();
+    currentRole = 'idle';
+    baseline = club.getData();
+    sharedStatus = null;
+    becomeFollower();
   }
 
   function shareStatus(): void {
@@ -223,19 +272,21 @@ export function createSyncTabCoordinator(deps: SyncTabCoordinatorDeps): SyncTabC
       await reloadClub();
       await syncStore.rehydrate();
       if (gen !== generation) return;
-      deps.persistence.setWritable(true);
     }
+    deps.persistence.setWritable(true);
     currentRole = 'leader';
     deps.onLeader?.();
     engine.start();
     roleCleanups.push(syncStore.subscribe(shareStatus));
     shareStatus();
-    // Edits made before leading that no leader confirmed: enqueued here (the reload
-    // may already hold them, so re-applying alone would not be seen as a change),
-    // then re-applied in case the reload dropped them.
-    const pending = [...unacked.values()];
+    // Edits made before leading that no leader confirmed, after those closed tabs
+    // left: enqueued here (the reload may already hold them, so re-applying alone
+    // would not be seen as a change), then re-applied in case the reload dropped them.
+    const pending = new Map((deps.handoff?.drain() ?? []).map(({ id, diff }) => [id, diff]));
+    for (const [id, diff] of unacked) pending.set(id, diff);
     unacked.clear();
-    for (const diff of pending) {
+    persistUnacked();
+    for (const diff of pending.values()) {
       engine.enqueue(diff);
       club.applyData(applyClubDiff(club.getData(), diff));
     }
@@ -252,9 +303,10 @@ export function createSyncTabCoordinator(deps: SyncTabCoordinatorDeps): SyncTabC
         void lead(false);
         return;
       }
+      deps.persistence.setWritable(false);
       baseline = club.getData();
-      roleCleanups.push(club.subscribe(onLocalClubChange));
-      releaseLock = deps.lock.request(() => void lead(true), becomeFollower);
+      clubCleanup = club.subscribe(onLocalClubChange);
+      releaseLock = deps.lock.request(() => void lead(true), becomeFollower, stepDown);
     },
 
     stop() {
@@ -265,11 +317,15 @@ export function createSyncTabCoordinator(deps: SyncTabCoordinatorDeps): SyncTabC
       releaseLock = null;
       channelCleanup?.();
       channelCleanup = null;
+      clubCleanup?.();
+      clubCleanup = null;
       clearRoleListeners();
       if (currentRole === 'leader') engine.stop();
-      if (currentRole === 'follower') deps.persistence.setWritable(true);
+      // Out of the tab roles (logout): this tab writes again, e.g. the sync data reset.
+      deps.persistence.setWritable(true);
       currentRole = 'idle';
       unacked.clear();
+      persistUnacked();
       baseline = null;
       sharedStatus = null;
     },

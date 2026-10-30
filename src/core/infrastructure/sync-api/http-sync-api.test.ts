@@ -78,7 +78,7 @@ describe('http sync api', () => {
     const result = await createHttpSyncApi(fetchImpl).pull('1');
     assert.ok(result.ok);
     const [match, legacy, division] = result.value.records;
-    assert.deepStrictEqual(match.kind === 'match' && match.fieldVersions, { status: T });
+    assert.deepStrictEqual(match.kind === 'match' && match.fieldVersions, { 'game-state': T }, 'a legacy per-field version folds into its group');
     assert.ok(!('fieldVersions' in legacy), 'no field versions means every field changed at updatedAt');
     assert.ok(!('fieldVersions' in division));
   });
