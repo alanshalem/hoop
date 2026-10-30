@@ -55,10 +55,13 @@ const UNSAFE_URL_CHARS = /[\x00-\x1F\x7F\\]/;
  */
 export function safeNextPath(next: string | null | undefined): string {
   if (!next || UNSAFE_URL_CHARS.test(next) || !/^\/(?![/\\])/.test(next)) return HOME_PATH;
-  if (new URL(next, APP_ORIGIN).origin !== APP_ORIGIN) return HOME_PATH;
-  const pathname = next.split(/[?#]/, 1)[0];
+  const url = new URL(next, APP_ORIGIN);
+  // Dot segments normalize too: "/.//evil.com" resolves to the path "//evil.com",
+  // which a full-page navigation reads as a protocol-relative URL.
+  if (url.origin !== APP_ORIGIN || url.pathname.startsWith('//')) return HOME_PATH;
+  const { pathname } = url;
   if (pathname === LOGIN_PATH || pathname.startsWith(`${LOGIN_PATH}/`)) return HOME_PATH;
-  return next;
+  return `${pathname}${url.search}${url.hash}`;
 }
 
 /** Login URL that brings the user back to `currentPath` afterwards. */

@@ -47,6 +47,18 @@ describe('safeNextPath', () => {
     }
     assert.strictEqual(safeNextPath('/players?x=1'), '/players?x=1');
   });
+
+  it('rejects paths that the URL parser normalizes into a protocol-relative URL', () => {
+    for (const value of ['/.//evil.com', '/./' + '/evil.com', '/a/..//evil.com', '/%2e//evil.com']) {
+      assert.strictEqual(safeNextPath(value), '/', JSON.stringify(value));
+    }
+    const accepted = ['/players', '/matches/m-1/live', '/players?next=//x', '/%09/evil.com', '/\uFF0F\uFF0Fevil.com'];
+    for (const value of accepted) {
+      const resolved = new URL(safeNextPath(value), 'https://o.example');
+      assert.strictEqual(resolved.origin, 'https://o.example', value);
+      assert.ok(!resolved.pathname.startsWith('//'), value);
+    }
+  });
 });
 
 describe('loginRedirectPath', () => {
