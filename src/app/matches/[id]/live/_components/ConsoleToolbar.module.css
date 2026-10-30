@@ -99,6 +99,12 @@
   flex-shrink: 0;
 }
 
+/* Scoped under .endGroup so the 56px console target wins over the indicator's own 48px. */
+.endGroup .syncStatus {
+  min-height: var(--touch-lg);
+  flex-shrink: 0;
+}
+
 .rivalGroup + .endGroup {
   margin-left: 0;
 }

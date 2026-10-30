@@ -20,18 +20,20 @@ export function getSelectableQuarters(current: Quarter): Quarter[] {
 
 export type PeriodEndAction =
   | { kind: 'ADVANCE'; next: Quarter }
+  | { kind: 'HALFTIME' }
   | { kind: 'FINISH' }
   | { kind: 'NONE' };
 
 /**
- * What to offer when the clock reaches 00:00: the next quarter during
- * regulation, finishing the match after Q4 / an overtime when not tied, or
+ * What to offer when the clock reaches 00:00: halftime after Q2, the next
+ * quarter during the rest of regulation, finishing the match after Q4 / an overtime when not tied, or
  * another overtime when tied.
  */
 export function getPeriodEndAction(
   quarter: Quarter,
   score: { own: number; rival: number }
 ): PeriodEndAction {
+  if (quarter === 'Q2') return { kind: 'HALFTIME' };
   const isFinalPeriod = quarter === 'Q4' || isOvertime(quarter);
   if (isFinalPeriod && score.own !== score.rival) return { kind: 'FINISH' };
   const next = getNextQuarter(quarter);

@@ -31,6 +31,8 @@ export interface ScoreboardHeaderProps {
   isClockRunning: boolean;
   /** Hides every control (clock, periods, timeouts). */
   readOnly?: boolean;
+  /** Interval after Q2: shows "Entretiempo" instead of the clock and locks periods and timeouts. */
+  isHalftime?: boolean;
   onSelectQuarter: (quarter: Quarter) => void;
   onToggleClock: () => void;
   /** Adds (or subtracts) seconds to the clock. */
@@ -173,73 +175,83 @@ export const ScoreboardHeader: React.FC<ScoreboardHeaderProps> = ({
   clockSeconds,
   isClockRunning,
   readOnly = false,
+  isHalftime = false,
   onSelectQuarter,
   onToggleClock,
   onAdjustClock,
   onTimeout,
-}) => (
-  <header className={styles.headerContainer} data-surface="board" aria-label="Tablero electrónico del partido">
-    <TeamPanel team={home} conditionLabel="Local" isAway={false} readOnly={readOnly} onTimeout={onTimeout} />
+}) => {
+  const locked = readOnly || isHalftime;
+  return (
+    <header className={styles.headerContainer} data-surface="board" aria-label="Tablero electrónico del partido">
+      <TeamPanel team={home} conditionLabel="Local" isAway={false} readOnly={locked} onTimeout={onTimeout} />
 
-    <div className={styles.centerGameControl}>
-      <div className={styles.quarterSelector} role="group" aria-label="Período">
-        {quarters.map((q) => (
-          <button
-            key={q}
-            type="button"
-            className={clsx(styles.quarterBtn, quarter === q && styles.quarterBtnActive)}
-            aria-pressed={quarter === q}
-            aria-label={QUARTER_LABELS[q]}
-            disabled={readOnly && quarter !== q}
-            onClick={() => onSelectQuarter(q)}
-          >
-            {QUARTER_SHORT_LABELS[q]}
-          </button>
-        ))}
+      <div className={styles.centerGameControl}>
+        <div className={styles.quarterSelector} role="group" aria-label="Período">
+          {quarters.map((q) => (
+            <button
+              key={q}
+              type="button"
+              className={clsx(styles.quarterBtn, quarter === q && styles.quarterBtnActive)}
+              aria-pressed={quarter === q}
+              aria-label={QUARTER_LABELS[q]}
+              disabled={locked && quarter !== q}
+              onClick={() => onSelectQuarter(q)}
+            >
+              {QUARTER_SHORT_LABELS[q]}
+            </button>
+          ))}
+        </div>
+
+        {isHalftime ? (
+          <span className={styles.halftimeLabel} role="status">
+            Entretiempo
+          </span>
+        ) : (
+          <div className={styles.clockRow}>
+            {!readOnly && (
+              <button
+                type="button"
+                className={styles.clockStepBtn}
+                onClick={() => onAdjustClock(-CLOCK_STEP_SECONDS)}
+                aria-label={`Restar ${CLOCK_STEP_SECONDS} segundos al reloj`}
+              >
+                -{CLOCK_STEP_SECONDS}s
+              </button>
+            )}
+            <span
+              className={clsx(styles.clockDisplay, isClockRunning && styles.clockRunning, clockSeconds === 0 && styles.clockExpired)}
+              role="timer"
+              aria-label={`Reloj de juego ${formatGameClock(clockSeconds)}`}
+            >
+              {formatGameClock(clockSeconds)}
+            </span>
+            {!readOnly && (
+              <button
+                type="button"
+                className={styles.clockStepBtn}
+                onClick={() => onAdjustClock(CLOCK_STEP_SECONDS)}
+                aria-label={`Sumar ${CLOCK_STEP_SECONDS} segundos al reloj`}
+              >
+                +{CLOCK_STEP_SECONDS}s
+              </button>
+            )}
+            {!readOnly && (
+              <button
+                type="button"
+                className={clsx(styles.clockToggleBtn, isClockRunning && styles.clockToggleRunning)}
+                onClick={onToggleClock}
+                disabled={!isClockRunning && clockSeconds === 0}
+                aria-label={isClockRunning ? 'Pausar reloj' : 'Iniciar reloj'}
+              >
+                {isClockRunning ? <Pause size={ICON_SIZE.lg} /> : <Play size={ICON_SIZE.lg} />}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className={styles.clockRow}>
-        {!readOnly && (
-          <button
-            type="button"
-            className={styles.clockStepBtn}
-            onClick={() => onAdjustClock(-CLOCK_STEP_SECONDS)}
-            aria-label={`Restar ${CLOCK_STEP_SECONDS} segundos al reloj`}
-          >
-            -{CLOCK_STEP_SECONDS}s
-          </button>
-        )}
-        <span
-          className={clsx(styles.clockDisplay, isClockRunning && styles.clockRunning, clockSeconds === 0 && styles.clockExpired)}
-          role="timer"
-          aria-label={`Reloj de juego ${formatGameClock(clockSeconds)}`}
-        >
-          {formatGameClock(clockSeconds)}
-        </span>
-        {!readOnly && (
-          <button
-            type="button"
-            className={styles.clockStepBtn}
-            onClick={() => onAdjustClock(CLOCK_STEP_SECONDS)}
-            aria-label={`Sumar ${CLOCK_STEP_SECONDS} segundos al reloj`}
-          >
-            +{CLOCK_STEP_SECONDS}s
-          </button>
-        )}
-        {!readOnly && (
-          <button
-            type="button"
-            className={clsx(styles.clockToggleBtn, isClockRunning && styles.clockToggleRunning)}
-            onClick={onToggleClock}
-            disabled={!isClockRunning && clockSeconds === 0}
-            aria-label={isClockRunning ? 'Pausar reloj' : 'Iniciar reloj'}
-          >
-            {isClockRunning ? <Pause size={ICON_SIZE.lg} /> : <Play size={ICON_SIZE.lg} />}
-          </button>
-        )}
-      </div>
-    </div>
-
-    <TeamPanel team={away} conditionLabel="Visitante" isAway readOnly={readOnly} onTimeout={onTimeout} />
-  </header>
-);
+      <TeamPanel team={away} conditionLabel="Visitante" isAway readOnly={locked} onTimeout={onTimeout} />
+    </header>
+  );
+};

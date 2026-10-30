@@ -4,7 +4,11 @@ import type { Match, PlayByPlayEventType, Quarter } from '@/core/domain/entities
 import type { CourtCoordinates } from '@/core/domain/value-objects/coordinates';
 import { calculateMatchBoxScore, deriveScoreboard } from '@/core/domain/rules/match-derivations';
 import { can } from '@/core/domain/rules/permissions';
-import { getRemainingTimeouts } from '@/core/domain/rules/timeouts';
+import {
+  FIBA_LAST_TWO_MINUTES_SECONDS,
+  getRemainingTimeouts,
+  isLastTwoMinutesOfFourthQuarter,
+} from '@/core/domain/rules/timeouts';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import type { TeamSide } from '@/core/application/use-cases/match-use-cases';
 import { useGameClock, type GameClock } from './useGameClock';
@@ -21,7 +25,7 @@ export interface LiveTeamLine {
   score: number;
   /** Team fouls in the current team-foul period. */
   teamFouls: number;
-  /** Timeouts left in the current FIBA timeout period. */
+  /** Timeouts usable now in the current FIBA timeout period (max 2 in the last 2 minutes of Q4). */
   timeoutsLeft: number;
 }
 
@@ -39,22 +43,28 @@ function resolvePlayers(ids: string[], players: Player[]): Player[] {
     .filter((p): p is Player => p !== undefined);
 }
 
-function buildTeams(match: Match): { own: LiveTeamLine; rival: LiveTeamLine; home: LiveTeamLine; away: LiveTeamLine } {
+/** `clockSeconds` enables the last-2-minutes rule of Q4; omit it outside that span. */
+function buildTeams(
+  match: Match,
+  clockSeconds?: number
+): { own: LiveTeamLine; rival: LiveTeamLine; home: LiveTeamLine; away: LiveTeamLine } {
   const board = deriveScoreboard(match);
   const ownIsHome = match.condition === 'HOME';
+  const timeoutsLeft = (timeouts: Match['homeTimeouts']) =>
+    getRemainingTimeouts(timeouts, match.currentQuarter, clockSeconds);
   const own: LiveTeamLine = {
     side: 'OWN',
     name: match.ownTeamName,
     score: ownIsHome ? board.homeScore : board.awayScore,
     teamFouls: ownIsHome ? board.homeFoulsQuarter : board.awayFoulsQuarter,
-    timeoutsLeft: getRemainingTimeouts(ownIsHome ? match.homeTimeouts : match.awayTimeouts, match.currentQuarter),
+    timeoutsLeft: timeoutsLeft(ownIsHome ? match.homeTimeouts : match.awayTimeouts),
   };
   const rival: LiveTeamLine = {
     side: 'RIVAL',
     name: match.rivalTeamName,
     score: ownIsHome ? board.awayScore : board.homeScore,
     teamFouls: ownIsHome ? board.awayFoulsQuarter : board.homeFoulsQuarter,
-    timeoutsLeft: getRemainingTimeouts(ownIsHome ? match.awayTimeouts : match.homeTimeouts, match.currentQuarter),
+    timeoutsLeft: timeoutsLeft(ownIsHome ? match.awayTimeouts : match.homeTimeouts),
   };
   return { own, rival, home: ownIsHome ? own : rival, away: ownIsHome ? rival : own };
 }
@@ -73,17 +83,23 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
   const requestTimeout = useClubStore((state) => state.requestTimeout);
   const changeQuarterInStore = useClubStore((state) => state.changeQuarter);
   const finishMatch = useClubStore((state) => state.finishMatch);
-
-  const teams = useMemo(() => (match ? buildTeams(match) : null), [match]);
+  const startHalftimeInStore = useClubStore((state) => state.startHalftime);
+  const startThirdQuarterInStore = useClubStore((state) => state.startThirdQuarter);
 
   const clock: GameClock = useGameClock(match, {
     onExpire: () => {
-      if (!match || !teams) return;
-      onPeriodEnd?.(
-        getPeriodEndAction(match.currentQuarter, { own: teams.own.score, rival: teams.rival.score })
-      );
+      if (!match) return;
+      const { own, rival } = buildTeams(match);
+      onPeriodEnd?.(getPeriodEndAction(match.currentQuarter, { own: own.score, rival: rival.score }));
     },
   });
+
+  // Usable timeouts only change when the ticking clock enters the last 2 minutes of Q4.
+  const inLastTwoMinutes = match ? isLastTwoMinutesOfFourthQuarter(match.currentQuarter, clock.seconds) : false;
+  const teams = useMemo(
+    () => (match ? buildTeams(match, inLastTwoMinutes ? FIBA_LAST_TWO_MINUTES_SECONDS : undefined) : null),
+    [match, inLastTwoMinutes]
+  );
 
   const lineup = useMemo(() => {
     if (!match) {
@@ -140,6 +156,15 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
     return finishMatch(matchId, clock.read());
   };
 
+  /** End of Q2: HALFTIME, with recording and timeouts disabled. */
+  const startHalftime = () => {
+    clock.pause();
+    return startHalftimeInStore(matchId);
+  };
+
+  /** Leaves HALFTIME into Q3 (clock 10:00, paused until started). */
+  const startThirdQuarter = () => startThirdQuarterInStore(matchId);
+
   return {
     match,
     teams,
@@ -151,6 +176,7 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
     fouledOutIds: lineup.fouledOutIds,
     role,
     canRecord: can(role, 'RECORD_LIVE'),
+    isHalftime: match?.status === 'HALFTIME',
     recordPlayerEvent,
     recordRivalEvent,
     undo,
@@ -158,6 +184,8 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
     callTimeout,
     changeQuarter,
     finish,
+    startHalftime,
+    startThirdQuarter,
   };
 }
 

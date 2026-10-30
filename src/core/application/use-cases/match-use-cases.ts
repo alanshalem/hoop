@@ -52,10 +52,12 @@ export interface RecordEventInput {
   clockSeconds?: number;
 }
 
-export type RecordEventReason = 'MATCH_NOT_LIVE' | 'INVALID_EVENT';
-export type UndoReason = 'MATCH_NOT_LIVE' | 'NO_EVENTS';
+/** HALFTIME: the interval after Q2 (FIBA) accepts no plays and no timeouts. */
+export type RecordEventReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'INVALID_EVENT';
+export type UndoReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'NO_EVENTS';
 export type SubstitutionReason =
   | 'MATCH_NOT_LIVE'
+  | 'HALFTIME'
   | 'PLAYER_NOT_ON_COURT'
   | 'PLAYER_ALREADY_ON_COURT'
   | 'PLAYER_NOT_IN_ROSTER'
@@ -63,7 +65,7 @@ export type SubstitutionReason =
 
 export type RequestTimeoutResult =
   | { ok: true; match: Match; remaining: number }
-  | { ok: false; reason: 'MATCH_NOT_LIVE' | 'NO_TIMEOUTS_LEFT' };
+  | { ok: false; reason: 'MATCH_NOT_LIVE' | 'HALFTIME' | 'NO_TIMEOUTS_LEFT' };
 
 export type StartMatchResult =
   | { ok: true; match: Match }
@@ -85,6 +87,12 @@ export type CreateMatchInput = Pick<
 
 function isLive(match: Match): boolean {
   return match.status === 'LIVE';
+}
+
+/** Why plays cannot be recorded right now, or null when the match is live. */
+function notLiveReason(match: Match): 'MATCH_NOT_LIVE' | 'HALFTIME' | null {
+  if (match.status === 'HALFTIME') return 'HALFTIME';
+  return isLive(match) ? null : 'MATCH_NOT_LIVE';
 }
 
 /**
@@ -145,7 +153,8 @@ export function recordEvent(
   input: RecordEventInput,
   ctx: UseCaseContext
 ): MatchResult<RecordEventReason> {
-  if (!isLive(match)) return { ok: false, reason: 'MATCH_NOT_LIVE' };
+  const refusal = notLiveReason(match);
+  if (refusal) return { ok: false, reason: refusal };
   if (input.type === 'SUBSTITUTION') return { ok: false, reason: 'INVALID_EVENT' };
 
   const clocked =
@@ -166,7 +175,8 @@ export function recordEvent(
 }
 
 export function undoLastEvent(match: Match): MatchResult<UndoReason> {
-  if (!isLive(match)) return { ok: false, reason: 'MATCH_NOT_LIVE' };
+  const refusal = notLiveReason(match);
+  if (refusal) return { ok: false, reason: refusal };
   const last = match.events.at(-1);
   if (!last) return { ok: false, reason: 'NO_EVENTS' };
 
@@ -191,7 +201,8 @@ export function substitutePlayer(
   playerInId: string,
   ctx: UseCaseContext
 ): MatchResult<SubstitutionReason> {
-  if (!isLive(match)) return { ok: false, reason: 'MATCH_NOT_LIVE' };
+  const refusal = notLiveReason(match);
+  if (refusal) return { ok: false, reason: refusal };
   if (!match.activeLineupOwn.includes(playerOutId)) {
     return { ok: false, reason: 'PLAYER_NOT_ON_COURT' };
   }
@@ -222,12 +233,14 @@ export function substitutePlayer(
   return { ok: true, match: next };
 }
 
+/** Uses the match clock, so the last-2-minutes rule of Q4 applies (FIBA Art. 18.2.5). */
 export function requestTimeout(match: Match, side: TeamSide): RequestTimeoutResult {
-  if (!isLive(match)) return { ok: false, reason: 'MATCH_NOT_LIVE' };
+  const refusal = notLiveReason(match);
+  if (refusal) return { ok: false, reason: refusal };
 
   const isHome = (side === 'OWN') === (match.condition === 'HOME');
   const field = isHome ? 'homeTimeouts' : 'awayTimeouts';
-  const result = consumeTimeout(match[field], match.currentQuarter);
+  const result = consumeTimeout(match[field], match.currentQuarter, match.quarterTimeRemainingSeconds);
   if (!result.ok) return result;
 
   return {
@@ -237,7 +250,19 @@ export function requestTimeout(match: Match, side: TeamSide): RequestTimeoutResu
   };
 }
 
+/**
+ * Moves to `quarter` with a full clock. Leaving Q2 for Q3 while live passes
+ * through HALFTIME (see `startThirdQuarter`); during HALFTIME only Q3 is accepted.
+ */
 export function changeQuarter(match: Match, quarter: Quarter): Match {
+  if (match.status === 'HALFTIME') {
+    const resumed = quarter === 'Q3' ? startThirdQuarter(match) : null;
+    return resumed?.ok ? resumed.match : match;
+  }
+  if (isLive(match) && match.currentQuarter === 'Q2' && quarter === 'Q3') {
+    const halftime = startHalftime(match);
+    if (halftime.ok) return halftime.match;
+  }
   const entersNewOvertime = isOvertime(quarter) && quarter !== match.currentQuarter;
   return withDerivedScoreboard({
     ...match,
@@ -271,7 +296,32 @@ export function startMatch(
   };
 }
 
-export function finishMatch(match: Match): MatchResult<'MATCH_NOT_LIVE'> {
+/** End of Q2: the match goes to HALFTIME with the clock at 00:00. */
+export function startHalftime(match: Match): MatchResult<'MATCH_NOT_LIVE' | 'NOT_END_OF_FIRST_HALF'> {
   if (!isLive(match)) return { ok: false, reason: 'MATCH_NOT_LIVE' };
+  if (match.currentQuarter !== 'Q2') return { ok: false, reason: 'NOT_END_OF_FIRST_HALF' };
+  return {
+    ok: true,
+    match: withDerivedScoreboard({ ...match, status: 'HALFTIME', quarterTimeRemainingSeconds: 0 }),
+  };
+}
+
+/** Leaves HALFTIME: Q3 with a full clock, LIVE again. */
+export function startThirdQuarter(match: Match): MatchResult<'NOT_HALFTIME'> {
+  if (match.status !== 'HALFTIME') return { ok: false, reason: 'NOT_HALFTIME' };
+  return {
+    ok: true,
+    match: withDerivedScoreboard({
+      ...match,
+      status: 'LIVE',
+      currentQuarter: 'Q3',
+      quarterTimeRemainingSeconds: getQuarterLengthSeconds('Q3'),
+    }),
+  };
+}
+
+/** A live match, or one suspended at halftime, can be finished. */
+export function finishMatch(match: Match): MatchResult<'MATCH_NOT_LIVE'> {
+  if (!isLive(match) && match.status !== 'HALFTIME') return { ok: false, reason: 'MATCH_NOT_LIVE' };
   return { ok: true, match: withDerivedScoreboard({ ...match, status: 'FINISHED' }) };
 }

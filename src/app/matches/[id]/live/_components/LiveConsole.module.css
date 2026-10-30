@@ -30,6 +30,33 @@
   color: var(--color-info);
 }
 
+.halftimeBanner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background-color: var(--color-warning-subtle);
+  border-bottom: 1px solid var(--color-warning);
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.halftimeBanner svg {
+  flex-shrink: 0;
+  color: var(--color-warning);
+}
+
+.halftimeText {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.halftimeAction {
+  flex-shrink: 0;
+}
+
 /* MOBILE PORTRAIT: SECTION TABS */
 .mobileTabs {
   display: flex;

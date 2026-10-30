@@ -7,7 +7,9 @@ import {
   recordEvent,
   requestTimeout,
   setClock,
+  startHalftime,
   startMatch,
+  startThirdQuarter,
   substitutePlayer,
   undoLastEvent,
 } from './match-use-cases';
@@ -221,6 +223,92 @@ describe('changeQuarter & setClock', () => {
       setClock(makeMatch({ currentQuarter: 'OT1' }), 500).quarterTimeRemainingSeconds,
       300
     );
+  });
+});
+
+describe('halftime (FIBA: interval after Q2)', () => {
+  const endOfQ2 = () =>
+    makeMatch({
+      currentQuarter: 'Q2',
+      quarterTimeRemainingSeconds: 0,
+      events: [makeEvent({ quarter: 'Q2', type: 'FOUL_PERSONAL' }), makeEvent({ quarter: 'Q2', type: 'FG2_MADE' })],
+    });
+
+  it('startHalftime moves a live Q2 match to HALFTIME with the clock at 00:00', () => {
+    const { match: next } = expectOk(startHalftime({ ...endOfQ2(), quarterTimeRemainingSeconds: 12 }));
+    assert.strictEqual(next.status, 'HALFTIME');
+    assert.strictEqual(next.currentQuarter, 'Q2');
+    assert.strictEqual(next.quarterTimeRemainingSeconds, 0);
+    assert.strictEqual(next.homeScore, 2);
+  });
+
+  it('startHalftime refuses outside the end of the first half', () => {
+    assert.deepStrictEqual(startHalftime(makeMatch({ currentQuarter: 'Q1' })), {
+      ok: false,
+      reason: 'NOT_END_OF_FIRST_HALF',
+    });
+    assert.deepStrictEqual(startHalftime(makeMatch({ currentQuarter: 'Q2', status: 'FINISHED' })), {
+      ok: false,
+      reason: 'MATCH_NOT_LIVE',
+    });
+  });
+
+  it('changing from Q2 to Q3 while live passes through HALFTIME', () => {
+    const next = changeQuarter(endOfQ2(), 'Q3');
+    assert.strictEqual(next.status, 'HALFTIME');
+    assert.strictEqual(next.currentQuarter, 'Q2');
+    assert.strictEqual(next.quarterTimeRemainingSeconds, 0);
+  });
+
+  it('startThirdQuarter sets Q3, a full clock and LIVE, and resets team fouls', () => {
+    const halftime = expectOk(startHalftime(endOfQ2())).match;
+    assert.strictEqual(halftime.homeFoulsQuarter, 1);
+    const { match: next } = expectOk(startThirdQuarter(halftime));
+    assert.strictEqual(next.status, 'LIVE');
+    assert.strictEqual(next.currentQuarter, 'Q3');
+    assert.strictEqual(next.quarterTimeRemainingSeconds, 600);
+    assert.strictEqual(next.homeFoulsQuarter, 0);
+    assert.strictEqual(next.homeScore, 2);
+  });
+
+  it('startThirdQuarter refuses when the match is not at halftime', () => {
+    assert.deepStrictEqual(startThirdQuarter(makeMatch({ currentQuarter: 'Q2' })), { ok: false, reason: 'NOT_HALFTIME' });
+  });
+
+  it('during HALFTIME, changeQuarter only leaves the interval through Q3', () => {
+    const halftime = expectOk(startHalftime(endOfQ2())).match;
+    assert.strictEqual(changeQuarter(halftime, 'Q4'), halftime);
+    const resumed = changeQuarter(halftime, 'Q3');
+    assert.strictEqual(resumed.status, 'LIVE');
+    assert.strictEqual(resumed.currentQuarter, 'Q3');
+  });
+
+  it('refuses events, substitutions, undo and timeouts during HALFTIME', () => {
+    const halftime = expectOk(startHalftime(endOfQ2())).match;
+    const refused = { ok: false, reason: 'HALFTIME' };
+    assert.deepStrictEqual(recordEvent(halftime, { type: 'FG2_MADE', isOwnTeam: true, playerId: 'p1' }, ctx), refused);
+    assert.deepStrictEqual(substitutePlayer(halftime, 'p1', 'p6', ctx), refused);
+    assert.deepStrictEqual(undoLastEvent(halftime), refused);
+    assert.deepStrictEqual(requestTimeout(halftime, 'OWN'), refused);
+    assert.deepStrictEqual(requestTimeout(halftime, 'RIVAL'), refused);
+  });
+
+  it('a match can be finished from HALFTIME', () => {
+    const halftime = expectOk(startHalftime(endOfQ2())).match;
+    assert.strictEqual(expectOk(finishMatch(halftime)).match.status, 'FINISHED');
+  });
+});
+
+describe('requestTimeout in the last 2 minutes of Q4 (FIBA Art. 18.2.5)', () => {
+  it('uses the match clock: with 3 second-half timeouts left only 2 can be used', () => {
+    const match = makeMatch({ currentQuarter: 'Q4', quarterTimeRemainingSeconds: 90 });
+    const first = expectOk(requestTimeout(match, 'OWN'));
+    assert.strictEqual(first.remaining, 1);
+    assert.strictEqual(first.match.homeTimeouts.secondHalfRemaining, 1);
+    const second = expectOk(requestTimeout(first.match, 'OWN'));
+    assert.strictEqual(second.remaining, 0);
+    assert.deepStrictEqual(requestTimeout(second.match, 'OWN'), { ok: false, reason: 'NO_TIMEOUTS_LEFT' });
+    assert.strictEqual(second.match.awayTimeouts.secondHalfRemaining, 3, 'the rival is untouched');
   });
 });
 

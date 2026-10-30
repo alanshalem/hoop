@@ -23,6 +23,10 @@ describe('getPeriodEndAction', () => {
     assert.deepStrictEqual(getPeriodEndAction('Q3', { own: 50, rival: 40 }), { kind: 'ADVANCE', next: 'Q4' });
   });
 
+  it('sends the end of the 2nd quarter to halftime', () => {
+    assert.deepStrictEqual(getPeriodEndAction('Q2', { own: 30, rival: 30 }), { kind: 'HALFTIME' });
+  });
+
   it('offers to finish after the 4th quarter or an overtime when not tied', () => {
     assert.deepStrictEqual(getPeriodEndAction('Q4', { own: 70, rival: 68 }), { kind: 'FINISH' });
     assert.deepStrictEqual(getPeriodEndAction('OT1', { own: 75, rival: 80 }), { kind: 'FINISH' });

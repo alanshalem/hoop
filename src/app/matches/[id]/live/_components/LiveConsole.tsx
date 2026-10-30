@@ -3,18 +3,19 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
-import { Crosshair, Eye, Users, Zap } from 'lucide-react';
+import { Coffee, Crosshair, Eye, Play, Users, Zap } from 'lucide-react';
 import { USER_ROLE_LABELS } from '@/core/domain/entities/club.types';
 import type { PlayByPlayEventType, Quarter } from '@/core/domain/entities/match.types';
 import type { CourtCoordinates } from '@/core/domain/value-objects/coordinates';
 import { isSameTeamFoulPeriod } from '@/core/domain/rules/event-rules';
 import { formatGameClock, getQuarterLengthSeconds } from '@/core/domain/rules/game-clock';
-import { getTimeoutPeriod } from '@/core/domain/rules/timeouts';
+import { getTimeoutPeriod, isLastTwoMinutesOfFourthQuarter } from '@/core/domain/rules/timeouts';
 import type { TeamSide } from '@/core/application/use-cases/match-use-cases';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { useLiveMatchConsole } from '@/core/application/hooks/useLiveMatchConsole';
 import type { PeriodEndAction } from '@/core/application/hooks/live-console-rules';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
 import { confirm, notify } from '@/presentation/organisms/DialogHost/dialog-store';
 import { ScoreboardHeader } from '@/presentation/organisms/ScoreboardHeader/ScoreboardHeader';
 import { QUARTER_LABELS } from '@/presentation/organisms/ScoreboardHeader/quarter-labels';
@@ -27,7 +28,13 @@ import { HalfCourtShotChart } from '@/presentation/organisms/HalfCourtShotChart/
 import { QuickActionPad } from '@/presentation/organisms/QuickActionPad/QuickActionPad';
 import { PlayByPlayTimeline } from '@/presentation/organisms/PlayByPlayTimeline/PlayByPlayTimeline';
 import { ConsoleToolbar } from './ConsoleToolbar';
-import { REFUSAL_MESSAGES, TIMEOUT_PERIOD_LABELS, formatTimeouts, type ConsoleRefusal } from './live-messages';
+import {
+  REFUSAL_MESSAGES,
+  TIMEOUT_PERIOD_LABELS,
+  formatTimeouts,
+  timeoutWindowLabel,
+  type ConsoleRefusal,
+} from './live-messages';
 import styles from './LiveConsole.module.css';
 
 type MobileTab = 'lineup' | 'chart' | 'pad';
@@ -54,6 +61,8 @@ export function LiveConsole({ matchId }: { matchId: string }) {
 
   const { match, teams, clock } = live;
   const readOnly = !live.canRecord;
+  // FIBA halftime: no plays and no timeouts until the 3rd quarter starts.
+  const recordingLocked = readOnly || live.isHalftime;
   // Only on-court players record actions; a substituted player drops the selection.
   const selectedPlayer = live.onCourtPlayers.find((p) => p.id === selectedPlayerId) ?? null;
 
@@ -75,6 +84,18 @@ export function LiveConsole({ matchId }: { matchId: string }) {
   }
 
   async function handlePeriodEnd(action: PeriodEndAction) {
+    if (action.kind === 'HALFTIME') {
+      const accepted = await confirm({
+        title: 'Fin de la primera mitad',
+        message: 'El reloj llegó a 00:00. ¿Pasar al entretiempo? No se registran jugadas ni tiempos muertos hasta comenzar el 3.er cuarto.',
+        confirmLabel: 'Ir al entretiempo',
+        tone: 'info',
+      });
+      if (!accepted) return;
+      const result = live.startHalftime();
+      if (!result.ok) void notifyRefusal(result.reason, 'No se pudo pasar al entretiempo');
+      return;
+    }
     if (action.kind === 'FINISH') {
       await finishMatchFlow('El reloj llegó a 00:00. ');
       return;
@@ -138,26 +159,39 @@ export function LiveConsole({ matchId }: { matchId: string }) {
   const handleTimeout = async (side: TeamSide) => {
     const team = side === 'OWN' ? teams.own : teams.rival;
     const period = TIMEOUT_PERIOD_LABELS[getTimeoutPeriod(match.currentQuarter)];
+    const lastTwoMinutes = isLastTwoMinutesOfFourthQuarter(match.currentQuarter, clock.read());
+    const lastTwoMinutesNote = lastTwoMinutes
+      ? ' En los últimos 2 minutos del 4.º cuarto cada equipo puede usar como máximo 2 (FIBA).'
+      : '';
     if (team.timeoutsLeft > 0) {
       const accepted = await confirm({
         title: 'Tiempo muerto',
-        message: `¿Tiempo muerto para ${team.name}? El reloj se detiene. Le quedan ${formatTimeouts(team.timeoutsLeft)} en ${period}.`,
+        message: `¿Tiempo muerto para ${team.name}? El reloj se detiene. Le quedan ${formatTimeouts(team.timeoutsLeft)} en ${timeoutWindowLabel(match.currentQuarter, clock.read())}.${lastTwoMinutesNote}`,
         confirmLabel: 'Pedir tiempo muerto',
         tone: 'info',
       });
       if (!accepted) return;
     }
+    const timeoutWindow = timeoutWindowLabel(match.currentQuarter, clock.read());
     const result = live.callTimeout(side);
     if (result.ok) {
       void notify({
         title: `Tiempo muerto: ${team.name}`,
-        message: `Reloj detenido. A ${team.name} le quedan ${formatTimeouts(result.remaining)} en ${period}.`,
+        message: `Reloj detenido. A ${team.name} le quedan ${formatTimeouts(result.remaining)} en ${timeoutWindow}.`,
         tone: 'info',
       });
     } else if (result.reason === 'NO_TIMEOUTS_LEFT') {
       void notify({
         title: 'Sin tiempos muertos',
-        message: `${team.name} ya usó todos sus tiempos muertos de ${period}.`,
+        message: lastTwoMinutes
+          ? `${team.name} ya no tiene tiempos muertos: en los últimos 2 minutos del 4.º cuarto se pueden usar como máximo 2 (FIBA).`
+          : `${team.name} ya usó todos sus tiempos muertos de ${period}.`,
+        tone: 'warning',
+      });
+    } else if (result.reason === 'HALFTIME') {
+      void notify({
+        title: 'Sin tiempos muertos en el entretiempo',
+        message: 'FIBA no permite tiempos muertos durante el entretiempo. Comienza el 3.er cuarto para pedirlos.',
         tone: 'warning',
       });
     } else {
@@ -167,6 +201,16 @@ export function LiveConsole({ matchId }: { matchId: string }) {
 
   const handleSelectQuarter = async (quarter: Quarter) => {
     if (quarter === match.currentQuarter) return;
+    if (match.currentQuarter === 'Q2' && quarter === 'Q3') {
+      const accepted = await confirm({
+        title: 'Fin de la primera mitad',
+        message: 'El partido pasa al entretiempo: no se registran jugadas ni tiempos muertos hasta comenzar el 3.er cuarto.',
+        confirmLabel: 'Ir al entretiempo',
+        tone: 'warning',
+      });
+      if (accepted) live.changeQuarter(quarter);
+      return;
+    }
     const foulNote = isSameTeamFoulPeriod(match.currentQuarter, quarter)
       ? 'Las faltas de equipo se mantienen: los suplementarios cuentan como el 4.º cuarto.'
       : 'Las faltas de equipo vuelven a cero para el nuevo período.';
@@ -177,6 +221,11 @@ export function LiveConsole({ matchId }: { matchId: string }) {
       tone: 'warning',
     });
     if (accepted) live.changeQuarter(quarter);
+  };
+
+  const handleStartThirdQuarter = () => {
+    const result = live.startThirdQuarter();
+    if (!result.ok) void notifyRefusal(result.reason, 'No se pudo comenzar el 3.er cuarto');
   };
 
   const mobileTabs: Array<{ value: MobileTab; label: string; icon: React.ReactNode }> = [
@@ -195,6 +244,7 @@ export function LiveConsole({ matchId }: { matchId: string }) {
         clockSeconds={clock.seconds}
         isClockRunning={clock.isRunning}
         readOnly={readOnly}
+        isHalftime={live.isHalftime}
         onSelectQuarter={(quarter) => void handleSelectQuarter(quarter)}
         onToggleClock={clock.toggle}
         onAdjustClock={(delta) => clock.set(clock.read() + delta)}
@@ -205,9 +255,29 @@ export function LiveConsole({ matchId }: { matchId: string }) {
         matchId={match.id}
         rivalName={match.rivalTeamName}
         readOnly={readOnly}
+        recordingLocked={live.isHalftime}
         onRivalAction={handleRivalAction}
         onFinish={() => void finishMatchFlow()}
       />
+
+      {live.isHalftime && (
+        <div className={styles.halftimeBanner} role="status">
+          <Coffee size={ICON_SIZE.md} aria-hidden="true" />
+          <p className={styles.halftimeText}>
+            <strong>Entretiempo.</strong> No se registran jugadas ni tiempos muertos (FIBA) hasta comenzar el 3.er cuarto.
+          </p>
+          {!readOnly && (
+            <TouchButton
+              size="lg"
+              leftIcon={<Play size={ICON_SIZE.md} />}
+              className={styles.halftimeAction}
+              onClick={handleStartThirdQuarter}
+            >
+              Comenzar 3.er cuarto
+            </TouchButton>
+          )}
+        </div>
+      )}
 
       {readOnly && (
         <p className={styles.readOnlyBanner} role="status">
@@ -241,7 +311,7 @@ export function LiveConsole({ matchId }: { matchId: string }) {
             fouledOutIds={live.fouledOutIds}
             selectedPlayerId={selectedPlayer?.id ?? null}
             substitution={substitution}
-            readOnly={readOnly}
+            readOnly={recordingLocked}
             onSelectPlayer={handleSelectPlayer}
             onSubstitutionChange={setSubstitution}
             onSubstitute={handleSubstitute}
@@ -253,7 +323,7 @@ export function LiveConsole({ matchId }: { matchId: string }) {
             className={styles.court}
             events={match.events}
             selectedPlayer={selectedPlayer}
-            readOnly={readOnly}
+            readOnly={recordingLocked}
             onRecordShot={(coordinates, is3pt, isMade) => recordForSelected(shotType(is3pt, isMade), coordinates)}
           />
           <PlayByPlayTimeline
@@ -262,7 +332,7 @@ export function LiveConsole({ matchId }: { matchId: string }) {
             players={players}
             rivalName={match.rivalTeamName}
             limit={6}
-            readOnly={readOnly}
+            readOnly={recordingLocked}
             onUndo={handleUndo}
           />
         </div>
@@ -271,7 +341,7 @@ export function LiveConsole({ matchId }: { matchId: string }) {
           <QuickActionPad
             selectedPlayer={selectedPlayer}
             playerFouls={selectedPlayer ? live.playerLines[selectedPlayer.id]?.fouls ?? 0 : 0}
-            readOnly={readOnly}
+            readOnly={recordingLocked}
             onRecordAction={(type) => recordForSelected(type)}
             onRequestSub={handleRequestSub}
           />

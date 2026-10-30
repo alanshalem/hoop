@@ -8,8 +8,11 @@ import {
 import {
   consumeTimeout,
   createInitialTimeouts,
+  FIBA_LAST_TWO_MINUTES_MAX_TIMEOUTS,
+  FIBA_LAST_TWO_MINUTES_SECONDS,
   getRemainingTimeouts,
   getTimeoutPeriod,
+  isLastTwoMinutesOfFourthQuarter,
 } from './timeouts';
 import { FIBA_MAX_ROSTER, FIBA_STARTERS, validateLineup } from './lineup-rules';
 import { can } from './permissions';
@@ -70,6 +73,54 @@ describe('Timeouts (FIBA Art. 18)', () => {
       firstHalfRemaining: 0,
       secondHalfRemaining: 3,
       overtimeRemaining: 1,
+    });
+  });
+});
+
+describe('Timeouts: last 2 minutes of the 4th quarter (FIBA Art. 18.2.5)', () => {
+  const fullSecondHalf = createInitialTimeouts();
+
+  it('applies only to Q4 when the game clock shows 2:00 or less', () => {
+    assert.strictEqual(FIBA_LAST_TWO_MINUTES_SECONDS, 120);
+    assert.strictEqual(FIBA_LAST_TWO_MINUTES_MAX_TIMEOUTS, 2);
+    assert.strictEqual(isLastTwoMinutesOfFourthQuarter('Q4', 120), true);
+    assert.strictEqual(isLastTwoMinutesOfFourthQuarter('Q4', 0), true);
+    assert.strictEqual(isLastTwoMinutesOfFourthQuarter('Q4', 121), false);
+    assert.strictEqual(isLastTwoMinutesOfFourthQuarter('Q3', 60), false);
+    assert.strictEqual(isLastTwoMinutesOfFourthQuarter('OT1', 60), false);
+  });
+
+  it('shows at most 2 usable timeouts when entering the last 2 minutes with 3 left', () => {
+    assert.strictEqual(getRemainingTimeouts(fullSecondHalf, 'Q4', 121), 3);
+    assert.strictEqual(getRemainingTimeouts(fullSecondHalf, 'Q4', 120), 2);
+    assert.strictEqual(getRemainingTimeouts({ ...fullSecondHalf, secondHalfRemaining: 1 }, 'Q4', 30), 1);
+    assert.strictEqual(getRemainingTimeouts(fullSecondHalf, 'Q3', 30), 3, 'Q3 is not restricted');
+    assert.strictEqual(getRemainingTimeouts(fullSecondHalf, 'OT1', 30), 1, 'overtimes keep 1 each');
+  });
+
+  it('allows only 2 timeouts in the span: the third second-half timeout is forfeited', () => {
+    const first = consumeTimeout(fullSecondHalf, 'Q4', 100);
+    assert.deepStrictEqual(first, {
+      ok: true,
+      remaining: 1,
+      timeouts: { firstHalfRemaining: 2, secondHalfRemaining: 1, overtimeRemaining: 1 },
+    });
+    if (!first.ok) throw new Error('expected ok');
+    const second = consumeTimeout(first.timeouts, 'Q4', 40);
+    assert.deepStrictEqual(second, {
+      ok: true,
+      remaining: 0,
+      timeouts: { firstHalfRemaining: 2, secondHalfRemaining: 0, overtimeRemaining: 1 },
+    });
+    if (!second.ok) throw new Error('expected ok');
+    assert.deepStrictEqual(consumeTimeout(second.timeouts, 'Q4', 10), { ok: false, reason: 'NO_TIMEOUTS_LEFT' });
+  });
+
+  it('keeps the regular count before 2:00 of the 4th quarter', () => {
+    assert.deepStrictEqual(consumeTimeout(fullSecondHalf, 'Q4', 300), {
+      ok: true,
+      remaining: 2,
+      timeouts: { firstHalfRemaining: 2, secondHalfRemaining: 2, overtimeRemaining: 1 },
     });
   });
 });

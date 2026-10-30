@@ -6,12 +6,15 @@ import type { PlayByPlayEventType } from '@/core/domain/entities/match.types';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
+import { SyncStatusIndicator } from '@/presentation/organisms/SyncStatusIndicator/SyncStatusIndicator';
 import styles from './ConsoleToolbar.module.css';
 
 export interface ConsoleToolbarProps {
   matchId: string;
   rivalName: string;
   readOnly: boolean;
+  /** Hides the rival quick actions (halftime: no plays are recorded). */
+  recordingLocked?: boolean;
   onRivalAction: (type: PlayByPlayEventType) => void;
   onFinish: () => void;
 }
@@ -22,11 +25,12 @@ const RIVAL_ACTIONS: Array<{ type: PlayByPlayEventType; label: string; ariaLabel
   { type: 'FG3_MADE', label: '+3', ariaLabel: 'Sumar 3 puntos al rival' },
 ];
 
-/** Navigation, rival quick actions (points and team fouls) and match closing. */
+/** Navigation, rival quick actions (points and team fouls), sync status and match closing. */
 export const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
   matchId,
   rivalName,
   readOnly,
+  recordingLocked = false,
   onRivalAction,
   onFinish,
 }) => (
@@ -35,7 +39,7 @@ export const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
       Partidos
     </LinkButton>
 
-    {!readOnly && (
+    {!readOnly && !recordingLocked && (
       <div className={styles.rivalGroup} role="group" aria-label={`Acciones del rival ${rivalName}`}>
         <span className={styles.rivalLabel}>
           <ShieldAlert size={ICON_SIZE.sm} aria-hidden="true" />
@@ -64,6 +68,7 @@ export const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
     )}
 
     <div className={styles.endGroup}>
+      <SyncStatusIndicator compact className={styles.syncStatus} />
       <LinkButton
         href={`/matches/${matchId}/stats`}
         variant="secondary"
