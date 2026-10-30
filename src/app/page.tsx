@@ -1,9 +1,7 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
 import {
   ArrowRight,
   CalendarDays,
@@ -29,7 +27,6 @@ import { useClubStore } from '@/core/application/stores/useClubStore';
 import { CLUB_PROFILE } from '@/core/infrastructure/mocks/seed-data';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
-import { PageHeader } from '@/presentation/molecules/PageHeader/PageHeader';
 import { SectionCard } from '@/presentation/molecules/SectionCard/SectionCard';
 import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
 import { FilterChipGroup } from '@/presentation/molecules/FilterChipGroup/FilterChipGroup';
@@ -38,6 +35,7 @@ import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
 import { JerseyBadge } from '@/presentation/atoms/JerseyBadge/JerseyBadge';
 import { StatusPill } from '@/presentation/atoms/StatusPill/StatusPill';
 import { UserRoleSwitcher } from '@/presentation/organisms/UserRoleSwitcher/UserRoleSwitcher';
+import { ClubHero } from '@/presentation/organisms/ClubHero/ClubHero';
 import { MatchStatusBadge } from '@/presentation/organisms/MatchCard/MatchStatusBadge';
 import {
   type MatchOutcome,
@@ -47,8 +45,6 @@ import {
   sortMatchesForCalendar,
 } from '@/presentation/organisms/MatchCard/match-display';
 import styles from './page.module.css';
-
-gsap.registerPlugin(useGSAP);
 
 const RECENT_RESULTS_LIMIT = 5;
 
@@ -95,7 +91,7 @@ const HeroMatch: React.FC<HeroMatchProps> = ({ match, canManageLineup }) => {
     <section
       className={clsx(styles.hero, inPlay && styles.heroLive)}
       aria-label={inPlay ? 'Partido en vivo' : 'Próximo partido'}
-      data-dash-anim
+      data-surface="board"
     >
       <div className={styles.heroTop}>
         {inPlay ? (
@@ -204,7 +200,6 @@ const LeaderItem: React.FC<{ label: string; unit: string; leader: SeasonLeader |
 );
 
 export default function DashboardPage() {
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const matches = useClubStore((state) => state.matches);
   const players = useClubStore((state) => state.players);
   const teams = useClubStore((state) => state.teams);
@@ -234,22 +229,10 @@ export default function DashboardPage() {
     return divisions.find((d) => d.id === divisionId)?.name ?? 'Sin equipo';
   };
 
-  // Staggered entrance (GPU-friendly: opacity + transform).
-  useGSAP(
-    () => {
-      gsap.fromTo(
-        '[data-dash-anim]',
-        { opacity: 0, y: 24 },
-        { opacity: 1, y: 0, duration: 0.45, stagger: 0.08, ease: 'power2.out', clearProps: 'transform' }
-      );
-    },
-    { scope: containerRef }
-  );
-
   return (
     <TabletAppShell>
-      <div ref={containerRef} className="page-container">
-        <PageHeader
+      <div className="page-container">
+        <ClubHero
           title="Dashboard"
           subtitle={`${activeDivision?.name ?? CLUB_PROFILE.name} · Temporada ${CLUB_PROFILE.season}`}
           actions={
@@ -261,7 +244,7 @@ export default function DashboardPage() {
         />
 
         {divisions.length > 1 && (
-          <div data-dash-anim>
+          <div>
             <FilterChipGroup label="División del tablero">
               {divisions.map((division) => (
                 <FilterChip
@@ -278,7 +261,7 @@ export default function DashboardPage() {
         {heroMatch ? (
           <HeroMatch match={heroMatch} canManageLineup={can(role, 'MANAGE_LINEUP')} />
         ) : (
-          <div data-dash-anim>
+          <div>
             <EmptyState
               icon={CalendarDays}
               title="Sin partidos en agenda"
@@ -294,7 +277,7 @@ export default function DashboardPage() {
 
         {summary ? (
           <section className={styles.kpiGrid} aria-label="Resumen de temporada">
-            <div className={styles.kpiCard} data-dash-anim>
+            <div className={styles.kpiCard} data-reveal>
               <span className={styles.kpiLabel}>Récord</span>
               <span className={clsx(styles.kpiValue, 'tabular-nums')}>
                 {summary.wins}-{summary.losses}
@@ -305,7 +288,7 @@ export default function DashboardPage() {
                   : 'Sin partidos finalizados'}
               </span>
             </div>
-            <div className={styles.kpiCard} data-dash-anim>
+            <div className={styles.kpiCard} data-reveal>
               <span className={styles.kpiLabel}>Puntos a favor</span>
               <span className={clsx(styles.kpiValue, 'tabular-nums')}>
                 {formatOneDecimal(summary.pointsForAvg)}
@@ -320,7 +303,7 @@ export default function DashboardPage() {
                 Diferencial {formatSigned(summary.diffAvg)}
               </span>
             </div>
-            <div className={styles.kpiCard} data-dash-anim>
+            <div className={styles.kpiCard} data-reveal>
               <span className={styles.kpiLabel}>Puntos en contra</span>
               <span className={clsx(styles.kpiValue, 'tabular-nums')}>
                 {formatOneDecimal(summary.pointsAgainstAvg)}
@@ -329,14 +312,14 @@ export default function DashboardPage() {
                 Promedio en {summary.played} {summary.played === 1 ? 'partido' : 'partidos'}
               </span>
             </div>
-            <div className={styles.kpiCard} data-dash-anim>
+            <div className={styles.kpiCard} data-reveal>
               <span className={styles.kpiLabel}>Tiros de campo</span>
               <span className={clsx(styles.kpiValue, 'tabular-nums')}>{formatOneDecimal(summary.fgPct)}%</span>
               <span className={styles.kpiSub}>Triples {formatOneDecimal(summary.fg3Pct)}%</span>
             </div>
           </section>
         ) : (
-          <div data-dash-anim>
+          <div>
             <EmptyState
               icon={Flame}
               title="Sin equipo para analizar"
@@ -352,7 +335,7 @@ export default function DashboardPage() {
 
         <div className={styles.sectionGrid}>
           {leaders && (
-            <div data-dash-anim>
+            <div data-reveal>
               <SectionCard title="Líderes del equipo" icon={Flame} description="Promedio por partido en la temporada">
                 <ul className={styles.leadersGrid}>
                   {LEADER_CATEGORIES.map((category) => (
@@ -369,7 +352,7 @@ export default function DashboardPage() {
           )}
 
           {activeTeam && (
-            <div data-dash-anim>
+            <div data-reveal>
               <SectionCard
                 title="Últimos resultados"
                 icon={History}
@@ -415,7 +398,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          <div className={styles.fullWidth} data-dash-anim>
+          <div className={styles.fullWidth} data-reveal>
             <SectionCard
               title="Alertas médicas"
               icon={HeartPulse}

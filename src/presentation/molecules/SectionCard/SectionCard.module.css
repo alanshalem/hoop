@@ -17,6 +17,7 @@
   gap: var(--space-3);
   padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface-2);
 }
 
 .heading {
@@ -34,8 +35,9 @@
   width: 40px;
   height: 40px;
   border-radius: var(--radius-md);
-  background-color: var(--color-orange-subtle);
-  color: var(--color-orange);
+  background-color: var(--brand-primary);
+  color: var(--text-on-brand);
+  box-shadow: 0 4px 12px -4px var(--brand-primary-glow);
 }
 
 .headingText {
@@ -45,9 +47,11 @@
 }
 
 .title {
-  font-size: var(--text-lg);
-  font-weight: var(--font-weight-bold);
-  line-height: var(--leading-snug);
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-display);
+  line-height: var(--leading-tight);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   color: var(--text-primary);
 }
 

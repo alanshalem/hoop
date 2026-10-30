@@ -23,12 +23,16 @@
   color: var(--text-secondary);
 }
 
+/* Header row in club black, in every theme */
 .th {
-  background-color: var(--bg-surface-2);
-  font-weight: var(--font-weight-bold);
+  background-color: var(--brand-black);
+  color: var(--text-on-brand);
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
   text-transform: uppercase;
-  font-size: var(--text-2xs);
-  letter-spacing: 0.05em;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  border-bottom: 2px solid var(--brand-primary);
 }
 
 .th abbr {
@@ -36,8 +40,13 @@
   cursor: help;
 }
 
-.row:hover .td {
+/* Zebra rows */
+.row:nth-child(even) .td {
   background-color: var(--bg-surface-2);
+}
+
+.row:hover .td {
+  background-color: var(--bg-surface-3);
 }
 
 /* STICKY PLAYER COLUMN */
@@ -53,7 +62,7 @@
 }
 
 .th.stickyCol {
-  background-color: var(--bg-surface-2);
+  background-color: var(--brand-black);
   z-index: 3;
 }
 
@@ -72,10 +81,10 @@
 
 .dorsal {
   min-width: 2ch;
-  font-family: var(--font-athletic), var(--font-mono);
-  font-size: var(--text-base);
-  font-weight: var(--font-weight-black);
-  color: var(--color-orange);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-display);
+  color: var(--brand-primary-ink);
   text-align: right;
 }
 
@@ -95,30 +104,36 @@
 
 .highlightPts {
   color: var(--text-primary);
-  font-weight: var(--font-weight-black);
-  font-family: var(--font-athletic), var(--font-mono);
-  font-size: var(--text-base);
+  font-weight: var(--font-weight-display);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
 }
 
 .highlightVal {
-  color: var(--color-orange);
-  font-weight: var(--font-weight-black);
-  font-family: var(--font-athletic), var(--font-mono);
-  font-size: var(--text-base);
+  color: var(--brand-primary-ink);
+  font-weight: var(--font-weight-display);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
 }
 
 .fouledOut {
-  color: var(--color-red);
+  color: var(--color-danger);
   font-weight: var(--font-weight-bold);
 }
 
+.fouledOut svg {
+  display: inline-block;
+  margin-right: var(--space-1);
+  vertical-align: -2px;
+}
+
 .plusMinusPositive {
-  color: var(--color-green);
+  color: var(--color-success);
   font-weight: var(--font-weight-bold);
 }
 
 .plusMinusNegative {
-  color: var(--color-red);
+  color: var(--color-danger);
   font-weight: var(--font-weight-bold);
 }
 
@@ -135,7 +150,8 @@
 }
 
 .totalsRow .stickyCol {
-  color: var(--color-orange);
+  color: var(--brand-primary-ink);
+  font-family: var(--font-display);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-label);
 }

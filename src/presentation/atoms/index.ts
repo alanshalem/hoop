@@ -11,3 +11,4 @@ export * from './JerseyBadge/JerseyBadge';
 export * from './FoulDots/FoulDots';
 export * from './StatBadge/StatBadge';
 export * from './StatusPill/StatusPill';
+export * from './ClubCrest/ClubCrest';

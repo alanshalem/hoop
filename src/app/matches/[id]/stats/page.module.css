@@ -18,7 +18,9 @@
   padding: var(--space-5) var(--space-6);
   border-radius: var(--radius-xl);
   border: 1px solid var(--border-subtle);
-  background: linear-gradient(135deg, var(--bg-surface-1) 0%, var(--bg-surface-2) 100%);
+  border-bottom: 3px solid var(--brand-primary);
+  background-color: var(--bg-base);
+  background-image: var(--motif-glow), var(--motif-stripes);
 }
 
 .heroTeam {
@@ -36,24 +38,30 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--text-lg);
-  font-weight: var(--font-weight-black);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-display);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-primary);
 }
 
 .heroOwn .heroName {
-  color: var(--color-orange);
+  color: var(--brand-primary-ink);
 }
 
 .heroScore {
-  font-family: var(--font-athletic), var(--font-mono);
+  font-family: var(--font-display);
   font-size: var(--text-scoreboard);
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-display);
   font-variant-numeric: tabular-nums;
-  line-height: 1;
+  line-height: var(--leading-display);
   color: var(--text-primary);
+}
+
+.heroOwn .heroScore {
+  color: var(--brand-primary-ink);
+  text-shadow: 0 0 24px var(--brand-primary-glow);
 }
 
 .heroCenter {
@@ -66,20 +74,21 @@
 .outcome {
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-full);
-  font-size: var(--text-xs);
-  font-weight: var(--font-weight-black);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-display);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-label);
 }
 
 .outcomeWin {
-  background-color: var(--color-green-subtle);
-  color: var(--color-green);
+  background-color: var(--color-success-subtle);
+  color: var(--color-success);
 }
 
 .outcomeLoss {
-  background-color: var(--color-red-subtle);
-  color: var(--color-red);
+  background-color: var(--color-danger-subtle);
+  color: var(--color-danger);
 }
 
 .outcomeDraw {
@@ -146,24 +155,25 @@
 }
 
 .effValue {
-  font-family: var(--font-athletic), var(--font-mono);
-  font-size: var(--text-2xl);
-  font-weight: var(--font-weight-black);
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: var(--font-weight-display);
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
-  line-height: 1.1;
+  line-height: var(--leading-display);
 }
 
 .effLabel {
+  font-family: var(--font-display);
   font-size: var(--text-2xs);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-display);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--tracking-label);
   color: var(--text-secondary);
 }
 
 .effDetail {
-  font-family: var(--font-athletic), var(--font-mono);
+  font-family: var(--font-display);
   font-size: var(--text-xs);
   color: var(--text-muted);
 }

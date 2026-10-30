@@ -1,17 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Archivo, Archivo_Narrow } from "next/font/google";
 import { DialogHost } from "@/presentation/organisms/DialogHost/DialogHost";
 import { THEME_INIT_SCRIPT } from "@/presentation/molecules/ThemeToggle/theme";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// Variable fonts: every weight in one file. Wired into --font-sans / --font-display in globals.css.
+const archivo = Archivo({
+  variable: "--font-archivo",
+  subsets: ["latin", "latin-ext"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const archivoNarrow = Archivo_Narrow({
+  variable: "--font-archivo-narrow",
+  subsets: ["latin", "latin-ext"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -20,14 +23,14 @@ export const metadata: Metadata = {
     template: "%s | HoopOS",
   },
   description:
-    "Sistema integral para clubes de básquet: divisiones, planteles, partidos y estadísticas FIBA en vivo desde la tablet.",
+    "HoopOS · CAMG: el sistema de básquet del Club Atlético Monte Grande. Divisiones, planteles, partidos y estadísticas FIBA en vivo desde la tablet.",
   applicationName: "HoopOS",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0B0F17",
+  themeColor: "#0A0A0A",
   colorScheme: "dark light",
 };
 
@@ -36,7 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     // The theme script sets data-theme before hydration, hence suppressHydrationWarning.
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable}`}
+      className={`${archivo.variable} ${archivoNarrow.variable}`}
       suppressHydrationWarning
     >
       <head>

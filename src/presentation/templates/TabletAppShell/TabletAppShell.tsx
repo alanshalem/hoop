@@ -1,11 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   CalendarDays,
-  CircleDot,
   LayoutDashboard,
   Radio,
   Shield,
@@ -16,6 +15,10 @@ import clsx from 'clsx';
 import { USER_ROLE_LABELS, UserRoleSchema, type UserRole } from '@/core/domain/entities/club.types';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { ThemeToggle } from '@/presentation/molecules/ThemeToggle/ThemeToggle';
+import { ClubCrest } from '@/presentation/atoms/ClubCrest/ClubCrest';
+import { CLUB_BRAND } from '@/presentation/brand';
+import { usePageEnter, useStaggerReveal } from '@/presentation/motion/useMotion';
+import { useNavIndicator } from '@/presentation/motion/useNavIndicator';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import styles from './TabletAppShell.module.css';
 
@@ -56,6 +59,14 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
   const currentUser = useClubStore((state) => state.currentUser);
   const switchRole = useClubStore((state) => state.switchRole);
   const isLiveActive = isLivePath(pathname);
+  const activeHref = NAV_ITEMS.find((item) => isNavItemActive(pathname, item.href))?.href ?? null;
+
+  const mainRef = useRef<HTMLElement | null>(null);
+  const navRef = useRef<HTMLElement | null>(null);
+  const indicatorRef = useRef<HTMLSpanElement | null>(null);
+  usePageEnter(mainRef);
+  useStaggerReveal(mainRef);
+  useNavIndicator(navRef, indicatorRef, activeHref);
 
   const renderBottomItem = (item: NavItem) => {
     const Icon = item.icon;
@@ -78,17 +89,20 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
       {/* Tablet navigation rail (left side) */}
       <aside className={styles.navRail}>
         <div className={styles.railTop}>
-          <Link href="/" className={styles.brandSection} aria-label="HoopOS, ir al inicio">
-            <span className={styles.logoIcon} aria-hidden="true">
-              <CircleDot size={ICON_SIZE.lg} strokeWidth={2.5} />
-            </span>
+          <Link
+            href="/"
+            className={styles.brandSection}
+            aria-label={`${CLUB_BRAND.productName} · ${CLUB_BRAND.clubName}, ir al inicio`}
+          >
+            <ClubCrest size={48} eager className={styles.brandCrest} />
             <span className={styles.brandText}>
-              <span className={styles.brandTitle}>HoopOS</span>
-              <span className={styles.brandSubtitle}>Club y estadísticas</span>
+              <span className={styles.brandTitle}>{CLUB_BRAND.productName}</span>
+              <span className={styles.brandSubtitle}>{CLUB_BRAND.clubShortName} · Básquet</span>
             </span>
           </Link>
 
-          <nav className={styles.navLinks} aria-label="Navegación principal">
+          <nav ref={navRef} className={styles.navLinks} aria-label="Navegación principal">
+            <span ref={indicatorRef} className={styles.navIndicator} aria-hidden="true" />
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive = isNavItemActive(pathname, item.href);
@@ -98,6 +112,7 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
                   href={item.href}
                   className={clsx(styles.navItem, isActive && styles.navItemActive)}
                   aria-current={isActive ? 'page' : undefined}
+                  data-nav-key={item.href}
                 >
                   <Icon size={ICON_SIZE.md} aria-hidden="true" />
                   <span>{item.label}</span>
@@ -139,7 +154,9 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
         </div>
       </aside>
 
-      <main className={styles.mainContent}>{children}</main>
+      <main ref={mainRef} className={styles.mainContent}>
+        {children}
+      </main>
 
       {/* Mobile bottom navigation (thumb zone) */}
       <nav className={styles.bottomBar} aria-label="Navegación móvil inferior">

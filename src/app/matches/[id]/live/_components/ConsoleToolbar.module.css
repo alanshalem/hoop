@@ -21,7 +21,7 @@
   margin: 0 auto;
   padding: var(--space-1);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--color-red-subtle);
+  border: 1px solid var(--color-danger-subtle);
   background-color: var(--bg-surface-2);
   flex-shrink: 0;
 }
@@ -31,11 +31,12 @@
   align-items: center;
   gap: var(--space-1-5);
   padding: 0 var(--space-2);
-  color: var(--color-red);
-  font-size: var(--text-2xs);
-  font-weight: var(--font-weight-bold);
+  color: var(--color-danger);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-display);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--tracking-label);
 }
 
 .rivalName {
@@ -51,9 +52,9 @@
   min-height: var(--touch-lg);
   padding: 0 var(--space-3);
   border-radius: var(--radius-md);
-  font-family: var(--font-athletic), var(--font-mono);
-  font-size: var(--text-base);
-  font-weight: var(--font-weight-black);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-display);
   cursor: pointer;
   touch-action: manipulation;
   transition: background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
@@ -66,22 +67,23 @@
 }
 
 .rivalBtn:hover {
-  background-color: var(--color-red-subtle);
-  border-color: var(--color-red);
-  color: var(--color-red);
+  background-color: var(--color-danger-subtle);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .rivalFoulBtn {
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  background-color: var(--color-amber-subtle);
-  border: 1px solid var(--color-amber);
-  color: var(--color-amber);
+  font-size: var(--text-base);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background-color: var(--color-warning-subtle);
+  border: 1px solid var(--color-warning);
+  color: var(--color-warning);
 }
 
 .rivalFoulBtn:hover {
-  background-color: var(--color-amber);
-  color: var(--text-inverse);
+  background-color: var(--color-warning);
+  color: var(--text-on-warning);
 }
 
 .rivalBtn:active,

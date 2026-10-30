@@ -18,8 +18,8 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-4);
-  background-color: var(--color-blue-subtle);
-  border-bottom: 1px solid var(--color-blue);
+  background-color: var(--color-info-subtle);
+  border-bottom: 1px solid var(--color-info);
   color: var(--text-primary);
   font-size: var(--text-sm);
   flex-shrink: 0;
@@ -27,7 +27,7 @@
 
 .readOnlyBanner svg {
   flex-shrink: 0;
-  color: var(--color-blue);
+  color: var(--color-info);
 }
 
 /* MOBILE PORTRAIT: SECTION TABS */
@@ -46,17 +46,20 @@
   justify-content: center;
   gap: var(--space-1-5);
   border-bottom: 2px solid transparent;
-  font-size: var(--text-xs);
-  font-weight: var(--font-weight-bold);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--text-secondary);
   cursor: pointer;
   touch-action: manipulation;
 }
 
 .mobileTabActive {
-  background-color: var(--color-orange-subtle);
-  color: var(--color-orange);
-  border-bottom-color: var(--color-orange);
+  background-color: var(--brand-primary-subtle);
+  color: var(--brand-primary-ink);
+  border-bottom-color: var(--brand-primary);
 }
 
 /* MAIN CONSOLE: lineup left, court + timeline center, action pad right */

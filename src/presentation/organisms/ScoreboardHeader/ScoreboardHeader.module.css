@@ -1,4 +1,6 @@
+/* Electronic scoreboard: club black with jersey stripes and a red glow (data-surface="board"). */
 .headerContainer {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-areas:
@@ -6,8 +8,9 @@
     'center center';
   gap: var(--space-2) var(--space-3);
   padding: var(--space-2) var(--space-3);
-  background: linear-gradient(180deg, var(--bg-surface-1) 0%, var(--bg-base) 100%);
-  border-bottom: 2px solid var(--border-strong);
+  background-color: var(--bg-base);
+  background-image: var(--motif-glow), var(--motif-stripes);
+  border-bottom: 3px solid var(--brand-primary);
   user-select: none;
   -webkit-user-select: none;
 }
@@ -32,7 +35,8 @@
   min-width: 0;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-lg);
-  border: 1px solid transparent;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface-1);
 }
 
 .teamPanelAway {
@@ -42,8 +46,8 @@
 }
 
 .teamPanelOwn {
-  border-color: var(--color-orange-subtle);
-  background-color: var(--color-orange-subtle);
+  border-color: color-mix(in srgb, var(--brand-primary) 55%, transparent);
+  background-color: color-mix(in srgb, var(--brand-primary) 12%, var(--bg-surface-1));
 }
 
 .teamMeta {
@@ -59,11 +63,12 @@
 }
 
 .teamCondition {
+  font-family: var(--font-display);
   font-size: var(--text-2xs);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-muted);
+  font-weight: var(--font-weight-display);
+  color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-eyebrow);
 }
 
 .teamName {
@@ -71,15 +76,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--text-base);
-  font-weight: var(--font-weight-black);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-display);
+  line-height: var(--leading-tight);
   color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .teamPanelOwn .teamName {
-  color: var(--color-orange);
+  color: var(--brand-primary-ink);
 }
 
 .foulRow {
@@ -104,56 +111,82 @@
   background-color: var(--bg-surface-3);
   border: 1px solid var(--border-strong);
   transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
+  will-change: transform;
 }
 
 .foulLightActive {
-  background-color: var(--color-amber);
-  border-color: var(--color-amber);
-  box-shadow: 0 0 8px var(--color-amber-glow);
+  background-color: var(--color-warning);
+  border-color: var(--color-warning);
+  box-shadow: 0 0 8px var(--color-warning-glow);
 }
 
 .foulCount {
-  font-family: var(--font-athletic), var(--font-mono);
-  font-size: var(--text-2xs);
-  font-weight: var(--font-weight-bold);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-display);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
+/* Pulsed by GSAP while the team is in bonus */
 .bonusBadge {
   padding: var(--space-0-5) var(--space-2);
   border-radius: var(--radius-sm);
+  font-family: var(--font-display);
   font-size: var(--text-2xs);
-  font-weight: var(--font-weight-black);
-  background-color: var(--color-red);
-  color: var(--text-on-accent);
+  font-weight: var(--font-weight-display);
+  background-color: var(--brand-primary);
+  color: var(--text-on-brand);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  animation: pulseBonus 1.2s ease-in-out infinite;
+  letter-spacing: var(--tracking-label);
+  box-shadow: 0 0 12px var(--brand-primary-glow);
+  will-change: transform, opacity;
 }
 
-@keyframes pulseBonus {
-  0%,
-  100% {
-    opacity: 0.85;
-    box-shadow: 0 0 6px var(--color-red-glow);
-  }
-  50% {
-    opacity: 1;
-    box-shadow: 0 0 16px var(--color-red-glow);
-  }
+/* LED score digits; the glow behind them flashes on every change */
+.scoreCell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.scoreGlow {
+  position: absolute;
+  inset: -12% -18%;
+  border-radius: var(--radius-full);
+  background: radial-gradient(closest-side, var(--score-glow-color, var(--color-success-glow)), transparent);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.scoreGlowUp {
+  --score-glow-color: var(--color-success-glow);
+}
+
+.scoreGlowDown {
+  --score-glow-color: var(--brand-primary-glow);
 }
 
 .scoreNumber {
-  font-family: var(--font-athletic), var(--font-mono);
-  font-size: clamp(2.5rem, 2rem + 2vw, 3.5rem);
-  font-weight: var(--font-weight-black);
+  position: relative;
+  font-family: var(--font-display);
+  font-size: clamp(2.75rem, 2.1rem + 2.4vw, 4rem);
+  font-weight: var(--font-weight-display);
   color: var(--text-primary);
-  line-height: 1;
+  line-height: var(--leading-display);
   font-variant-numeric: tabular-nums;
   min-width: 2.2ch;
   text-align: center;
+  text-shadow: 0 0 18px var(--led-halo);
   will-change: transform;
+}
+
+.teamPanelOwn .scoreNumber {
+  color: var(--brand-primary-ink);
+  text-shadow: 0 0 18px var(--brand-primary-glow);
 }
 
 /* TIMEOUT BUTTON: remaining count for the current period */
@@ -168,17 +201,17 @@
   min-height: var(--touch-lg);
   padding: var(--space-1);
   border-radius: var(--radius-lg);
-  background-color: var(--color-amber-subtle);
-  border: 1px solid var(--color-amber);
-  color: var(--color-amber);
+  background-color: var(--color-warning-subtle);
+  border: 1px solid var(--color-warning);
+  color: var(--color-warning);
   cursor: pointer;
   touch-action: manipulation;
-  transition: background-color var(--transition-fast), transform var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
 .timeoutBtn:hover {
-  background-color: var(--color-amber);
-  color: var(--text-inverse);
+  background-color: var(--color-warning);
+  color: var(--text-on-warning);
 }
 
 .timeoutBtn:active {
@@ -197,16 +230,17 @@
 }
 
 .timeoutLabel {
+  font-family: var(--font-display);
   font-size: var(--text-2xs);
-  font-weight: var(--font-weight-black);
-  letter-spacing: 0.05em;
+  font-weight: var(--font-weight-display);
+  letter-spacing: 0.08em;
   line-height: 1;
 }
 
 .timeoutCount {
-  font-family: var(--font-athletic), var(--font-mono);
-  font-size: var(--text-base);
-  font-weight: var(--font-weight-black);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-display);
   line-height: 1;
 }
 
@@ -228,7 +262,8 @@
   gap: var(--space-1);
   padding: var(--space-0-5);
   border-radius: var(--radius-md);
-  background-color: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface-1);
 }
 
 .quarterBtn {
@@ -236,9 +271,10 @@
   min-height: 40px;
   padding: 0 var(--space-2);
   border-radius: var(--radius-sm);
-  font-family: var(--font-athletic), var(--font-mono);
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-bold);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-display);
+  letter-spacing: 0.04em;
   color: var(--text-secondary);
   cursor: pointer;
   touch-action: manipulation;
@@ -258,9 +294,9 @@
 
 .quarterBtnActive,
 .quarterBtnActive:hover {
-  background-color: var(--color-orange);
-  color: var(--text-on-accent);
-  box-shadow: 0 0 10px var(--color-orange-glow);
+  background-color: var(--brand-primary);
+  color: var(--text-on-brand);
+  box-shadow: 0 0 12px var(--brand-primary-glow);
 }
 
 .clockRow {
@@ -269,30 +305,33 @@
   gap: var(--space-2);
 }
 
+/* Stopped: red LED; running: green LED */
 .clockDisplay {
-  font-family: var(--font-athletic), var(--font-mono);
-  font-size: clamp(2rem, 1.6rem + 1.2vw, 2.75rem);
-  font-weight: var(--font-weight-black);
-  color: var(--color-orange);
+  font-family: var(--font-display);
+  font-size: var(--text-timer);
+  font-weight: var(--font-weight-display);
+  color: var(--brand-primary-ink);
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  letter-spacing: 0.05em;
-  background-color: var(--bg-base);
+  letter-spacing: 0.06em;
+  background-color: var(--brand-black);
   padding: var(--space-1-5) var(--space-3);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-strong);
+  text-shadow: 0 0 14px var(--brand-primary-glow);
   transition: color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .clockRunning {
-  color: var(--color-green);
-  border-color: var(--color-green);
-  box-shadow: 0 0 12px var(--color-green-glow);
+  color: var(--color-success);
+  border-color: var(--color-success);
+  box-shadow: 0 0 12px var(--color-success-glow);
+  text-shadow: 0 0 14px var(--color-success-glow);
 }
 
 .clockExpired {
-  color: var(--color-red);
-  border-color: var(--color-red);
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-glow-brand);
 }
 
 .clockStepBtn {
@@ -300,12 +339,12 @@
   min-height: var(--touch-lg);
   padding: 0 var(--space-2);
   border-radius: var(--radius-md);
-  background-color: var(--bg-surface-2);
-  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface-1);
+  border: 1px solid var(--border-strong);
   color: var(--text-secondary);
-  font-family: var(--font-athletic), var(--font-mono);
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-bold);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-display);
   cursor: pointer;
   touch-action: manipulation;
   transition: background-color var(--transition-fast), color var(--transition-fast);
@@ -323,9 +362,9 @@
   width: var(--touch-lg);
   height: var(--touch-lg);
   border-radius: var(--radius-full);
-  background-color: var(--color-green);
-  color: var(--text-on-accent);
-  box-shadow: 0 0 12px var(--color-green-glow);
+  background-color: var(--color-success);
+  color: var(--text-on-success);
+  box-shadow: 0 0 12px var(--color-success-glow);
   cursor: pointer;
   touch-action: manipulation;
   transition: background-color var(--transition-fast), transform var(--transition-fast);
@@ -343,6 +382,7 @@
 }
 
 .clockToggleRunning {
-  background-color: var(--color-amber);
-  box-shadow: 0 0 12px var(--color-amber-glow);
+  background-color: var(--color-warning);
+  color: var(--text-on-warning);
+  box-shadow: 0 0 12px var(--color-warning-glow);
 }

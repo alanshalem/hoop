@@ -8,6 +8,8 @@ import type { PlayByPlayEvent } from '@/core/domain/entities/match.types';
 import type { CourtCoordinates } from '@/core/domain/value-objects/coordinates';
 import { isFieldGoalAttempt, isFieldGoalMade } from '@/core/domain/rules/event-rules';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { MOTION, gsap } from '@/presentation/motion/motion';
+import { useMotion } from '@/presentation/motion/useMotion';
 import { notify } from '@/presentation/organisms/DialogHost/dialog-store';
 import styles from './HalfCourtShotChart.module.css';
 
@@ -65,6 +67,26 @@ export const HalfCourtShotChart: React.FC<HalfCourtShotChartProps> = ({
   const [pending, setPending] = useState<PendingShot | null>(null);
 
   const shots = events.filter((ev) => ev.coordinates && isFieldGoalAttempt(ev.type));
+  const latestShotId = shots[shots.length - 1]?.id;
+
+  // Markers pop in: all of them on mount, then only the newest shot.
+  const hasRevealedRef = useRef(false);
+  useMotion(
+    () => {
+      const svg = svgRef.current;
+      if (!svg) return;
+      const selector = hasRevealedRef.current ? `[data-shot-id="${latestShotId}"]` : '[data-shot-id]';
+      hasRevealedRef.current = true;
+      const markers = svg.querySelectorAll(selector);
+      if (markers.length === 0) return;
+      gsap.fromTo(
+        markers,
+        { scale: 0, opacity: 0, transformOrigin: '50% 50%' },
+        { scale: 1, opacity: 1, duration: MOTION.duration.base, ease: MOTION.ease.pop, stagger: 0.015 }
+      );
+    },
+    { scope: svgRef, dependencies: [latestShotId] }
+  );
 
   const handleCourtClick = (e: React.MouseEvent<SVGSVGElement>) => {
     if (readOnly) return;
@@ -155,9 +177,9 @@ export const HalfCourtShotChart: React.FC<HalfCourtShotChartProps> = ({
             const x = (ev.coordinates.x / 100) * COURT_WIDTH;
             const y = (ev.coordinates.y / 100) * COURT_HEIGHT;
             return isFieldGoalMade(ev.type) ? (
-              <circle key={ev.id} cx={x} cy={y} r="7" className={styles.markerMade} />
+              <circle key={ev.id} data-shot-id={ev.id} cx={x} cy={y} r="7" className={styles.markerMade} />
             ) : (
-              <g key={ev.id} className={styles.markerMiss}>
+              <g key={ev.id} data-shot-id={ev.id} className={styles.markerMiss}>
                 <line x1={x - 6} y1={y - 6} x2={x + 6} y2={y + 6} />
                 <line x1={x + 6} y1={y - 6} x2={x - 6} y2={y + 6} />
               </g>

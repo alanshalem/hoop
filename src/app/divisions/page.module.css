@@ -28,20 +28,37 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-/* Court-orange accent along the top edge */
+/* Club red accent along the top edge, jersey stripes in the corner */
 .divisionCard::before {
   content: '';
   position: absolute;
   inset: 0 0 auto 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--color-orange), transparent);
+  background: linear-gradient(90deg, var(--brand-primary), transparent);
+}
+
+.divisionCard::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 140px;
+  height: 100px;
+  background-image: var(--motif-stripes);
+  mask-image: linear-gradient(225deg, black, transparent 70%);
+  pointer-events: none;
+}
+
+.divisionCard > * {
+  position: relative;
 }
 
 .divisionCard:hover {
   border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
 }
 
 .cardTop {
@@ -52,9 +69,10 @@
 }
 
 .divisionName {
-  font-size: var(--text-xl);
-  font-weight: var(--font-weight-black);
-  line-height: var(--leading-tight);
+  font-size: var(--text-3xl);
+  font-weight: var(--font-weight-display);
+  line-height: var(--leading-display);
+  text-transform: uppercase;
   color: var(--text-primary);
 }
 
@@ -62,11 +80,12 @@
   flex-shrink: 0;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
-  background-color: var(--color-orange-subtle);
-  color: var(--color-orange);
+  background-color: var(--brand-primary);
+  color: var(--text-on-brand);
+  font-family: var(--font-display);
   font-size: var(--text-2xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.05em;
+  font-weight: var(--font-weight-display);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 
@@ -87,6 +106,7 @@
   gap: var(--space-1);
   padding: var(--space-3);
   background-color: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
 }
 
@@ -94,16 +114,18 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1-5);
+  font-family: var(--font-display);
   font-size: var(--text-2xs);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.04em;
+  font-weight: var(--font-weight-display);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .statValue {
-  font-size: var(--text-xl);
-  font-weight: var(--font-weight-black);
+  font-size: var(--text-3xl);
+  font-weight: var(--font-weight-display);
+  line-height: var(--leading-display);
   color: var(--text-primary);
 }
 
@@ -117,7 +139,7 @@
 }
 
 .coach svg {
-  color: var(--color-orange);
+  color: var(--brand-primary-ink);
 }
 
 .coachMissing {
@@ -125,7 +147,7 @@
 }
 
 .coachMissing svg {
-  color: var(--color-amber);
+  color: var(--color-warning);
 }
 
 .cardActions {

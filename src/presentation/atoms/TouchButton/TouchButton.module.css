@@ -7,6 +7,7 @@
   font-family: var(--font-sans);
   font-weight: var(--font-weight-semibold);
   line-height: var(--leading-tight);
+  letter-spacing: 0.01em;
   text-align: center;
   cursor: pointer;
   touch-action: manipulation;
@@ -69,48 +70,56 @@ a.touchButton:active {
 
 /* VARIANTS */
 .variantPrimary {
-  background-color: var(--color-orange);
-  color: var(--text-on-accent);
-  box-shadow: 0 4px 12px var(--color-orange-glow);
+  background-color: var(--brand-primary);
+  color: var(--text-on-brand);
+  font-weight: var(--font-weight-bold);
+  box-shadow: 0 6px 18px -6px var(--brand-primary-glow);
 }
 
 .variantPrimary:hover {
-  background-color: var(--color-orange-hover);
+  background-color: var(--brand-primary-hover);
 }
 
 .variantPrimary:active {
-  background-color: var(--color-orange-active);
+  background-color: var(--brand-primary-active);
 }
 
+/* Outlined */
 .variantSecondary {
-  background-color: var(--bg-surface-2);
+  background-color: transparent;
   color: var(--text-primary);
-  border-color: var(--border-subtle);
-}
-
-.variantSecondary:hover {
-  background-color: var(--bg-surface-3);
   border-color: var(--border-strong);
 }
 
+.variantSecondary:hover {
+  background-color: var(--bg-surface-2);
+  border-color: var(--text-secondary);
+}
+
+.variantSecondary:active {
+  background-color: var(--bg-surface-3);
+}
+
 .variantSuccess {
-  background-color: var(--color-green);
-  color: var(--text-on-accent);
-  box-shadow: 0 4px 12px var(--color-green-glow);
+  background-color: var(--color-success);
+  color: var(--text-on-success);
+  font-weight: var(--font-weight-bold);
+  box-shadow: 0 6px 18px -6px var(--color-success-glow);
 }
 
 .variantSuccess:hover {
-  background-color: var(--color-green-hover);
+  background-color: var(--color-success-hover);
 }
 
 .variantDanger {
-  background-color: var(--color-red);
-  color: var(--text-on-accent);
-  box-shadow: 0 4px 12px var(--color-red-glow);
+  background-color: var(--color-danger);
+  color: var(--text-on-danger);
+  font-weight: var(--font-weight-bold);
+  box-shadow: 0 6px 18px -6px var(--color-danger-glow);
 }
 
 .variantDanger:hover {
-  background-color: var(--color-red-hover);
+  background-color: var(--color-danger-hover);
 }
 
 .variantGhost {
@@ -119,22 +128,32 @@ a.touchButton:active {
 }
 
 .variantGhost:hover {
-  background-color: var(--color-orange-subtle);
-  color: var(--color-orange);
+  background-color: var(--brand-primary-subtle);
+  color: var(--brand-primary-ink);
+}
+
+.variantGhost:active {
+  background-color: var(--bg-surface-3);
 }
 
 .variantCourtAction {
-  background-color: var(--bg-surface-1);
+  background-color: var(--bg-surface-2);
   color: var(--text-primary);
-  border: 2px solid var(--border-strong);
-  font-weight: var(--font-weight-bold);
+  border: 1px solid var(--border-strong);
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .variantCourtAction:hover {
-  border-color: var(--color-orange);
-  background-color: var(--bg-surface-2);
+  border-color: var(--brand-primary);
+  background-color: var(--bg-surface-3);
+}
+
+.variantCourtAction:active {
+  background-color: var(--brand-primary-subtle);
+  border-color: var(--brand-primary);
 }
 
 .fullWidth {

@@ -99,7 +99,7 @@ export default function DivisionsPage() {
               const coach = users.find((u) => u.id === team?.headCoachId);
 
               return (
-                <li key={division.id} className={styles.divisionCard}>
+                <li key={division.id} className={styles.divisionCard} data-reveal>
                   <div className={styles.cardTop}>
                     <h2 className={styles.divisionName}>{division.name}</h2>
                     <span className={styles.categoryTag}>{DIVISION_CATEGORY_LABELS[division.category]}</span>

@@ -39,10 +39,10 @@
 
 .roleActive,
 .roleActive:hover {
-  background-color: var(--color-orange-subtle);
-  color: var(--color-orange);
-  border-color: var(--color-orange);
-  box-shadow: 0 0 10px var(--color-orange-glow);
+  background-color: var(--brand-primary);
+  color: var(--text-on-brand);
+  border-color: var(--brand-primary);
+  box-shadow: 0 4px 14px -4px var(--brand-primary-glow);
 }
 
 .userInfo {
@@ -58,12 +58,13 @@
   flex-shrink: 0;
   border-radius: var(--radius-full);
   background-color: var(--bg-surface-3);
-  border: 2px solid var(--color-orange);
+  border: 2px solid var(--brand-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: var(--font-weight-bold);
-  font-size: var(--text-xs);
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  font-size: var(--text-sm);
   color: var(--text-primary);
 }
 

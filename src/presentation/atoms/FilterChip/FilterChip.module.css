@@ -13,6 +13,7 @@
   background-color: var(--bg-surface-2);
   color: var(--text-secondary);
   cursor: pointer;
+  will-change: transform;
   touch-action: manipulation;
   transition: background-color var(--transition-fast), border-color var(--transition-fast),
     color var(--transition-fast), box-shadow var(--transition-fast);
@@ -20,7 +21,12 @@
 
 .chip:hover {
   background-color: var(--bg-surface-3);
+  border-color: var(--border-strong);
   color: var(--text-primary);
+}
+
+.chip:active {
+  transform: scale(0.97);
 }
 
 .chip:disabled {
@@ -28,12 +34,13 @@
   cursor: not-allowed;
 }
 
+/* Selected: solid club red */
 .chipPressed,
 .chipPressed:hover {
-  background-color: var(--color-orange-subtle);
-  border-color: var(--color-orange);
-  color: var(--color-orange);
-  box-shadow: 0 0 10px var(--color-orange-glow);
+  background-color: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: var(--text-on-brand);
+  box-shadow: 0 4px 14px -4px var(--brand-primary-glow);
 }
 
 .icon {
@@ -53,6 +60,6 @@
 }
 
 .chipPressed .count {
-  background-color: var(--color-orange);
-  color: var(--text-on-accent);
+  background-color: var(--brand-black);
+  color: var(--text-on-brand);
 }

@@ -1,4 +1,6 @@
 .matchCard {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -7,16 +9,26 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .matchCard:hover {
   border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
 }
 
+/* In play: club red edge and glow */
 .matchCardLive {
-  border-color: color-mix(in srgb, var(--color-red) 55%, transparent);
-  box-shadow: var(--shadow-glow-red);
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-glow-brand);
+}
+
+.matchCardLive::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background-color: var(--brand-primary);
 }
 
 .topRow {
@@ -63,9 +75,10 @@
   background-color: var(--bg-surface-2);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
+  font-family: var(--font-display);
   font-size: var(--text-2xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.04em;
+  font-weight: var(--font-weight-display);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 
@@ -76,6 +89,8 @@
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   background-color: var(--bg-surface-2);
+  background-image: var(--motif-stripes);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
 }
 
@@ -92,8 +107,11 @@
 }
 
 .teamName {
-  font-size: var(--text-base);
-  font-weight: var(--font-weight-bold);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
   color: var(--text-secondary);
   line-height: var(--leading-snug);
   overflow-wrap: anywhere;
@@ -106,21 +124,22 @@
 .teamLabel {
   font-size: var(--text-2xs);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .teamSideOwn .teamLabel {
-  color: var(--color-orange);
+  color: var(--brand-primary-ink);
 }
 
 .score {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--text-2xl);
-  font-weight: var(--font-weight-black);
+  font-size: var(--text-3xl);
+  font-weight: var(--font-weight-display);
+  line-height: var(--leading-display);
   color: var(--text-primary);
 }
 
@@ -130,8 +149,10 @@
 }
 
 .versus {
-  font-size: var(--text-base);
-  font-weight: var(--font-weight-bold);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-display);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 
@@ -154,9 +175,10 @@
   gap: var(--space-1-5);
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-full);
+  font-family: var(--font-display);
   font-size: var(--text-2xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.06em;
+  font-weight: var(--font-weight-display);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
   line-height: 1.2;
@@ -174,11 +196,11 @@
 }
 
 .statusScheduled {
-  --status-color: var(--color-blue);
+  --status-color: var(--color-info);
 }
 
 .statusLive {
-  --status-color: var(--color-red);
+  --status-color: var(--brand-primary-ink);
 }
 
 .statusLive .statusDot {

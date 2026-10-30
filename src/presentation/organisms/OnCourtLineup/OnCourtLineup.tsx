@@ -1,16 +1,14 @@
 'use client';
 
 import React, { useRef } from 'react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
 import clsx from 'clsx';
 import { ArrowLeftRight, Ban, LogIn, LogOut, X } from 'lucide-react';
 import type { Player } from '@/core/domain/entities/club.types';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { MOTION, gsap } from '@/presentation/motion/motion';
+import { useMotion } from '@/presentation/motion/useMotion';
 import { PlayerCard } from '@/presentation/molecules/PlayerCard/PlayerCard';
 import styles from './OnCourtLineup.module.css';
-
-gsap.registerPlugin(useGSAP);
 
 /** Substitution being assembled; it completes when both players are chosen. */
 export interface SubstitutionDraft {
@@ -53,7 +51,7 @@ export const OnCourtLineup: React.FC<OnCourtLineupProps> = ({
   const onCourtKey = onCourtPlayers.map((p) => p.id).join('|');
 
   // Highlight the players that just entered the court.
-  useGSAP(
+  useMotion(
     () => {
       const entered = onCourtPlayers.filter((p) => !previousOnCourt.current.includes(p.id));
       previousOnCourt.current = onCourtPlayers.map((p) => p.id);
@@ -61,7 +59,7 @@ export const OnCourtLineup: React.FC<OnCourtLineupProps> = ({
         gsap.fromTo(
           `[data-player-id="${player.id}"]`,
           { x: 24, opacity: 0, scale: 0.96 },
-          { x: 0, opacity: 1, scale: 1, duration: 0.35, ease: 'back.out(1.6)' }
+          { x: 0, opacity: 1, scale: 1, duration: 0.35, ease: MOTION.ease.pop }
         );
       }
     },

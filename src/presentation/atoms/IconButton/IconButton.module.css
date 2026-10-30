@@ -44,32 +44,32 @@
 }
 
 .variantSecondary {
-  background-color: var(--bg-surface-2);
-  border-color: var(--border-subtle);
+  background-color: transparent;
+  border-color: var(--border-strong);
   color: var(--text-primary);
 }
 
 .variantSecondary:hover {
-  background-color: var(--bg-surface-3);
-  border-color: var(--border-strong);
+  background-color: var(--bg-surface-2);
+  border-color: var(--text-secondary);
 }
 
 .variantPrimary {
-  background-color: var(--color-orange);
-  color: var(--text-on-accent);
+  background-color: var(--brand-primary);
+  color: var(--text-on-brand);
 }
 
 .variantPrimary:hover {
-  background-color: var(--color-orange-hover);
+  background-color: var(--brand-primary-hover);
 }
 
 .variantDanger {
-  background-color: var(--color-red-subtle);
-  border-color: var(--color-red);
-  color: var(--color-red);
+  background-color: var(--color-danger-subtle);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .variantDanger:hover {
-  background-color: var(--color-red);
-  color: var(--text-on-accent);
+  background-color: var(--color-danger);
+  color: var(--text-on-danger);
 }

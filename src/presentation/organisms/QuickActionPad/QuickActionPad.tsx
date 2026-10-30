@@ -1,19 +1,17 @@
 'use client';
 
 import React, { useRef } from 'react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
 import clsx from 'clsx';
 import { ArrowLeftRight, Lock, OctagonAlert, UserRound } from 'lucide-react';
 import type { Player } from '@/core/domain/entities/club.types';
 import type { PlayByPlayEventType } from '@/core/domain/entities/match.types';
 import { isPlayerFouledOut } from '@/core/domain/rules/basketball-rules';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { MOTION, gsap } from '@/presentation/motion/motion';
+import { useMotion } from '@/presentation/motion/useMotion';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
 import type { TouchButtonVariant } from '@/presentation/atoms/TouchButton/touch-button-styles';
 import styles from './QuickActionPad.module.css';
-
-gsap.registerPlugin(useGSAP);
 
 export interface QuickActionPadProps {
   /** On-court player the actions are recorded for. */
@@ -90,13 +88,13 @@ export const QuickActionPad: React.FC<QuickActionPadProps> = ({
   const bannerRef = useRef<HTMLDivElement | null>(null);
   const isFouledOut = selectedPlayer !== null && isPlayerFouledOut(playerFouls);
 
-  useGSAP(
+  useMotion(
     () => {
       if (!isFouledOut || !bannerRef.current) return;
       gsap.fromTo(
         bannerRef.current,
         { scale: 0.85, opacity: 0 },
-        { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(1.5)' }
+        { scale: 1, opacity: 1, duration: 0.35, ease: MOTION.ease.pop }
       );
     },
     { dependencies: [isFouledOut, selectedPlayer?.id] }

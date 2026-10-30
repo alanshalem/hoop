@@ -5,13 +5,13 @@
   flex-shrink: 0;
   position: relative;
   border-radius: var(--radius-md);
-  font-family: var(--font-athletic), var(--font-mono);
-  font-weight: var(--font-weight-black);
-  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  letter-spacing: -0.01em;
   user-select: none;
   border: 2px solid transparent;
   /* Jersey fabric feel: subtle top light and bottom shade */
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(0, 0, 0, 0.12) 100%);
+  background-image: linear-gradient(180deg, var(--sheen-top) 0%, var(--sheen-bottom) 100%);
   transition: transform var(--transition-fast), border-color var(--transition-fast),
     background-color var(--transition-fast), box-shadow var(--transition-fast), color var(--transition-fast);
   font-variant-numeric: tabular-nums;
@@ -47,11 +47,12 @@
   border-color: var(--border-strong);
 }
 
+/* On court: club jersey, white number on red */
 .stateOnCourt {
-  background-color: var(--color-orange-subtle);
-  color: var(--color-orange);
-  border-color: var(--color-orange);
-  box-shadow: 0 0 16px var(--color-orange-glow);
+  background-color: var(--brand-primary);
+  color: var(--text-on-brand);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 16px var(--brand-primary-glow);
 }
 
 .stateBench {
@@ -61,17 +62,17 @@
 }
 
 .stateFoulWarning {
-  background-color: var(--color-amber-subtle);
-  color: var(--color-amber);
-  border-color: var(--color-amber);
-  box-shadow: 0 0 16px var(--color-amber-glow);
+  background-color: var(--color-warning-subtle);
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+  box-shadow: 0 0 16px var(--color-warning-glow);
 }
 
 .stateFouledOut {
-  background-color: var(--color-red-subtle);
-  color: var(--color-red);
-  border-color: var(--color-red);
-  box-shadow: 0 0 16px var(--color-red-glow);
+  background-color: var(--color-danger-subtle);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+  box-shadow: 0 0 16px var(--color-danger-glow);
 }
 
 .fouledOutStrikethrough::after {
@@ -81,7 +82,7 @@
   left: 10%;
   right: 10%;
   height: 3px;
-  background-color: var(--color-red);
+  background-color: var(--color-danger);
   transform: rotate(-35deg);
   border-radius: var(--radius-full);
 }

@@ -20,7 +20,7 @@
     transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
 }
 
-/* Left accent bar: green when on court, orange when selected */
+/* Left accent bar: green when on court, club red when selected */
 .playerCard::before {
   content: '';
   position: absolute;
@@ -40,11 +40,11 @@
 }
 
 .onCourt {
-  border-color: color-mix(in srgb, var(--color-green) 45%, var(--border-subtle));
+  border-color: color-mix(in srgb, var(--color-success) 45%, var(--border-subtle));
 }
 
 .onCourt::before {
-  background-color: var(--color-green);
+  background-color: var(--color-success);
 }
 
 .fouledOut {
@@ -53,15 +53,15 @@
 
 .selected,
 .selected:hover {
-  background-color: var(--color-orange-subtle);
-  border-color: var(--color-orange);
-  box-shadow: 0 0 0 1px var(--color-orange), 0 0 18px var(--color-orange-glow);
+  background-color: var(--brand-primary-subtle);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 1px var(--brand-primary), 0 0 18px var(--brand-primary-glow);
   transform: translateY(-1px);
   opacity: 1;
 }
 
 .selected::before {
-  background-color: var(--color-orange);
+  background-color: var(--brand-primary);
 }
 
 .leftSection {
@@ -79,9 +79,12 @@
 }
 
 .lastName {
-  font-size: var(--text-lg);
-  font-weight: var(--font-weight-bold);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-display);
   line-height: var(--leading-tight);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -109,9 +112,9 @@
 }
 
 .pointsBadge {
-  font-family: var(--font-athletic), var(--font-mono);
-  font-size: var(--text-2xl);
-  font-weight: var(--font-weight-black);
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: var(--font-weight-display);
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -119,8 +122,9 @@
 
 .pointsLabel {
   font-size: var(--text-2xs);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 

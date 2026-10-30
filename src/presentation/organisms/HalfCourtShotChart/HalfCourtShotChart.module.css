@@ -27,25 +27,29 @@
   min-height: 36px;
   padding: 0 var(--space-3);
   background-color: var(--bg-surface-1);
-  border: 1px solid var(--color-amber);
+  border: 1px solid var(--color-warning);
   border-radius: var(--radius-full);
   font-size: var(--text-xs);
-  color: var(--color-amber);
+  color: var(--color-warning);
   font-weight: var(--font-weight-semibold);
 }
 
 .playerIndicatorActive {
-  border-color: var(--color-orange);
+  border-color: var(--brand-primary);
   color: var(--text-primary);
 }
 
 .playerIndicatorActive svg,
 .playerIndicatorActive strong {
-  color: var(--color-orange);
+  color: var(--brand-primary-ink);
 }
 
 .courtCaption {
+  font-family: var(--font-display);
   font-size: var(--text-2xs);
+  font-weight: var(--font-weight-display);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -68,12 +72,12 @@
   width: 12px;
   height: 12px;
   border-radius: var(--radius-full);
-  background-color: var(--color-green);
+  background-color: var(--color-success);
   border: 1.5px solid var(--text-primary);
 }
 
 .legendMiss {
-  color: var(--color-red);
+  color: var(--color-danger);
 }
 
 .courtWrapper {
@@ -111,7 +115,7 @@
 }
 
 .courtHoop {
-  stroke: var(--color-orange);
+  stroke: var(--brand-primary-ink);
   stroke-width: 3.5;
   fill: none;
 }
@@ -121,22 +125,22 @@
   stroke-width: 4;
 }
 
-/* SHOT MARKERS */
+/* SHOT MARKERS (GSAP pops new ones in) */
 .markerMade {
-  fill: var(--color-green);
+  fill: var(--color-success);
   stroke: var(--text-primary);
   stroke-width: 1.5;
 }
 
 .markerMiss {
-  stroke: var(--color-red);
+  stroke: var(--color-danger);
   stroke-width: 2.5;
   stroke-linecap: round;
 }
 
 .markerPending {
-  fill: var(--color-orange-subtle);
-  stroke: var(--color-orange);
+  fill: var(--brand-primary-subtle);
+  stroke: var(--brand-primary-ink);
   stroke-width: 2.5;
   transform-box: fill-box;
   transform-origin: center;
@@ -194,22 +198,26 @@
   min-height: var(--touch-lg);
   padding: 0 var(--space-4);
   border-radius: var(--radius-lg);
-  color: var(--text-on-accent);
-  font-weight: var(--font-weight-black);
-  font-size: var(--text-sm);
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  font-size: var(--text-base);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   white-space: nowrap;
   cursor: pointer;
   touch-action: manipulation;
 }
 
 .actionMadeBtn {
-  background-color: var(--color-green);
-  box-shadow: 0 0 12px var(--color-green-glow);
+  color: var(--text-on-success);
+  background-color: var(--color-success);
+  box-shadow: 0 0 12px var(--color-success-glow);
 }
 
 .actionMissBtn {
-  background-color: var(--color-red);
-  box-shadow: 0 0 12px var(--color-red-glow);
+  color: var(--text-on-danger);
+  background-color: var(--color-danger);
+  box-shadow: 0 0 12px var(--color-danger-glow);
 }
 
 .actionCancelBtn {

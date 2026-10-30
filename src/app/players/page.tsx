@@ -206,7 +206,7 @@ export default function PlayersPage() {
               const isCalledUp = firstTeam?.playerIds.includes(player.id) && player.teamId !== firstTeam.id;
 
               return (
-                <li key={player.id} className={styles.playerItem}>
+                <li key={player.id} className={styles.playerItem} data-reveal>
                   <PlayerCard
                     player={player}
                     points={seasonPoints.get(player.id) ?? 0}

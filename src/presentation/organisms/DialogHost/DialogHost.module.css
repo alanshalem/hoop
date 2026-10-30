@@ -16,26 +16,26 @@
 }
 
 .toneInfo {
-  color: var(--color-blue);
-  background-color: var(--color-blue-subtle);
+  color: var(--color-info);
+  background-color: var(--color-info-subtle);
 }
 
 .toneSuccess {
-  color: var(--color-green);
-  background-color: var(--color-green-subtle);
-  box-shadow: var(--shadow-glow-green);
+  color: var(--color-success);
+  background-color: var(--color-success-subtle);
+  box-shadow: var(--shadow-glow-success);
 }
 
 .toneWarning {
-  color: var(--color-amber);
-  background-color: var(--color-amber-subtle);
-  box-shadow: var(--shadow-glow-amber);
+  color: var(--color-warning);
+  background-color: var(--color-warning-subtle);
+  box-shadow: var(--shadow-glow-warning);
 }
 
 .toneDanger {
-  color: var(--color-red);
-  background-color: var(--color-red-subtle);
-  box-shadow: var(--shadow-glow-red);
+  color: var(--color-danger);
+  background-color: var(--color-danger-subtle);
+  box-shadow: var(--shadow-glow-danger);
 }
 
 .message {

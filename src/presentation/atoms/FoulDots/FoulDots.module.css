@@ -16,22 +16,22 @@
 }
 
 .dotActiveGreen {
-  background-color: var(--color-green);
-  border-color: var(--color-green);
-  box-shadow: 0 0 6px var(--color-green-glow);
+  background-color: var(--color-success);
+  border-color: var(--color-success);
+  box-shadow: 0 0 6px var(--color-success-glow);
 }
 
 .dotActiveAmber {
-  background-color: var(--color-amber);
-  border-color: var(--color-amber);
-  box-shadow: 0 0 8px var(--color-amber-glow);
+  background-color: var(--color-warning);
+  border-color: var(--color-warning);
+  box-shadow: 0 0 8px var(--color-warning-glow);
   transform: scale(1.15);
 }
 
 .dotActiveRed {
-  background-color: var(--color-red);
-  border-color: var(--color-red);
-  box-shadow: 0 0 10px var(--color-red-glow);
+  background-color: var(--color-danger);
+  border-color: var(--color-danger);
+  box-shadow: 0 0 10px var(--color-danger-glow);
   transform: scale(1.2);
   animation: pulseFouledOut 1.5s ease-in-out infinite;
 }

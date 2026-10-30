@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useRef } from 'react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
 import clsx from 'clsx';
 import { History, Undo2 } from 'lucide-react';
 import type { Player } from '@/core/domain/entities/club.types';
@@ -10,10 +8,10 @@ import { PLAY_BY_PLAY_EVENT_LABELS, type PlayByPlayEvent } from '@/core/domain/e
 import { getEventPoints, isFoulEvent } from '@/core/domain/rules/event-rules';
 import { formatGameClock } from '@/core/domain/rules/game-clock';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { MOTION, gsap } from '@/presentation/motion/motion';
+import { useMotion } from '@/presentation/motion/useMotion';
 import { QUARTER_SHORT_LABELS } from '@/presentation/organisms/ScoreboardHeader/quarter-labels';
 import styles from './PlayByPlayTimeline.module.css';
-
-gsap.registerPlugin(useGSAP);
 
 export interface PlayByPlayTimelineProps {
   /** Full play-by-play; the latest `limit` events are shown, newest first. */
@@ -56,13 +54,13 @@ export const PlayByPlayTimeline: React.FC<PlayByPlayTimelineProps> = ({
   const recent = events.slice(-limit).reverse();
   const latestId = recent[0]?.id;
 
-  useGSAP(
+  useMotion(
     () => {
       if (!latestId) return;
       gsap.fromTo(
         `[data-event-id="${latestId}"]`,
         { y: -8, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.3, ease: 'power2.out' }
+        { y: 0, opacity: 1, duration: MOTION.duration.base, ease: MOTION.ease.out }
       );
     },
     { dependencies: [latestId], scope: listRef }

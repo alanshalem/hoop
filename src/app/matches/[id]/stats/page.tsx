@@ -91,7 +91,7 @@ function MatchStatsGate() {
 }
 
 const EffectivenessTile: React.FC<{ label: string; stats: ShootingStats }> = ({ label, stats }) => (
-  <div className={styles.effTile}>
+  <div className={styles.effTile} data-reveal>
     <span className={styles.effValue}>{stats.percentage}%</span>
     <span className={styles.effLabel}>{label}</span>
     <span className={styles.effDetail}>
@@ -171,7 +171,7 @@ function MatchStats({ match }: { match: Match }) {
       <div className="page-container">
         {header}
 
-        <section className={styles.scoreHero} aria-label="Resultado">
+        <section className={styles.scoreHero} data-surface="board" aria-label="Resultado">
           <div className={clsx(styles.heroTeam, styles.heroOwn)}>
             <span className={styles.heroName}>{match.ownTeamName}</span>
             <span className={styles.heroScore}>{own}</span>

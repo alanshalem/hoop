@@ -1,5 +1,7 @@
 import React, { useId } from 'react';
 import clsx from 'clsx';
+import { CircleAlert } from 'lucide-react';
+import { ICON_SIZE } from '@/presentation/icon-sizes';
 import styles from './FormField.module.css';
 
 export { styles as formFieldStyles };
@@ -58,6 +60,7 @@ export const FormField: React.FC<FormFieldProps> = ({
     )}
     {error && (
       <span id={ids.errorId} className={styles.error} role="alert">
+        <CircleAlert size={ICON_SIZE.sm} aria-hidden="true" />
         {error}
       </span>
     )}

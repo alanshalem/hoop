@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState } from 'react';
-import gsap from 'gsap';
 import { X } from 'lucide-react';
 import clsx from 'clsx';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { MOTION, MOTION_OK_QUERY, gsap } from '@/presentation/motion/motion';
 import styles from './ModalSheet.module.css';
 
 export type ModalSheetSize = 'sm' | 'md' | 'lg';
@@ -110,30 +110,30 @@ export const ModalSheet: React.FC<ModalSheetProps> = ({
     if (!overlay || !sheet) return;
 
     const isTablet = window.matchMedia('(min-width: 768px)').matches;
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const speed = reducedMotion ? 0 : 1;
+    // Reduced motion: zero-length tweens so the exit still unmounts the sheet.
+    const speed = window.matchMedia(MOTION_OK_QUERY).matches ? 1 : 0;
 
     const ctx = gsap.context(() => {
       if (isOpen) {
-        gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.25 * speed, ease: 'power2.out' });
+        gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: MOTION.duration.base * speed, ease: MOTION.ease.out });
         if (isTablet) {
           gsap.fromTo(
             sheet,
             { opacity: 0, scale: 0.94, y: 20 },
-            { opacity: 1, scale: 1, y: 0, duration: 0.3 * speed, ease: 'back.out(1.2)' }
+            { opacity: 1, scale: 1, y: 0, duration: MOTION.duration.base * speed, ease: MOTION.ease.out }
           );
         } else {
-          gsap.fromTo(sheet, { yPercent: 100 }, { yPercent: 0, duration: 0.32 * speed, ease: 'power3.out' });
+          gsap.fromTo(sheet, { yPercent: 100 }, { yPercent: 0, duration: MOTION.duration.base * speed, ease: MOTION.ease.out });
         }
         return;
       }
 
       const timeline = gsap.timeline({ onComplete: () => handleExited() });
-      timeline.to(overlay, { opacity: 0, duration: 0.2 * speed, ease: 'power2.in' });
+      timeline.to(overlay, { opacity: 0, duration: MOTION.duration.fast * speed, ease: MOTION.ease.in });
       if (isTablet) {
-        timeline.to(sheet, { opacity: 0, scale: 0.95, y: 15, duration: 0.2 * speed, ease: 'power2.in' }, 0);
+        timeline.to(sheet, { opacity: 0, scale: 0.96, y: 12, duration: MOTION.duration.fast * speed, ease: MOTION.ease.in }, 0);
       } else {
-        timeline.to(sheet, { yPercent: 100, duration: 0.25 * speed, ease: 'power3.in' }, 0);
+        timeline.to(sheet, { yPercent: 100, duration: MOTION.duration.fast * speed, ease: MOTION.ease.in }, 0);
       }
     });
 

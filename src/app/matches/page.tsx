@@ -212,7 +212,7 @@ export default function MatchesPage() {
         ) : (
           <ul className={styles.list}>
             {visibleMatches.map((match) => (
-              <li key={match.id}>
+              <li key={match.id} data-reveal>
                 <MatchCard match={match} divisionName={divisionNameOf(match)} actions={renderActions(match)} />
               </li>
             ))}

@@ -6,9 +6,10 @@
   gap: var(--space-1-5);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-full);
+  font-family: var(--font-display);
   font-size: var(--text-2xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.05em;
+  font-weight: var(--font-weight-display);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--pill-color);
@@ -27,15 +28,15 @@
 }
 
 .statusActive {
-  --pill-color: var(--color-green);
+  --pill-color: var(--color-success);
 }
 
 .statusInjured {
-  --pill-color: var(--color-red);
+  --pill-color: var(--color-danger);
 }
 
 .statusSuspended {
-  --pill-color: var(--color-amber);
+  --pill-color: var(--color-warning);
 }
 
 .statusNeutral {

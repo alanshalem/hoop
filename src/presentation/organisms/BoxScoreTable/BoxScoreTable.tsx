@@ -1,7 +1,9 @@
 import React from 'react';
 import clsx from 'clsx';
+import { Ban } from 'lucide-react';
 import type { Player } from '@/core/domain/entities/club.types';
 import type { PlayerBoxScore, ShootingStats, TeamBoxScore } from '@/core/domain/rules/basketball-rules';
+import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { StatBadge } from '@/presentation/atoms/StatBadge/StatBadge';
 import styles from './BoxScoreTable.module.css';
 
@@ -96,7 +98,10 @@ export const BoxScoreTable: React.FC<BoxScoreTableProps> = ({ playerBoxScores, t
             <td className={styles.td}>{stats.steals}</td>
             <td className={styles.td}>{stats.blocks}</td>
             <td className={styles.td}>{stats.turnovers}</td>
-            <td className={clsx(styles.td, stats.fouls.isFouledOut && styles.fouledOut)}>{stats.fouls.total}</td>
+            <td className={clsx(styles.td, stats.fouls.isFouledOut && styles.fouledOut)}>
+              {stats.fouls.isFouledOut && <Ban size={ICON_SIZE.xs} aria-label="Excluido" />}
+              {stats.fouls.total}
+            </td>
             <td className={clsx(styles.td, plusMinusClass(stats.plusMinus))}>
               {stats.plusMinus > 0 ? `+${stats.plusMinus}` : stats.plusMinus}
             </td>

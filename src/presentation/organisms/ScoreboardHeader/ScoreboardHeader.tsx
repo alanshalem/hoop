@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useRef } from 'react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
 import clsx from 'clsx';
 import { Pause, Play, Timer } from 'lucide-react';
 import type { Quarter } from '@/core/domain/entities/match.types';
@@ -10,10 +8,10 @@ import type { TeamSide } from '@/core/application/use-cases/match-use-cases';
 import { FIBA_TEAM_FOULS_BONUS_THRESHOLD, isTeamInBonus } from '@/core/domain/rules/basketball-rules';
 import { formatGameClock } from '@/core/domain/rules/game-clock';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { MOTION, gsap } from '@/presentation/motion/motion';
+import { useMotion, useMotionOnChange } from '@/presentation/motion/useMotion';
 import { QUARTER_LABELS, QUARTER_SHORT_LABELS } from './quarter-labels';
 import styles from './ScoreboardHeader.module.css';
-
-gsap.registerPlugin(useGSAP);
 
 export interface ScoreboardTeam {
   side: TeamSide;
@@ -43,22 +41,85 @@ export interface ScoreboardHeaderProps {
 const CLOCK_STEP_SECONDS = 10;
 const FOUL_LIGHTS = Array.from({ length: FIBA_TEAM_FOULS_BONUS_THRESHOLD }, (_, i) => i + 1);
 
+/** LED digits: bump plus a green glow when the score goes up, club red when it is corrected down. */
 const ScoreNumber: React.FC<{ score: number }> = ({ score }) => {
-  const ref = useRef<HTMLSpanElement | null>(null);
-  const previous = useRef(score);
+  const numberRef = useRef<HTMLSpanElement | null>(null);
+  const glowUpRef = useRef<HTMLSpanElement | null>(null);
+  const glowDownRef = useRef<HTMLSpanElement | null>(null);
 
-  useGSAP(
-    () => {
-      if (previous.current === score) return;
-      previous.current = score;
-      gsap.fromTo(ref.current, { scale: 1.3 }, { scale: 1, duration: 0.4, ease: 'back.out(2)' });
+  useMotionOnChange(score, (previous, current) => {
+    gsap.fromTo(numberRef.current, { scale: 1.3 }, { scale: 1, duration: 0.4, ease: 'back.out(2)' });
+    const glow = current > previous ? glowUpRef.current : glowDownRef.current;
+    gsap.fromTo(
+      glow,
+      { opacity: 0.95, scale: 0.6 },
+      { opacity: 0, scale: 1.25, duration: MOTION.duration.slow * 1.4, ease: MOTION.ease.out }
+    );
+  });
+
+  return (
+    <span className={styles.scoreCell}>
+      <span ref={glowUpRef} className={clsx(styles.scoreGlow, styles.scoreGlowUp)} aria-hidden="true" />
+      <span ref={glowDownRef} className={clsx(styles.scoreGlow, styles.scoreGlowDown)} aria-hidden="true" />
+      <span ref={numberRef} className={styles.scoreNumber}>
+        {score}
+      </span>
+    </span>
+  );
+};
+
+/** Team foul lights: the light that just turned on pops in. */
+const FoulLights: React.FC<{ teamFouls: number }> = ({ teamFouls }) => {
+  const lightsRef = useRef<HTMLSpanElement | null>(null);
+
+  useMotionOnChange(
+    teamFouls,
+    (previous, current) => {
+      if (current <= previous || current > FIBA_TEAM_FOULS_BONUS_THRESHOLD) return;
+      gsap.fromTo(
+        `[data-foul-light="${current}"]`,
+        { scale: 0.3, opacity: 0.4 },
+        { scale: 1, opacity: 1, duration: MOTION.duration.base, ease: MOTION.ease.pop }
+      );
     },
-    { dependencies: [score] }
+    { scope: lightsRef }
   );
 
   return (
-    <span ref={ref} className={styles.scoreNumber}>
-      {score}
+    <span
+      ref={lightsRef}
+      className={styles.foulLights}
+      role="img"
+      aria-label={`${teamFouls} faltas de equipo en el período`}
+    >
+      {FOUL_LIGHTS.map((i) => (
+        <span
+          key={i}
+          data-foul-light={i}
+          className={clsx(styles.foulLight, teamFouls >= i && styles.foulLightActive)}
+        />
+      ))}
+    </span>
+  );
+};
+
+/** BONUS badge: pops in, then breathes while the team stays in bonus. */
+const BonusBadge: React.FC = () => {
+  const ref = useRef<HTMLSpanElement | null>(null);
+
+  useMotion(
+    () => {
+      gsap
+        .timeline()
+        .fromTo(ref.current, { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: MOTION.duration.base, ease: MOTION.ease.pop })
+        .to(ref.current, { opacity: 0.7, scale: 0.96, duration: 0.6, ease: MOTION.ease.soft, repeat: -1, yoyo: true });
+    },
+    { scope: ref }
+  );
+
+  return (
+    <span ref={ref} className={styles.bonusBadge}>
+      Bonus
     </span>
   );
 };
@@ -81,13 +142,9 @@ const TeamPanel: React.FC<TeamPanelProps> = ({ team, conditionLabel, isAway, rea
         <span className={styles.teamCondition}>{conditionLabel}</span>
         <span className={styles.teamName}>{team.name}</span>
         <div className={styles.foulRow}>
-          <span className={styles.foulLights} role="img" aria-label={`${team.teamFouls} faltas de equipo en el período`}>
-            {FOUL_LIGHTS.map((i) => (
-              <span key={i} className={clsx(styles.foulLight, team.teamFouls >= i && styles.foulLightActive)} />
-            ))}
-          </span>
+          <FoulLights teamFouls={team.teamFouls} />
           <span className={styles.foulCount}>{team.teamFouls} F</span>
-          {inBonus && <span className={styles.bonusBadge}>Bonus</span>}
+          {inBonus && <BonusBadge />}
         </div>
       </div>
 
@@ -121,7 +178,7 @@ export const ScoreboardHeader: React.FC<ScoreboardHeaderProps> = ({
   onAdjustClock,
   onTimeout,
 }) => (
-  <header className={styles.headerContainer} aria-label="Tablero electrónico del partido">
+  <header className={styles.headerContainer} data-surface="board" aria-label="Tablero electrónico del partido">
     <TeamPanel team={home} conditionLabel="Local" isAway={false} readOnly={readOnly} onTimeout={onTimeout} />
 
     <div className={styles.centerGameControl}>
