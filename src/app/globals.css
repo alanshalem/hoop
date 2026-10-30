@@ -18,8 +18,9 @@
 
   --text-primary: #F8FAFC;
   --text-secondary: #94A3B8;
-  --text-muted: #64748B;
+  --text-muted: #7C8BA1;
   --text-inverse: #0B0F17;
+  --text-on-accent: #FFFFFF;
 
   /* Semantics: Basketball Court Accents */
   --color-orange: #FF6B00;
@@ -56,13 +57,15 @@
   /* ---------------------------------------------------------------------------
      TYPOGRAPHY SCALE (Fluid clamp-based for Responsive Tablet/Mobile)
      --------------------------------------------------------------------------- */
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  --font-athletic: "DIN Alternate", "Trebuchet MS", ui-monospace, sans-serif;
+  /* Geist variables are injected on <html> by next/font in src/app/layout.tsx */
+  --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --font-athletic: "DIN Alternate", "Trebuchet MS", var(--font-geist-mono), ui-monospace, sans-serif;
 
-  --text-2xs: clamp(0.625rem, 0.58rem + 0.2vw, 0.6875rem); /* 10-11px */
-  --text-xs: clamp(0.7rem, 0.65rem + 0.25vw, 0.75rem);      /* 11-12px */
-  --text-sm: clamp(0.8rem, 0.75rem + 0.25vw, 0.875rem);     /* 13-14px */
+  /* Minimum readable size is 12px (--text-2xs) */
+  --text-2xs: clamp(0.75rem, 0.73rem + 0.1vw, 0.8125rem);   /* 12-13px */
+  --text-xs: clamp(0.8125rem, 0.79rem + 0.1vw, 0.875rem);   /* 13-14px */
+  --text-sm: clamp(0.875rem, 0.85rem + 0.15vw, 0.9375rem);  /* 14-15px */
   --text-base: clamp(0.95rem, 0.9rem + 0.25vw, 1rem);       /* 15-16px */
   --text-lg: clamp(1.1rem, 1rem + 0.5vw, 1.25rem);          /* 18-20px */
   --text-xl: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);       /* 20-24px */
@@ -144,11 +147,19 @@
   --touch-action: manipulation;
 
   /* ---------------------------------------------------------------------------
+     FOCUS RING (keyboard navigation)
+     --------------------------------------------------------------------------- */
+  --focus-ring-width: 3px;
+  --focus-ring-offset: 2px;
+
+  /* ---------------------------------------------------------------------------
      TRANSITIONS & ANIMATIONS (GPU-accelerated properties)
      --------------------------------------------------------------------------- */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-spring: 350ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  --overlay-backdrop: rgba(11, 15, 23, 0.75);
 }
 
 /* -----------------------------------------------------------------------------
@@ -166,7 +177,7 @@
 
   --text-primary: #0F172A;
   --text-secondary: #475569;
-  --text-muted: #94A3B8;
+  --text-muted: #64748B;
   --text-inverse: #F8FAFC;
 
   --color-orange: #EA580C;
@@ -198,6 +209,8 @@
   --color-court-line: rgba(15, 23, 42, 0.35);
   --color-court-key: rgba(234, 88, 12, 0.08);
 
+  --overlay-backdrop: rgba(15, 23, 42, 0.45);
+
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
@@ -220,6 +233,12 @@ html {
   height: 100%;
   color-scheme: dark;
   scroll-behavior: smooth;
+}
+
+/* Set by ModalSheet while at least one sheet is open */
+html[data-scroll-locked='true'],
+html[data-scroll-locked='true'] body {
+  overflow: hidden;
 }
 
 [data-theme='light'] {
@@ -272,6 +291,16 @@ a {
   text-decoration: none;
 }
 
+/* Keyboard focus ring shared by every interactive element */
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--border-focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
 img,
 svg,
 video,
@@ -292,6 +321,63 @@ canvas {
 .no-select {
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* =============================================================================
+   LAYOUT UTILITIES (shared by every page and form)
+   ============================================================================= */
+
+.page-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .page-container {
+    padding: var(--space-6);
+  }
+}
+
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* =============================================================================

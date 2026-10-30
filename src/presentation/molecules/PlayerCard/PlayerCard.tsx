@@ -45,12 +45,14 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
       type="button"
       className={clsx(
         styles.playerCard,
+        isOnCourt && styles.onCourt,
+        jerseyState === 'fouledOut' && styles.fouledOut,
         isSelected && styles.selected,
         className
       )}
       onClick={onClick}
       aria-pressed={isSelected}
-      aria-label={`Jugador ${player.firstName} ${player.lastName}, Dorsal ${player.dorsal}, ${points} puntos, ${fouls} faltas`}
+      aria-label={`Jugador ${player.firstName} ${player.lastName}, Dorsal ${player.dorsal}, ${points} puntos, ${fouls} faltas${isOnCourt ? ', en cancha' : ''}`}
     >
       <div className={styles.leftSection}>
         <JerseyBadge dorsal={player.dorsal} state={jerseyState} size="md" />

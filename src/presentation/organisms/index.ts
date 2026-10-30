@@ -1,3 +1,5 @@
+export * from './DialogHost/DialogHost';
+export * from './DialogHost/dialog-store';
 export * from './UserRoleSwitcher/UserRoleSwitcher';
 export * from './PlayerFormModal/PlayerFormModal';
 export * from './ScoreboardHeader/ScoreboardHeader';

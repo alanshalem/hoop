@@ -3,11 +3,19 @@
 import React, { useRef } from 'react';
 import gsap from 'gsap';
 import clsx from 'clsx';
-import styles from './TouchButton.module.css';
+import {
+  TouchButtonContent,
+  touchButtonClassName,
+  type TouchButtonSize,
+  type TouchButtonVariant,
+} from './touch-button-styles';
+
+export { TouchButtonContent, touchButtonClassName };
+export type { TouchButtonContentProps, TouchButtonSize, TouchButtonVariant } from './touch-button-styles';
 
 export interface TouchButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'ghost' | 'courtAction';
-  size?: 'md' | 'lg' | 'xl';
+  variant?: TouchButtonVariant;
+  size?: TouchButtonSize;
   fullWidth?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
@@ -24,6 +32,7 @@ export const TouchButton = React.forwardRef<HTMLButtonElement, TouchButtonProps>
       rightIcon,
       className,
       disabled,
+      type = 'button',
       onPointerDown,
       onPointerUp,
       onPointerLeave,
@@ -66,21 +75,6 @@ export const TouchButton = React.forwardRef<HTMLButtonElement, TouchButtonProps>
       onPointerLeave?.(e);
     };
 
-    const variantClass = {
-      primary: styles.variantPrimary,
-      secondary: styles.variantSecondary,
-      success: styles.variantSuccess,
-      danger: styles.variantDanger,
-      ghost: styles.variantGhost,
-      courtAction: styles.variantCourtAction,
-    }[variant];
-
-    const sizeClass = {
-      md: styles.sizeMd,
-      lg: styles.sizeLg,
-      xl: styles.sizeXl,
-    }[size];
-
     return (
       <button
         ref={(el) => {
@@ -91,26 +85,20 @@ export const TouchButton = React.forwardRef<HTMLButtonElement, TouchButtonProps>
             forwardedRef.current = el;
           }
         }}
+        type={type}
         disabled={disabled}
-        className={clsx(
-          styles.touchButton,
-          variantClass,
-          sizeClass,
-          fullWidth && styles.fullWidth,
-          className
-        )}
+        className={clsx(touchButtonClassName(variant, size, fullWidth), className)}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerRelease}
         onPointerLeave={handlePointerLeave}
         {...props}
       >
-        {leftIcon && <span className={styles.icon}>{leftIcon}</span>}
-        <span>{children}</span>
-        {rightIcon && <span className={styles.icon}>{rightIcon}</span>}
+        <TouchButtonContent leftIcon={leftIcon} rightIcon={rightIcon}>
+          {children}
+        </TouchButtonContent>
       </button>
     );
   }
 );
 
 TouchButton.displayName = 'TouchButton';
-

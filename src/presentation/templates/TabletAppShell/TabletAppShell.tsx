@@ -1,87 +1,105 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  CalendarDays,
+  CircleDot,
   LayoutDashboard,
+  Radio,
   Shield,
   Users,
-  CalendarDays,
-  Radio,
-  Flame,
+  type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { UserRole } from '@/core/domain/entities/club.types';
+import { USER_ROLE_LABELS, UserRoleSchema, type UserRole } from '@/core/domain/entities/club.types';
+import { useClubStore } from '@/core/application/stores/useClubStore';
+import { ThemeToggle } from '@/presentation/molecules/ThemeToggle/ThemeToggle';
+import { ICON_SIZE } from '@/presentation/icon-sizes';
 import styles from './TabletAppShell.module.css';
 
 export interface TabletAppShellProps {
   children: React.ReactNode;
-  activeRole?: UserRole;
-  onRoleChange?: (role: UserRole) => void;
 }
 
-export const TabletAppShell: React.FC<TabletAppShellProps> = ({
-  children,
-  activeRole: externalRole,
-  onRoleChange,
-}) => {
+interface NavItem {
+  label: string;
+  /** Shorter label for the mobile bottom bar. */
+  shortLabel: string;
+  href: string;
+  icon: LucideIcon;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { label: 'Dashboard', shortLabel: 'Inicio', href: '/', icon: LayoutDashboard },
+  { label: 'Divisiones', shortLabel: 'Equipos', href: '/divisions', icon: Shield },
+  { label: 'Jugadores', shortLabel: 'Plantel', href: '/players', icon: Users },
+  { label: 'Partidos', shortLabel: 'Fechas', href: '/matches', icon: CalendarDays },
+];
+
+// The mobile bottom bar places the live button between these two halves.
+const BOTTOM_LEFT_ITEMS = NAV_ITEMS.slice(0, 2);
+const BOTTOM_RIGHT_ITEMS = NAV_ITEMS.slice(2);
+
+const LIVE_HREF = '/matches/live';
+
+const isLivePath = (pathname: string) => pathname === LIVE_HREF || pathname.endsWith('/live');
+
+const isNavItemActive = (pathname: string, href: string) => {
+  if (href === '/') return pathname === '/';
+  return pathname.startsWith(href) && !isLivePath(pathname);
+};
+
+export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
   const pathname = usePathname();
-  const [internalRole, setInternalRole] = useState<UserRole>('HEAD_COACH');
+  const currentUser = useClubStore((state) => state.currentUser);
+  const switchRole = useClubStore((state) => state.switchRole);
+  const isLiveActive = isLivePath(pathname);
 
-  const currentRole = externalRole || internalRole;
-
-  const handleRoleSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newRole = e.target.value as UserRole;
-    if (onRoleChange) {
-      onRoleChange(newRole);
-    } else {
-      setInternalRole(newRole);
-    }
+  const renderBottomItem = (item: NavItem) => {
+    const Icon = item.icon;
+    const isActive = isNavItemActive(pathname, item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className={clsx(styles.bottomItem, isActive && styles.bottomItemActive)}
+        aria-current={isActive ? 'page' : undefined}
+      >
+        <Icon size={ICON_SIZE.lg} aria-hidden="true" />
+        <span>{item.shortLabel}</span>
+      </Link>
+    );
   };
-
-  const navItems = [
-    { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { label: 'Divisiones', href: '/divisions', icon: Shield },
-    { label: 'Jugadores', href: '/players', icon: Users },
-    { label: 'Partidos', href: '/matches', icon: CalendarDays },
-  ];
 
   return (
     <div className={styles.shellContainer}>
-      {/* -----------------------------------------------------------------------
-          TABLET NAVIGATION RAIL (Landscape / Portrait Left Side)
-          ----------------------------------------------------------------------- */}
+      {/* Tablet navigation rail (left side) */}
       <aside className={styles.navRail}>
-        <div>
-          <div className={styles.brandSection}>
-            <div className={styles.logoIcon}>
-              <Flame size={22} />
-            </div>
-            <div className={styles.brandText}>
-              <span className={styles.brandTitle}>HOOP OS</span>
-              <span className={styles.brandSubtitle}>FIBA PRO STATS</span>
-            </div>
-          </div>
+        <div className={styles.railTop}>
+          <Link href="/" className={styles.brandSection} aria-label="HoopOS, ir al inicio">
+            <span className={styles.logoIcon} aria-hidden="true">
+              <CircleDot size={ICON_SIZE.lg} strokeWidth={2.5} />
+            </span>
+            <span className={styles.brandText}>
+              <span className={styles.brandTitle}>HoopOS</span>
+              <span className={styles.brandSubtitle}>Club y estadísticas</span>
+            </span>
+          </Link>
 
           <nav className={styles.navLinks} aria-label="Navegación principal">
-            {navItems.map((item) => {
+            {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
-              const isActive =
-                item.href === '/'
-                  ? pathname === '/'
-                  : pathname.startsWith(item.href);
-
+              const isActive = isNavItemActive(pathname, item.href);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={clsx(
-                    styles.navItem,
-                    isActive && styles.navItemActive
-                  )}
+                  className={clsx(styles.navItem, isActive && styles.navItemActive)}
+                  aria-current={isActive ? 'page' : undefined}
                 >
-                  <Icon size={20} />
+                  <Icon size={ICON_SIZE.md} aria-hidden="true" />
                   <span>{item.label}</span>
                 </Link>
               );
@@ -89,94 +107,53 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({
           </nav>
 
           <Link
-            href="/matches/live"
-            className={styles.liveButtonRail}
-            aria-label="Abrir modo partido en vivo"
+            href={LIVE_HREF}
+            className={clsx(styles.liveButtonRail, isLiveActive && styles.liveButtonActive)}
+            aria-current={isLiveActive ? 'page' : undefined}
           >
-            <Radio size={18} />
-            <span>MODO PARTIDO (LIVE)</span>
+            <Radio size={ICON_SIZE.md} aria-hidden="true" />
+            <span>Partido en vivo</span>
           </Link>
         </div>
 
         <div className={styles.roleSection}>
-          <span className={styles.userLabel}>Rol activo (Simulado)</span>
+          <label htmlFor="shell-role-select" className={styles.userLabel}>
+            Rol activo
+          </label>
           <select
+            id="shell-role-select"
             className={styles.roleSelector}
-            value={currentRole}
-            onChange={handleRoleSelect}
-            aria-label="Seleccionar rol de usuario activo"
+            value={currentUser.role}
+            onChange={(event) => switchRole(event.target.value as UserRole)}
           >
-            <option value="HEAD_COACH">Entrenador Principal</option>
-            <option value="ASSISTANT_STATISTICIAN">Asistente Planillero</option>
-            <option value="ADMIN">Administrador de Club</option>
+            {UserRoleSchema.options.map((role) => (
+              <option key={role} value={role}>
+                {USER_ROLE_LABELS[role]}
+              </option>
+            ))}
           </select>
+          <div className={styles.userRow}>
+            <span className={styles.userName}>{currentUser.name}</span>
+            <ThemeToggle />
+          </div>
         </div>
       </aside>
 
-      {/* -----------------------------------------------------------------------
-          MAIN CONTENT VIEWPORT
-          ----------------------------------------------------------------------- */}
       <main className={styles.mainContent}>{children}</main>
 
-      {/* -----------------------------------------------------------------------
-          MOBILE BOTTOM NAVIGATION (Fixed in Thumb Zone)
-          ----------------------------------------------------------------------- */}
+      {/* Mobile bottom navigation (thumb zone) */}
       <nav className={styles.bottomBar} aria-label="Navegación móvil inferior">
+        {BOTTOM_LEFT_ITEMS.map(renderBottomItem)}
         <Link
-          href="/"
-          className={clsx(
-            styles.bottomItem,
-            pathname === '/' && styles.bottomItemActive
-          )}
+          href={LIVE_HREF}
+          className={clsx(styles.bottomLiveAction, isLiveActive && styles.bottomLiveActive)}
+          aria-label="Partido en vivo"
+          aria-current={isLiveActive ? 'page' : undefined}
         >
-          <LayoutDashboard size={20} />
-          <span>Inicio</span>
+          <Radio size={ICON_SIZE.lg} aria-hidden="true" />
         </Link>
-
-        <Link
-          href="/divisions"
-          className={clsx(
-            styles.bottomItem,
-            pathname.startsWith('/divisions') && styles.bottomItemActive
-          )}
-        >
-          <Shield size={20} />
-          <span>Equipos</span>
-        </Link>
-
-        <Link
-          href="/matches/live"
-          className={styles.bottomLiveAction}
-          aria-label="Ir a partido en vivo"
-        >
-          <Radio size={24} />
-        </Link>
-
-        <Link
-          href="/players"
-          className={clsx(
-            styles.bottomItem,
-            pathname.startsWith('/players') && styles.bottomItemActive
-          )}
-        >
-          <Users size={20} />
-          <span>Plantel</span>
-        </Link>
-
-        <Link
-          href="/matches"
-          className={clsx(
-            styles.bottomItem,
-            pathname.startsWith('/matches') &&
-              !pathname.includes('/live') &&
-              styles.bottomItemActive
-          )}
-        >
-          <CalendarDays size={20} />
-          <span>Fechas</span>
-        </Link>
+        {BOTTOM_RIGHT_ITEMS.map(renderBottomItem)}
       </nav>
     </div>
   );
 };
-

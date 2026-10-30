@@ -2,13 +2,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   position: relative;
   border-radius: var(--radius-md);
   font-family: var(--font-athletic), var(--font-mono);
   font-weight: var(--font-weight-black);
+  letter-spacing: -0.02em;
   user-select: none;
   border: 2px solid transparent;
-  transition: transform var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+  /* Jersey fabric feel: subtle top light and bottom shade */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(0, 0, 0, 0.12) 100%);
+  transition: transform var(--transition-fast), border-color var(--transition-fast),
+    background-color var(--transition-fast), box-shadow var(--transition-fast), color var(--transition-fast);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -24,14 +29,14 @@
 .sizeMd {
   width: 48px;
   height: 48px;
-  font-size: var(--text-lg);
+  font-size: var(--text-xl);
   border-radius: var(--radius-md);
 }
 
 .sizeLg {
   width: 64px;
   height: 64px;
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
   border-radius: var(--radius-lg);
 }
 
@@ -39,7 +44,7 @@
 .stateDefault {
   background-color: var(--bg-surface-2);
   color: var(--text-primary);
-  border-color: var(--border-subtle);
+  border-color: var(--border-strong);
 }
 
 .stateOnCourt {
@@ -51,9 +56,8 @@
 
 .stateBench {
   background-color: var(--bg-surface-1);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   border-color: var(--border-subtle);
-  opacity: 0.85;
 }
 
 .stateFoulWarning {
@@ -81,4 +85,3 @@
   transform: rotate(-35deg);
   border-radius: var(--radius-full);
 }
-

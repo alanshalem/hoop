@@ -4,6 +4,14 @@ import styles from './JerseyBadge.module.css';
 
 export type JerseyState = 'default' | 'onCourt' | 'bench' | 'foulWarning' | 'fouledOut';
 
+const JERSEY_STATE_LABELS: Record<JerseyState, string> = {
+  default: 'disponible',
+  onCourt: 'en cancha',
+  bench: 'en el banco',
+  foulWarning: 'con 4 faltas',
+  fouledOut: 'excluido por faltas',
+};
+
 export interface JerseyBadgeProps {
   dorsal: number | string;
   state?: JerseyState;
@@ -45,10 +53,10 @@ export const JerseyBadge: React.FC<JerseyBadgeProps> = ({
         state === 'fouledOut' && styles.fouledOutStrikethrough,
         className
       )}
-      role="status"
-      aria-label={ariaLabel || `Dorsal ${formattedDorsal}, estado ${state}`}
+      role="img"
+      aria-label={ariaLabel || `Dorsal ${formattedDorsal}, ${JERSEY_STATE_LABELS[state]}`}
     >
-      <span>{formattedDorsal}</span>
+      <span aria-hidden="true">{formattedDorsal}</span>
     </div>
   );
 };

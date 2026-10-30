@@ -1,46 +1,67 @@
 .statBadge {
+  --badge-color: var(--text-primary);
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 32px;
   padding: var(--space-0-5) var(--space-2);
   border-radius: var(--radius-sm);
   font-family: var(--font-athletic), var(--font-mono);
   font-size: var(--text-xs);
   font-weight: var(--font-weight-bold);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+  color: var(--badge-color);
+  border: 1px solid color-mix(in srgb, var(--badge-color) 35%, transparent);
+  background-color: color-mix(in srgb, var(--badge-color) 12%, transparent);
+  line-height: 1.3;
+}
+
+/* Neutral badge (custom label without position) */
+.statBadge:not(.posPG, .posSG, .posSF, .posPF, .posC) {
+  border-color: var(--border-subtle);
   background-color: var(--bg-surface-2);
-  color: var(--text-primary);
-  line-height: 1.2;
 }
 
 .posPG {
-  color: #38BDF8;
-  border-color: rgba(56, 189, 248, 0.3);
-  background-color: rgba(56, 189, 248, 0.1);
+  --badge-color: #38BDF8;
 }
 
 .posSG {
-  color: #818CF8;
-  border-color: rgba(129, 140, 248, 0.3);
-  background-color: rgba(129, 140, 248, 0.1);
+  --badge-color: #818CF8;
 }
 
 .posSF {
-  color: #34D399;
-  border-color: rgba(52, 211, 153, 0.3);
-  background-color: rgba(52, 211, 153, 0.1);
+  --badge-color: #34D399;
 }
 
 .posPF {
-  color: #FBBF24;
-  border-color: rgba(251, 191, 36, 0.3);
-  background-color: rgba(251, 191, 36, 0.1);
+  --badge-color: #FBBF24;
 }
 
 .posC {
-  color: #F87171;
-  border-color: rgba(248, 113, 113, 0.3);
-  background-color: rgba(248, 113, 113, 0.1);
+  --badge-color: #F87171;
 }
 
+/* Darker hues keep contrast on the light theme */
+:global([data-theme='light']) .posPG {
+  --badge-color: #0369A1;
+}
+
+:global([data-theme='light']) .posSG {
+  --badge-color: #4338CA;
+}
+
+:global([data-theme='light']) .posSF {
+  --badge-color: #047857;
+}
+
+:global([data-theme='light']) .posPF {
+  --badge-color: #B45309;
+}
+
+:global([data-theme='light']) .posC {
+  --badge-color: #B91C1C;
+}
