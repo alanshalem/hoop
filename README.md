@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HoopOS · Club Atlético Monte Grande
 
-## Getting Started
+HoopOS es el sistema de básquet del Club Atlético Monte Grande: gestiona divisiones, planteles y calendario, arma convocatorias y quintetos, y registra los partidos en vivo con reglas FIBA desde una tablet al borde de la cancha. Funciona sin conexión: todo se guarda en el navegador (Zustand + `localStorage`) y el marcador, las faltas y el box score se derivan del jugada a jugada. La sincronización con un servidor está en desarrollo.
 
-First, run the development server:
+Manual completo (uso, reglas, datos y arquitectura): [docs/MANUAL.md](docs/MANUAL.md).
+
+## Inicio rápido
+
+Requisito: Node.js 20.9 o superior (se recomienda la LTS vigente).
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abrir `http://localhost:3000`. La primera carga crea los datos de demostración del club en el navegador.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Comando | Qué hace |
+|---------|----------|
+| `npm run dev` | Servidor de desarrollo. |
+| `npm run build` | Compilación de producción. |
+| `npm run start` | Sirve la compilación de producción. |
+| `npm run lint` | ESLint (configuración de Next.js). |
+| `npm test` | Pruebas unitarias del núcleo (`node:test` vía `tsx`). |
 
-## Learn More
+## Stack
 
-To learn more about Next.js, take a look at the following resources:
+| Área | Tecnología |
+|------|------------|
+| Framework | Next.js 16 (App Router), React 19, TypeScript estricto |
+| Estado y persistencia | Zustand con `persist` sobre `localStorage` |
+| Formularios y validación | react-hook-form + Zod |
+| Estilos | CSS Modules + tokens CSS en `src/app/globals.css` |
+| Animación | GSAP + `@gsap/react` (respeta `prefers-reduced-motion`) |
+| Iconos | lucide-react |
+| Tipografía | Archivo y Archivo Narrow (`next/font`) |
+| Pruebas | `node:test` + `tsx` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`@tanstack/react-query` está instalada pero todavía no se usa; está prevista para la sincronización con el servidor.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Estructura del proyecto
 
-## Deploy on Vercel
+```text
+src/
+  app/                    rutas (App Router)
+  core/
+    domain/               entidades, esquemas Zod y reglas FIBA puras
+    application/          casos de uso, store Zustand y hooks
+    infrastructure/mocks/ datos de demostración determinísticos
+  presentation/           atoms, molecules, organisms, templates, motion
+docs/MANUAL.md            manual del sistema
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Las dependencias apuntan hacia adentro: la presentación usa aplicación y dominio; el dominio no depende de nada. Detalle en la sección Arquitectura del manual.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Controles de calidad
+
+Antes de integrar cambios, los cuatro deben pasar:
+
+- [ ] `npx tsc --noEmit`
+- [ ] `npm run lint`
+- [ ] `npm test`
+- [ ] `npm run build`

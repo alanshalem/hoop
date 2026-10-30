@@ -220,7 +220,7 @@ export function isTeamInBonusFromEvents(
 /**
  * Official FIBA Performance Index Rating (PIR) calculation formula:
  *
- * PIR = (PTS + REB + AST + STL + BLK) - (Missed FG + Missed FT + TOV + Personal Fouls)
+ * PIR = (PTS + REB + AST + STL + BLK) - (Missed FG + Missed FT + TOV + Fouls committed)
  *
  * Positive values increase rating; missed opportunities, turnovers, and fouls decrease it.
  */
