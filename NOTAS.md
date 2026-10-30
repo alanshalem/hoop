@@ -26,3 +26,18 @@
   - `/divisions`: Grilla táctil de divisiones, planteles y asignación de cuerpo técnico.
   - `/players`: Filtros rápidos por toque (división, posición, estado físico), buscador instantáneo, formulario `PlayerFormModal` con `react-hook-form` + `zod`, y acción para convocar juveniles al plantel superior.
   - `UserRoleSwitcher`: Simulación de inicio de sesión y cambio rápido de roles RBAC (Entrenador, Planillero, Administrador).
+
+## Fase 4: Dashboard del Entrenador, Gestión de Fechas y Quinteto Inicial
+- **Dashboard Principal (`/`)**:
+  - Hero Card de partido en vivo con marcador dinámico y botón táctil destacado "ABRIR CONSOLA EN VIVO".
+  - KPIs en tiempo real (récord de temporada, puntos a favor/en contra, efectividad).
+  - Líderes estadísticos (PPG, RPG, APG, PIR) y alertas de jugadores lesionados.
+  - Animación de entrada GSAP escalonada (`stagger`).
+- **Calendario y Fechas (`/matches`)**:
+  - Filtro por estado (En Juego, Programados, Finalizados).
+  - Formulario de creación de fecha en `ModalSheet`.
+  - Accesos rápidos a Quinteto Inicial, Consola Live y Estadísticas Box Score.
+- **Armado de Convocatoria y Quinteto (`/matches/[id]/lineup`)**:
+  - Selección táctil de 10 a 12 convocados en planilla según normativa FIBA.
+  - Marcado de los 5 titulares (Starting Five).
+  - Validación visual estricta: sólo habilita "Iniciar Partido en Vivo" cuando hay exactamente 5 titulares en cancha.
