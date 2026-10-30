@@ -18,6 +18,15 @@ export const UserRoleSchema = z.enum([
 ]);
 export type UserRole = z.infer<typeof UserRoleSchema>;
 
+/**
+ * Role labels in Spanish for display.
+ */
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  HEAD_COACH: 'Entrenador principal',
+  ASSISTANT_STATISTICIAN: 'Asistente planillero',
+  ADMIN: 'Administrador',
+};
+
 export const UserSchema = z.object({
   id: z.string().min(1, 'User ID is required'),
   email: z.string().email('Invalid email address'),
@@ -71,7 +80,10 @@ export const TeamSchema = z.object({
   name: z.string().min(2, 'Team name is required'),
   divisionId: z.string().min(1, 'Division ID is required'),
   season: z.string().min(4, 'Season identifier is required'), // e.g., "2025/2026"
-  headCoachId: z.string().min(1, 'Head Coach ID is required'),
+  /**
+   * Head coach user ID. Optional: a newly created division has no coach until one is assigned.
+   */
+  headCoachId: z.string().min(1).optional(),
   assistantCoachIds: z.array(z.string()).default([]),
   playerIds: z.array(z.string()).default([]),
   clubId: z.string().min(1, 'Club ID is required'),
@@ -130,6 +142,10 @@ export const PlayerSchema = z.object({
   teamId: z.string().optional(),
   clubId: z.string().min(1, 'Club ID is required'),
   photoUrl: z.string().url().optional(),
+  /**
+   * Free-text medical note (injury detail, expected return) shown in medical alerts.
+   */
+  medicalNote: z.string().optional(),
   createdAt: z.string().datetime().or(z.date()).optional(),
   updatedAt: z.string().datetime().or(z.date()).optional(),
 });
