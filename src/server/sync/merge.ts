@@ -1,5 +1,13 @@
 import 'server-only';
 import { isDeepStrictEqual } from 'node:util';
+import {
+  latestFieldVersion,
+  mergeMatchFields,
+  pickFieldVersions,
+  resolveFieldVersions,
+  type CompleteFieldVersions,
+  type MatchFieldVersions,
+} from '@/core/application/sync/match-fields';
 import type { WriteOperation } from '../auth/authorize';
 import type { SyncRecordKind } from './record-kinds';
 
@@ -8,6 +16,8 @@ import type { SyncRecordKind } from './record-kinds';
  * HOOP OS - SYNC MERGE RULES (pure)
  * Records: last-write-wins by client `updatedAt` (ties keep the stored row);
  * an `updatedAt` more than MAX_CLOCK_SKEW_MS ahead of the server is refused.
+ * Live match records merge field by field instead (S13.1); a match tombstone
+ * still applies to the whole record.
  * Events: append-only by id; data is immutable and a tombstone is permanent.
  * =============================================================================
  */
@@ -17,6 +27,84 @@ export type RejectReason = 'INVALID' | 'FORBIDDEN' | 'STALE';
 export interface StoredRecordState {
   updatedAt: Date;
   deleted: boolean;
+}
+
+/** A stored row as the merge needs it. */
+export interface StoredRecord extends StoredRecordState {
+  data: Record<string, unknown>;
+  /** NULL: every field changed at `updatedAt`. */
+  fieldVersions: Record<string, string> | null;
+  seq: number;
+}
+
+export interface IncomingRecord {
+  kind: SyncRecordKind;
+  deleted: boolean;
+  data: Record<string, unknown>;
+  updatedAt: Date;
+  /** Match records only; without them every field changed at `updatedAt`. */
+  fieldVersions?: MatchFieldVersions;
+}
+
+/**
+ * - `upsert`: last-write-wins replace (or insert) of the incoming record.
+ * - `merge`: the field-level merge of a live match, written only if the row
+ *   still has `expectedSeq`.
+ * - `stale`: nothing newer to write; the server wins.
+ */
+export type RecordWriteDecision =
+  | { action: 'upsert'; fieldVersions: CompleteFieldVersions | null }
+  | {
+      action: 'merge';
+      data: Record<string, unknown>;
+      fieldVersions: CompleteFieldVersions;
+      updatedAt: Date;
+      expectedSeq: number;
+    }
+  | { action: 'stale' };
+
+/**
+ * Live match over a live stored match: each field keeps the newer version
+ * (ties keep the stored value) and `updatedAt` becomes the newest version.
+ * Anything else, including any tombstone, is whole-record last-write-wins:
+ * a match tombstone wins only when newer than every field (`updatedAt` is the
+ * newest field version), and a revived match starts from the incoming record.
+ */
+export function decideRecordWrite(incoming: IncomingRecord, stored: StoredRecord | undefined): RecordWriteDecision {
+  const isLiveMatch = incoming.kind === 'match' && !incoming.deleted;
+  const incomingVersions = isLiveMatch
+    ? resolveFieldVersions(incoming.fieldVersions, incoming.updatedAt.toISOString())
+    : null;
+
+  if (incomingVersions && stored && !stored.deleted) {
+    const merged = mergeMatchFields(
+      {
+        data: stored.data,
+        fieldVersions: resolveFieldVersions(
+          stored.fieldVersions ? pickFieldVersions(stored.fieldVersions) : null,
+          stored.updatedAt.toISOString()
+        ),
+      },
+      { data: incoming.data, fieldVersions: incomingVersions }
+    );
+    if (merged.taken.length === 0) return { action: 'stale' };
+    const newest = new Date(latestFieldVersion(merged.fieldVersions));
+    return {
+      action: 'merge',
+      data: merged.data,
+      fieldVersions: merged.fieldVersions,
+      updatedAt: newest.getTime() > stored.updatedAt.getTime() ? newest : stored.updatedAt,
+      expectedSeq: stored.seq,
+    };
+  }
+
+  if (!isNewerThanStored(incoming.updatedAt, stored)) return { action: 'stale' };
+  return { action: 'upsert', fieldVersions: incomingVersions };
+}
+
+/** A field version after the record's own `updatedAt` makes the push inconsistent (INVALID). */
+export function hasFieldVersionAfter(updatedAt: Date, fieldVersions: MatchFieldVersions | undefined): boolean {
+  return Object.values(fieldVersions ?? {}).some((version) => Date.parse(version) > updatedAt.getTime());
 }
 
 export interface StoredEventState {

@@ -12,6 +12,8 @@ export interface PulledRecord {
   /** ISO 8601 (UTC) client change time used for last-write-wins. */
   updatedAt: string;
   deleted: boolean;
+  /** Live match records (S13.1): field -> ISO change time. Null: every field changed at `updatedAt`. */
+  fieldVersions: Record<string, string> | null;
 }
 
 export interface PulledEvent {
@@ -52,8 +54,8 @@ export async function pullChanges(db: Database, since: number, limit: number = P
   const events: PulledEvent[] = [];
   for (const item of page) {
     if ('record' in item) {
-      const { kind, id, data, updatedAt, deleted } = item.record;
-      records.push({ kind, id, data, updatedAt: updatedAt.toISOString(), deleted });
+      const { kind, id, data, updatedAt, deleted, fieldVersions } = item.record;
+      records.push({ kind, id, data, updatedAt: updatedAt.toISOString(), deleted, fieldVersions });
     } else {
       const { id, matchId, data, deleted } = item.event;
       events.push({ id, matchId, data, deleted });

@@ -2,7 +2,7 @@ import 'server-only';
 import { and, asc, eq, gt, inArray, or, sql } from 'drizzle-orm';
 import type { DbExecutor } from '../db/client';
 import { matchEvents, syncRecords, type MatchEventRow, type SyncRecordRow } from '../db/schema';
-import { recordKey, type StoredEventState, type StoredRecordState } from './merge';
+import { recordKey, type StoredEventState, type StoredRecord } from './merge';
 import type { SyncRecordKind } from './record-kinds';
 
 /**
@@ -56,6 +56,8 @@ export interface RecordWrite {
   /** Client change time, compared for last-write-wins. */
   updatedAt: Date;
   deleted: boolean;
+  /** Live match records only (S13.1); null otherwise. */
+  fieldVersions: Record<string, string> | null;
 }
 
 export interface EventWrite {
@@ -97,13 +99,14 @@ export async function upsertRecordsLww(db: DbExecutor, records: readonly RecordW
   for (const batch of chunk(records)) {
     const rows = await db
       .insert(syncRecords)
-      .values(batch.map(({ kind, id, data, updatedAt, deleted }) => ({ kind, id, data, updatedAt, deleted })))
+      .values(batch.map(toRecordRow))
       .onConflictDoUpdate({
         target: [syncRecords.kind, syncRecords.id],
         set: {
           data: sql`excluded.data`,
           updatedAt: sql`excluded.updated_at`,
           deleted: sql`excluded.deleted`,
+          fieldVersions: sql`excluded.field_versions`,
           seq: sql`nextval('sync_seq')`,
         },
         setWhere: sql`excluded.updated_at > ${syncRecords.updatedAt}`,
@@ -112,6 +115,34 @@ export async function upsertRecordsLww(db: DbExecutor, records: readonly RecordW
     accepted.push(...rows);
   }
   return accepted;
+}
+
+/**
+ * Writes a field-level merge (S13.1) over a live row, but only if the row still
+ * has `expectedSeq` (nobody wrote it since it was read). Returns the written
+ * row, or undefined when it changed meanwhile.
+ */
+export async function replaceRecordAtSeq(
+  db: DbExecutor,
+  record: RecordWrite,
+  expectedSeq: number
+): Promise<AcceptedRecord | undefined> {
+  const [row] = await db
+    .update(syncRecords)
+    .set({
+      data: record.data,
+      updatedAt: record.updatedAt,
+      deleted: record.deleted,
+      fieldVersions: record.fieldVersions,
+      seq: sql`nextval('sync_seq')`,
+    })
+    .where(and(eq(syncRecords.kind, record.kind), eq(syncRecords.id, record.id), eq(syncRecords.seq, expectedSeq)))
+    .returning({ kind: syncRecords.kind, id: syncRecords.id, seq: syncRecords.seq });
+  return row;
+}
+
+function toRecordRow({ kind, id, data, updatedAt, deleted, fieldVersions }: RecordWrite) {
+  return { kind, id, data, updatedAt, deleted, fieldVersions };
 }
 
 /**
@@ -124,7 +155,7 @@ export async function insertRecordsIfNew(db: DbExecutor, records: readonly Recor
   for (const batch of chunk(records)) {
     const rows = await db
       .insert(syncRecords)
-      .values(batch.map(({ kind, id, data, updatedAt, deleted }) => ({ kind, id, data, updatedAt, deleted })))
+      .values(batch.map(toRecordRow))
       .onConflictDoNothing({ target: [syncRecords.kind, syncRecords.id] })
       .returning({ kind: syncRecords.kind, id: syncRecords.id, seq: syncRecords.seq });
     accepted.push(...rows);
@@ -132,11 +163,11 @@ export async function insertRecordsIfNew(db: DbExecutor, records: readonly Recor
   return accepted;
 }
 
-/** Stored LWW state keyed by `recordKey(kind, id)`; ids not found are absent. */
+/** Stored rows (merge state) keyed by `recordKey(kind, id)`; ids not found are absent. */
 export async function findRecordStates(
   db: DbExecutor,
   keys: readonly { kind: SyncRecordKind; id: string }[]
-): Promise<Map<string, StoredRecordState>> {
+): Promise<Map<string, StoredRecord>> {
   const idsByKind = new Map<SyncRecordKind, string[]>();
   for (const { kind, id } of keys) {
     const ids = idsByKind.get(kind);
@@ -144,14 +175,29 @@ export async function findRecordStates(
     else idsByKind.set(kind, [id]);
   }
 
-  const states = new Map<string, StoredRecordState>();
+  const states = new Map<string, StoredRecord>();
   if (idsByKind.size === 0) return states;
   const rows = await db
-    .select({ kind: syncRecords.kind, id: syncRecords.id, updatedAt: syncRecords.updatedAt, deleted: syncRecords.deleted })
+    .select()
     .from(syncRecords)
     .where(or(...[...idsByKind].map(([kind, ids]) => and(eq(syncRecords.kind, kind), inArray(syncRecords.id, ids)))));
-  for (const row of rows) states.set(recordKey(row.kind, row.id), { updatedAt: row.updatedAt, deleted: row.deleted });
+  for (const { kind, id, updatedAt, deleted, data, fieldVersions, seq } of rows) {
+    states.set(recordKey(kind, id), { updatedAt, deleted, data, fieldVersions, seq });
+  }
   return states;
+}
+
+/** Ids among `matchIds` with a live (not deleted) match record. */
+export async function findLiveMatchIds(db: DbExecutor, matchIds: readonly string[]): Promise<Set<string>> {
+  const live = new Set<string>();
+  for (const batch of chunk(matchIds)) {
+    const rows = await db
+      .select({ id: syncRecords.id })
+      .from(syncRecords)
+      .where(and(eq(syncRecords.kind, 'match'), eq(syncRecords.deleted, false), inArray(syncRecords.id, batch)));
+    for (const row of rows) live.add(row.id);
+  }
+  return live;
 }
 
 /** Stored event state (tombstone flag and data) by event id; ids not found are absent. */

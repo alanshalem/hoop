@@ -12,8 +12,11 @@ import { applyPush } from '@/server/sync/push';
 
 /**
  * POST /api/sync/push
- *   { records: [{ kind, id, data, updatedAt, deleted }], events: [{ id, matchId, data, deleted }] }
+ *   { records: [{ kind, id, data, updatedAt, deleted, fieldVersions? }], events: [{ id, matchId, data, deleted }] }
  *   -> 200 { accepted: string[], rejected: [{ id, reason: 'INVALID' | 'FORBIDDEN' | 'STALE' }], cursor: string }
+ * Live match records merge field by field with `fieldVersions` (field -> ISO time;
+ * omitted = every field at `updatedAt`); other records use last-write-wins. Events
+ * whose match is neither stored live nor accepted earlier in the batch are INVALID.
  * 403 when a present `Origin` is not this host (checked first), 401 without a session,
  * 415 if not JSON, 413 over 500 records / 2000 events / 8 MiB, 400 for malformed JSON
  * or envelopes. Per-item problems never fail the request; a record whose `updatedAt`

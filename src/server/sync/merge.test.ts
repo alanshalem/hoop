@@ -1,14 +1,18 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import { resolveFieldVersions } from '@/core/application/sync/match-fields';
 import {
   decideEventWrite,
+  decideRecordWrite,
   dedupeEvents,
+  hasFieldVersionAfter,
   dedupeRecords,
   isNewerThanStored,
   isTooFarInFuture,
   MAX_CLOCK_SKEW_MS,
   recordKey,
   recordWriteOperation,
+  type StoredRecord,
 } from './merge';
 
 const T1 = new Date('2026-10-30T10:00:00.000Z');
@@ -115,6 +119,107 @@ describe('isNewerThanStored (last-write-wins)', () => {
     assert.strictEqual(isNewerThanStored(T2, { updatedAt: T1, deleted: false }), true);
     assert.strictEqual(isNewerThanStored(T1, { updatedAt: T1, deleted: false }), false);
     assert.strictEqual(isNewerThanStored(T1, { updatedAt: T2, deleted: true }), false);
+  });
+});
+
+describe('decideRecordWrite (S13.1: field-level merge for live matches)', () => {
+  const iso = (date: Date) => date.toISOString();
+  const match = (overrides: Record<string, unknown> = {}) => ({ id: 'm-1', venue: 'Club', status: 'LIVE', homeScore: 0, ...overrides });
+  const storedMatch = (overrides: Partial<StoredRecord> = {}): StoredRecord => ({
+    updatedAt: T1,
+    deleted: false,
+    data: match(),
+    fieldVersions: null,
+    seq: 7,
+    ...overrides,
+  });
+
+  it('merges two edits of different fields and bumps updatedAt to the newest version', () => {
+    const stored = storedMatch({
+      data: match({ venue: 'Server venue' }),
+      fieldVersions: { ...resolveFieldVersions(undefined, iso(T1)), venue: iso(T2) },
+      updatedAt: T2,
+    });
+    const decision = decideRecordWrite(
+      {
+        kind: 'match',
+        deleted: false,
+        data: match({ status: 'HALFTIME', homeScore: 4 }),
+        updatedAt: T3,
+        fieldVersions: { ...resolveFieldVersions(undefined, iso(T1)), status: iso(T3) },
+      },
+      stored
+    );
+    assert.strictEqual(decision.action, 'merge');
+    if (decision.action !== 'merge') return;
+    assert.deepStrictEqual(decision.data, { id: 'm-1', venue: 'Server venue', status: 'HALFTIME', homeScore: 4 });
+    assert.strictEqual(decision.fieldVersions.venue, iso(T2));
+    assert.strictEqual(decision.fieldVersions.status, iso(T3));
+    assert.strictEqual(decision.updatedAt.toISOString(), iso(T3));
+    assert.strictEqual(decision.expectedSeq, 7);
+  });
+
+  it('is stale when no incoming field is strictly newer (ties keep the server value)', () => {
+    const stored = storedMatch({ fieldVersions: resolveFieldVersions(undefined, iso(T2)), updatedAt: T2 });
+    const decision = decideRecordWrite(
+      { kind: 'match', deleted: false, data: match({ venue: 'Device' }), updatedAt: T2, fieldVersions: resolveFieldVersions(undefined, iso(T2)) },
+      stored
+    );
+    assert.deepStrictEqual(decision, { action: 'stale' });
+  });
+
+  it('treats a legacy stored row and a legacy push as written at updatedAt on every field', () => {
+    const decision = decideRecordWrite({ kind: 'match', deleted: false, data: match({ venue: 'New' }), updatedAt: T2 }, storedMatch());
+    assert.strictEqual(decision.action, 'merge');
+    if (decision.action !== 'merge') return;
+    assert.strictEqual(decision.data.venue, 'New');
+    assert.deepStrictEqual(decision.fieldVersions, resolveFieldVersions(undefined, iso(T2)));
+    assert.deepStrictEqual(decideRecordWrite({ kind: 'match', deleted: false, data: match(), updatedAt: T1 }, storedMatch()), {
+      action: 'stale',
+    });
+  });
+
+  it('applies a match tombstone as a whole, only when newer than every field', () => {
+    const stored = storedMatch({
+      fieldVersions: { ...resolveFieldVersions(undefined, iso(T1)), status: iso(T3) },
+      updatedAt: T3,
+    });
+    assert.deepStrictEqual(decideRecordWrite({ kind: 'match', deleted: true, data: match(), updatedAt: T2 }, stored), {
+      action: 'stale',
+    });
+    const later = new Date(T3.getTime() + 1);
+    assert.deepStrictEqual(decideRecordWrite({ kind: 'match', deleted: true, data: match(), updatedAt: later }, stored), {
+      action: 'upsert',
+      fieldVersions: null,
+    });
+  });
+
+  it('revives a tombstoned match as a whole when the incoming record is newer', () => {
+    const stored = storedMatch({ deleted: true, updatedAt: T2 });
+    assert.deepStrictEqual(decideRecordWrite({ kind: 'match', deleted: false, data: match(), updatedAt: T2 }, stored), {
+      action: 'stale',
+    });
+    assert.deepStrictEqual(decideRecordWrite({ kind: 'match', deleted: false, data: match(), updatedAt: T3 }, stored), {
+      action: 'upsert',
+      fieldVersions: resolveFieldVersions(undefined, iso(T3)),
+    });
+  });
+
+  it('flags field versions newer than the record updatedAt (inconsistent push)', () => {
+    assert.strictEqual(hasFieldVersionAfter(T2, { status: iso(T2), venue: iso(T1) }), false);
+    assert.strictEqual(hasFieldVersionAfter(T2, { status: iso(T3) }), true);
+    assert.strictEqual(hasFieldVersionAfter(T2, undefined), false);
+  });
+
+  it('keeps whole-record last-write-wins for other kinds', () => {
+    const stored: StoredRecord = { updatedAt: T2, deleted: false, data: { id: 'p-1' }, fieldVersions: null, seq: 3 };
+    assert.deepStrictEqual(decideRecordWrite({ kind: 'player', deleted: false, data: { id: 'p-1' }, updatedAt: T2 }, stored), {
+      action: 'stale',
+    });
+    assert.deepStrictEqual(decideRecordWrite({ kind: 'player', deleted: false, data: { id: 'p-1' }, updatedAt: T3 }, stored), {
+      action: 'upsert',
+      fieldVersions: null,
+    });
   });
 });
 

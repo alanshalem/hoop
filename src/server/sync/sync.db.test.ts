@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { UserRole } from '@/core/domain/entities/club.types';
+import { resolveFieldVersions } from '@/core/application/sync/match-fields';
 import { createSeedState } from '@/core/infrastructure/mocks/seed-data';
 import type { DatabaseConnection } from '../db/client';
 import { matchEvents, syncRecords } from '../db/schema';
@@ -58,6 +59,13 @@ describe('sync push / pull (database)', () => {
       .from(syncRecords)
       .where(and(eq(syncRecords.kind, kind), eq(syncRecords.id, id)));
     return row;
+  };
+
+  /** Event tests need their match stored first (S13.2). */
+  const createMatch = async (id: string = uid('match')) => {
+    const result = await push(ADMIN, body([matchRecord(id, at(0))]));
+    assert.deepStrictEqual(result.accepted, [id]);
+    return id;
   };
 
   const storedEvent = async (id: string) => {
@@ -265,7 +273,7 @@ describe('sync push / pull (database)', () => {
   });
 
   it('merges events append-only: insert once, immutable data, permanent tombstones', async () => {
-    const matchId = uid('match');
+    const matchId = await createMatch();
     const eventId = uid('event');
     const unknownTombstone = uid('event');
 
@@ -305,7 +313,7 @@ describe('sync push / pull (database)', () => {
   });
 
   it('dedupes events in a batch so a tombstone wins over its live copy', async () => {
-    const matchId = uid('match');
+    const matchId = await createMatch();
     const eventId = uid('event');
     const result = await push(
       STATISTICIAN,
@@ -316,7 +324,7 @@ describe('sync push / pull (database)', () => {
   });
 
   it('paginates records and events together in seq order until hasMore is false', async () => {
-    const matchId = uid('match');
+    const matchId = await createMatch();
     const start = await readCurrentCursor(connection.db);
     const records = Array.from({ length: 6 }, (_, index) => playerRecord(uid(`page-${index}`), at(50)));
     const events = Array.from({ length: 17 }, (_, index) => eventInput(uid(`page-event-${index}`), matchId));
@@ -342,6 +350,47 @@ describe('sync push / pull (database)', () => {
     assert.strictEqual(String(cursor), await readCurrentCursor(connection.db));
   });
 
+  it('rejects events of a match that is neither stored live nor accepted earlier in the batch as INVALID (S13.2)', async () => {
+    const deletedMatch = await createMatch();
+    await push(ADMIN, body([matchRecord(deletedMatch, at(1), {}, true)]));
+    const unknownMatch = uid('match');
+    const forbiddenMatch = uid('match');
+    const sameBatchMatch = uid('match');
+    const orphan = uid('event');
+    const onDeleted = uid('event');
+    const orphanTombstone = uid('event');
+    const onForbidden = uid('event');
+    const onNew = uid('event');
+    const cursorBefore = await readCurrentCursor(connection.db);
+
+    const result = await push(
+      STATISTICIAN,
+      body(
+        [matchRecord(forbiddenMatch, at(2))],
+        [
+          eventInput(orphan, unknownMatch),
+          eventInput(onDeleted, deletedMatch),
+          eventInput(orphanTombstone, unknownMatch, true),
+          eventInput(onForbidden, forbiddenMatch),
+        ]
+      )
+    );
+    assert.deepStrictEqual(result.accepted, []);
+    assert.deepStrictEqual(result.rejected, [
+      { id: forbiddenMatch, reason: 'FORBIDDEN' },
+      { id: orphan, reason: 'INVALID' },
+      { id: onDeleted, reason: 'INVALID' },
+      { id: orphanTombstone, reason: 'INVALID' },
+      { id: onForbidden, reason: 'INVALID' },
+    ]);
+    assert.strictEqual(result.cursor, cursorBefore);
+    for (const id of [orphan, onDeleted, orphanTombstone, onForbidden]) assert.strictEqual(await storedEvent(id), undefined);
+
+    const accepted = await push(ADMIN, body([matchRecord(sameBatchMatch, at(2))], [eventInput(onNew, sameBatchMatch)]));
+    assert.deepStrictEqual(accepted.accepted, [sameBatchMatch, onNew]);
+    assert.strictEqual((await storedEvent(onNew)).matchId, sameBatchMatch);
+  });
+
   it('keeps the newest write when concurrent pushes race on the same record', async () => {
     const id = uid('player');
     const minutes = [3, 9, 1, 7, 5];
@@ -349,6 +398,137 @@ describe('sync push / pull (database)', () => {
     const stored = await storedRecord('player', id);
     assert.strictEqual(stored.updatedAt.toISOString(), at(9).toISOString());
     assert.strictEqual(stored.data.firstName, 'm9');
+  });
+});
+
+describe('field-level merge of match records (database, S13.1)', () => {
+  let connection: DatabaseConnection;
+  const createdRecordIds: string[] = [];
+  const iso = (minute: number) => at(minute).toISOString();
+  const allAt = (minute: number) => resolveFieldVersions(undefined, iso(minute));
+
+  const push = async (payload: PushBody) => {
+    createdRecordIds.push(...payload.records.map((record) => record.id));
+    return applyPush(connection.db, ADMIN, payload);
+  };
+
+  /** A device push: the whole record, with only `fields` stamped at `minute`. */
+  const devicePush = (id: string, minute: number, data: Record<string, unknown>, fields: Record<string, number>) =>
+    push(
+      body([
+        {
+          ...matchRecord(id, at(minute), data),
+          fieldVersions: {
+            ...allAt(0),
+            ...Object.fromEntries(Object.entries(fields).map(([field, fieldMinute]) => [field, iso(fieldMinute)])),
+          },
+        },
+      ])
+    );
+
+  const stored = async (id: string) => {
+    const [row] = await connection.db
+      .select()
+      .from(syncRecords)
+      .where(and(eq(syncRecords.kind, 'match'), eq(syncRecords.id, id)));
+    return row;
+  };
+
+  before(async () => {
+    connection = await openTestDatabase();
+  });
+
+  after(async () => {
+    if (createdRecordIds.length > 0) {
+      await connection.db.delete(syncRecords).where(inArray(syncRecords.id, createdRecordIds));
+    }
+    await connection.pool.end();
+  });
+
+  it('keeps both edits when two devices change different fields, and pull returns the field versions', async () => {
+    const id = uid('match');
+    await push(body([matchRecord(id, at(0), { venue: 'Club' })]));
+    const cursor = await readCurrentCursor(connection.db);
+
+    const venueEdit = await devicePush(id, 3, { venue: 'Device A venue' }, { venue: 3 });
+    assert.deepStrictEqual(venueEdit.accepted, [id]);
+    const statusEdit = await devicePush(id, 2, { venue: 'Club', status: 'HALFTIME' }, { status: 2 });
+    assert.deepStrictEqual(statusEdit.accepted, [id]);
+
+    const row = await stored(id);
+    assert.strictEqual(row.data.venue, 'Device A venue');
+    assert.strictEqual(row.data.status, 'HALFTIME');
+    assert.strictEqual(row.fieldVersions?.venue, iso(3));
+    assert.strictEqual(row.fieldVersions?.status, iso(2));
+    assert.strictEqual(row.fieldVersions?.rivalTeamName, iso(0));
+    assert.strictEqual(row.updatedAt.toISOString(), iso(3));
+
+    const pulled = await pullChanges(connection.db, Number(cursor));
+    const latest = pulled.records.filter((record) => record.id === id).at(-1);
+    assert.ok(latest);
+    assert.deepStrictEqual(latest.fieldVersions, row.fieldVersions);
+    assert.strictEqual(latest.updatedAt, iso(3));
+  });
+
+  it('lets the newer version of the same field win; older and tied pushes are STALE and change nothing', async () => {
+    const id = uid('match');
+    await push(body([matchRecord(id, at(0), { venue: 'Club' })]));
+    await devicePush(id, 5, { venue: 'Newer' }, { venue: 5 });
+    const afterNewer = await stored(id);
+
+    for (const minute of [4, 5]) {
+      const result = await devicePush(id, minute, { venue: `Device ${minute}` }, { venue: minute });
+      assert.deepStrictEqual(result.rejected, [{ id, reason: 'STALE' }]);
+    }
+    assert.deepStrictEqual(await stored(id), afterNewer);
+    assert.strictEqual(afterNewer.data.venue, 'Newer');
+  });
+
+  it('applies a match tombstone as a whole only when it is newer than every field', async () => {
+    const id = uid('match');
+    await push(body([matchRecord(id, at(0))]));
+    await devicePush(id, 6, { status: 'HALFTIME' }, { status: 6 });
+
+    const older = await push(body([matchRecord(id, at(5), {}, true)]));
+    assert.deepStrictEqual(older.rejected, [{ id, reason: 'STALE' }]);
+    assert.strictEqual((await stored(id)).deleted, false);
+
+    const newer = await push(body([matchRecord(id, at(7), {}, true)]));
+    assert.deepStrictEqual(newer.accepted, [id]);
+    const row = await stored(id);
+    assert.strictEqual(row.deleted, true);
+    assert.strictEqual(row.fieldVersions, null);
+
+    const fieldEdit = await devicePush(id, 6, { venue: 'Late' }, { venue: 6 });
+    assert.deepStrictEqual(fieldEdit.rejected, [{ id, reason: 'STALE' }], 'a field edit older than the tombstone cannot revive it');
+  });
+
+  it('merges over a row written before field versions existed (NULL field_versions)', async () => {
+    const id = uid('match');
+    createdRecordIds.push(id);
+    await connection.db.insert(syncRecords).values({
+      kind: 'match',
+      id,
+      data: { ...seedMatchRecord, id, venue: 'Legacy venue', status: 'LIVE' },
+      updatedAt: at(4),
+      deleted: false,
+      fieldVersions: null,
+    });
+
+    const result = await devicePush(id, 6, { venue: 'Stale venue', status: 'HALFTIME' }, { status: 6, venue: 3 });
+    assert.deepStrictEqual(result.accepted, [id]);
+    const row = await stored(id);
+    assert.strictEqual(row.data.status, 'HALFTIME');
+    assert.strictEqual(row.data.venue, 'Legacy venue', 'an older field loses to the legacy updatedAt');
+    assert.strictEqual(row.fieldVersions?.venue, iso(4));
+    assert.strictEqual(row.fieldVersions?.status, iso(6));
+  });
+
+  it('rejects field versions newer than the record updatedAt as INVALID', async () => {
+    const id = uid('match');
+    const result = await devicePush(id, 2, {}, { status: 3 });
+    assert.deepStrictEqual(result.rejected, [{ id, reason: 'INVALID' }]);
+    assert.strictEqual(await stored(id), undefined);
   });
 });
 

@@ -10,7 +10,7 @@ import { pullChanges } from '@/server/sync/pull';
 
 /**
  * GET /api/sync/pull?since=<cursor>
- *   -> 200 { records: [{ kind, id, data, updatedAt, deleted }], events: [{ id, matchId, data, deleted }],
+ *   -> 200 { records: [{ kind, id, data, updatedAt, deleted, fieldVersions }], events: [{ id, matchId, data, deleted }],
  *            cursor: string, hasMore: boolean }
  * Changes with seq > since in seq order, at most 1000 per page; while `hasMore`,
  * pull again with `since=cursor`. No `since` = full snapshot. 401 without a

@@ -33,7 +33,7 @@ export interface SeedSummary {
 function validRecord(kind: SyncRecordKind, entity: { id: string }, now: Date): RecordWrite {
   const parsed = parseRecordData(kind, entity.id, entity);
   if (!parsed.ok) throw new Error(`Seed ${kind} ${entity.id} is invalid: ${parsed.reason}`);
-  return { kind, id: entity.id, data: parsed.value, updatedAt: now, deleted: false };
+  return { kind, id: entity.id, data: parsed.value, updatedAt: now, deleted: false, fieldVersions: null };
 }
 
 /**

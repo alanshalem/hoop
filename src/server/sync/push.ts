@@ -5,9 +5,10 @@ import type { Database } from '../db/client';
 import type { PushBody } from './api-schema';
 import {
   decideEventWrite,
+  decideRecordWrite,
   dedupeEvents,
   dedupeRecords,
-  isNewerThanStored,
+  hasFieldVersionAfter,
   isTooFarInFuture,
   recordKey,
   recordWriteOperation,
@@ -16,13 +17,16 @@ import {
 import { parseEventData, parseRecordData } from './records';
 import {
   findEventStates,
+  findLiveMatchIds,
   findRecordStates,
   insertEventsIfNew,
   lockSyncWrites,
   notifySyncChanged,
   readCurrentCursor,
+  replaceRecordAtSeq,
   tombstoneEvents,
   upsertRecordsLww,
+  type AcceptedRecord,
   type EventWrite,
   type RecordWrite,
 } from './repository';
@@ -38,8 +42,11 @@ export interface PushResult {
 /**
  * Applies one push in a single transaction. Each item is checked in order:
  * domain schema and, for records, an `updatedAt` at most 5 minutes ahead of
- * `now` (INVALID), role permissions (FORBIDDEN), then the merge rule (STALE). Accepted writes take a new seq; if any, `hoop_sync` is notified on
- * commit with the new cursor.
+ * `now` and no field version after it (INVALID); for events, a match that is
+ * stored live or accepted earlier in this batch (INVALID, S13.2); role
+ * permissions (FORBIDDEN); then the merge rule (STALE): field by field for
+ * live matches (S13.1), last-write-wins otherwise. Accepted writes take a new
+ * seq; if any, `hoop_sync` is notified on commit with the new cursor.
  */
 export async function applyPush(
   db: Database,
@@ -52,7 +59,9 @@ export async function applyPush(
     input,
     parsed: isTooFarInFuture(input.updatedAt, now)
       ? ({ ok: false, reason: 'updatedAt is too far in the future' } as const)
-      : parseRecordData(input.kind, input.id, input.data),
+      : hasFieldVersionAfter(input.updatedAt, input.fieldVersions)
+        ? ({ ok: false, reason: 'a field version is after updatedAt' } as const)
+        : parseRecordData(input.kind, input.id, input.data),
   }));
   const events = dedupeEvents(body.events).map((input) => ({
     input,
@@ -70,6 +79,7 @@ export async function applyPush(
       records.filter(({ parsed }) => parsed.ok).map(({ input }) => input)
     );
     const recordWrites: RecordWrite[] = [];
+    const matchMerges: { write: RecordWrite; expectedSeq: number }[] = [];
     for (const { input, parsed } of records) {
       if (!parsed.ok) {
         reject(input.id, 'INVALID');
@@ -80,12 +90,29 @@ export async function applyPush(
         reject(input.id, 'FORBIDDEN');
         continue;
       }
-      if (!isNewerThanStored(input.updatedAt, stored)) {
+      const decision = decideRecordWrite({ ...input, data: parsed.value }, stored);
+      if (decision.action === 'stale') {
         reject(input.id, 'STALE');
-        continue;
+      } else if (decision.action === 'merge') {
+        const { data, fieldVersions, updatedAt, expectedSeq } = decision;
+        matchMerges.push({
+          write: { kind: input.kind, id: input.id, data, updatedAt, deleted: false, fieldVersions },
+          expectedSeq,
+        });
+      } else {
+        const { kind, id, updatedAt, deleted } = input;
+        recordWrites.push({ kind, id, data: parsed.value, updatedAt, deleted, fieldVersions: decision.fieldVersions });
       }
-      recordWrites.push({ ...input, data: parsed.value });
     }
+
+    // Events need their match: stored live, or a live match record accepted above (S13.2).
+    const matchesInBatch = new Map<string, boolean>();
+    for (const { write } of matchMerges) matchesInBatch.set(write.id, true);
+    for (const write of recordWrites) if (write.kind === 'match') matchesInBatch.set(write.id, !write.deleted);
+    const storedLiveMatches = await findLiveMatchIds(tx, [
+      ...new Set(events.map(({ input }) => input.matchId).filter((matchId) => !matchesInBatch.has(matchId))),
+    ]);
+    const hasLiveMatch = (matchId: string) => matchesInBatch.get(matchId) ?? storedLiveMatches.has(matchId);
 
     const eventStates = await findEventStates(
       tx,
@@ -94,7 +121,7 @@ export async function applyPush(
     const eventInserts: EventWrite[] = [];
     const eventTombstones: string[] = [];
     for (const { input, parsed } of events) {
-      if (!parsed.ok) {
+      if (!parsed.ok || !hasLiveMatch(input.matchId)) {
         reject(input.id, 'INVALID');
         continue;
       }
@@ -110,10 +137,15 @@ export async function applyPush(
     }
 
     // Under the write lock every planned write lands; the checks below only guard the invariant.
+    const mergedRows: AcceptedRecord[] = [];
+    for (const { write, expectedSeq } of matchMerges) {
+      const row = await replaceRecordAtSeq(tx, write, expectedSeq);
+      if (row) mergedRows.push(row);
+    }
     const writtenRecords = new Set(
-      (await upsertRecordsLww(tx, recordWrites)).map((row) => recordKey(row.kind, row.id))
+      [...(await upsertRecordsLww(tx, recordWrites)), ...mergedRows].map((row) => recordKey(row.kind, row.id))
     );
-    for (const { kind, id } of recordWrites) {
+    for (const { kind, id } of [...recordWrites, ...matchMerges.map(({ write }) => write)]) {
       if (writtenRecords.has(recordKey(kind, id))) accepted.push(id);
       else reject(id, 'STALE');
     }

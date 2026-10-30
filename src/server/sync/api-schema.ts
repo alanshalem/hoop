@@ -1,5 +1,6 @@
 import 'server-only';
 import { z } from 'zod';
+import { pickFieldVersions } from '@/core/application/sync/match-fields';
 import { SYNC_RECORD_KINDS } from './record-kinds';
 
 /**
@@ -18,13 +19,24 @@ export const MAX_PUSH_BODY_BYTES = 8 * 1024 * 1024;
 
 const EntityIdSchema = z.string().min(1).max(200);
 
+const IsoDateSchema = z.iso.datetime({ offset: true });
+
 const PushRecordSchema = z.object({
   kind: z.enum(SYNC_RECORD_KINDS),
   id: EntityIdSchema,
   data: z.unknown(),
   /** Client change time, ISO 8601 with `Z` or an offset; compared for last-write-wins. */
-  updatedAt: z.iso.datetime({ offset: true }).transform((value) => new Date(value)),
+  updatedAt: IsoDateSchema.transform((value) => new Date(value)),
   deleted: z.boolean(),
+  /**
+   * Match records (S13.1): field -> ISO time of its last change. Unknown fields
+   * are dropped and times normalized to UTC; omitted means every field changed
+   * at `updatedAt`.
+   */
+  fieldVersions: z
+    .record(z.string(), IsoDateSchema.transform((value) => new Date(value).toISOString()))
+    .transform(pickFieldVersions)
+    .optional(),
 });
 export type PushRecordInput = z.output<typeof PushRecordSchema>;
 

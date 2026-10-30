@@ -30,6 +30,21 @@ describe('push body schema', () => {
     assert.deepStrictEqual(parsePushBody({}), { ok: true, value: { records: [], events: [] } });
   });
 
+  it('parses match field versions: known fields only, normalized to UTC (S13.1)', () => {
+    const record = {
+      ...RECORD,
+      kind: 'match',
+      fieldVersions: { status: '2026-10-30T07:00:00.000-03:00', unknownField: '2026-10-30T10:00:00.000Z' },
+    };
+    const result = parsePushBody({ records: [record] });
+    assert.ok(result.ok);
+    assert.deepStrictEqual(result.value.records[0].fieldVersions, { status: '2026-10-30T10:00:00.000Z' });
+    assert.deepStrictEqual(parsePushBody({ records: [{ ...record, fieldVersions: { status: 'yesterday' } }] }), {
+      ok: false,
+      status: 400,
+    });
+  });
+
   it('accepts updatedAt with a UTC offset and normalizes it', () => {
     const result = parsePushBody({ records: [{ ...RECORD, updatedAt: '2026-10-30T07:00:00.000-03:00' }] });
     assert.ok(result.ok);

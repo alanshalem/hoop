@@ -82,6 +82,12 @@ export const syncRecords = pgTable(
     /** Client change time; last-write-wins compares this value. */
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
     deleted: boolean('deleted').notNull().default(false),
+    /**
+     * Live match records only: field -> ISO time of its last change, merged field
+     * by field (S13.1). NULL (other kinds, tombstones, older rows) means every
+     * field changed at `updated_at`.
+     */
+    fieldVersions: jsonb('field_versions').$type<Record<string, string>>(),
     seq: seq(),
   },
   (table) => [
