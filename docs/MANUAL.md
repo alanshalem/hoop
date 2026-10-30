@@ -134,7 +134,7 @@ Cualquier otra pantalla, sin una sesión guardada, redirige a `/login` y despué
 
 ### Estado de sincronización
 
-Botón visible en el riel lateral (tablet), en la barra superior (teléfono) y en el menú de usuario del Dashboard. Tocarlo sincroniza en ese momento.
+Botón visible en el riel lateral (tablet), en la barra superior (teléfono), en el menú de usuario del Dashboard y en la barra de herramientas de la consola en vivo. Tocarlo sincroniza en ese momento; en una pestaña secundaria le pide a la pestaña principal que sincronice.
 
 | Estado | Icono | Significado |
 |--------|-------|-------------|
@@ -229,11 +229,13 @@ Pantalla de registro del partido en cancha, a altura completa y sin desplazamien
 | Zona | Controles |
 |------|-----------|
 | Tablero (arriba) | Por equipo (local a la izquierda, visitante a la derecha): nombre, marcador, cuatro luces de faltas de equipo con el contador `N F`, indicador **Bonus** y botón **TM** con los tiempos muertos que quedan. Al centro: selector de período (`1C` a `4C`, y `S1` a `S4` para suplementarios), reloj con **-10s**, **+10s** y **Iniciar/Pausar**. |
-| Barra de herramientas | **Partidos** (volver), acciones del rival (**+1**, **+2**, **+3**, **Falta**), **Planilla** y **Finalizar**. |
+| Barra de herramientas | **Partidos** (volver), acciones del rival (**+1**, **+2**, **+3**, **Falta**), estado de sincronización (compacto), **Planilla** y **Finalizar**. |
 | En cancha / Banca | Tarjetas de jugador con puntos y faltas. Tocar un jugador en cancha lo selecciona. Botón **Cambio** para sustituciones. Los excluidos por faltas aparecen en la banca marcados "Excluido". |
 | Media cancha | Tocar la posición registra un tiro del jugador seleccionado. Muestra los tiros con ubicación (círculo: convertido; cruz: fallado). |
 | Últimas jugadas | Las 6 jugadas más recientes, de la más nueva a la más vieja, con el botón **Deshacer**. |
 | Acciones rápidas | Grupos **Convertidos** (`+1 TL`, `+2`, `+3`), **Fallados** (`TL`, `2P`, `3P`), **Rebotes y juego** (Reb. ofensivo, Reb. defensivo, Asistencia, Robo, Tapa, Pérdida) y **Faltas** (Personal, Técnica, Antidep.). |
+
+**Entretiempo.** Al terminar el 2.º cuarto el partido pasa a **Entretiempo**: el tablero muestra "Entretiempo" en lugar del reloj, un aviso indica que no se registran jugadas ni tiempos muertos y el botón **Comenzar 3.er cuarto** reanuda el partido (3.er cuarto, reloj en 10:00, En vivo). Desde el entretiempo también se puede finalizar el partido.
 
 Sin el permiso `RECORD_LIVE` se muestra el banner "Modo lectura" y se ocultan o deshabilitan todos los controles.
 
@@ -346,16 +348,19 @@ Un jugador excluido no puede volver a entrar. Si el cambio no es válido, un mod
 ### Tiempos muertos
 
 1. Pulsar **TM** en el panel del equipo (propio o rival).
-2. Confirmar en el modal, que indica cuántos quedan en la mitad o el suplementario.
+2. Confirmar en el modal, que indica cuántos quedan en la mitad, en el suplementario o en los últimos 2 minutos del 4.º cuarto.
 3. El reloj se detiene y un aviso muestra los tiempos restantes. Sin tiempos disponibles, el modal "Sin tiempos muertos" lo informa y no se descuenta nada.
+4. Con el reloj del 4.º cuarto en 2:00 o menos, cada equipo puede usar como máximo 2 tiempos muertos (FIBA): si le quedaban 3, el botón muestra 2 y el tercero se pierde.
+5. Durante el entretiempo no se pueden pedir tiempos muertos.
 
 ### Reloj y cambio de período
 
 - **-10s** y **+10s** corrigen el reloj, siempre dentro de la duración del período.
-- Tocar otro período en el selector pide confirmación, reinicia el reloj (10:00 o 05:00) e informa si las faltas de equipo vuelven a cero o se mantienen.
+- Tocar otro período en el selector pide confirmación, reinicia el reloj (10:00 o 05:00) e informa si las faltas de equipo vuelven a cero o se mantienen. Pasar del 2.º al 3.er cuarto lleva primero al entretiempo.
 - Los suplementarios se habilitan de a uno desde el 4.º cuarto.
 - Cuando el reloj llega a 00:00:
-  - Durante 1.º a 3.er cuarto: el sistema ofrece pasar al período siguiente.
+  - En el 1.º y el 3.er cuarto: el sistema ofrece pasar al período siguiente.
+  - En el 2.º cuarto: ofrece pasar al entretiempo; desde ahí, **Comenzar 3.er cuarto**.
   - Al final del 4.º cuarto o de un suplementario, sin empate: ofrece finalizar el partido.
   - Con empate: ofrece el siguiente suplementario. Si el empate llega al final del 4.º suplementario, solo muestra un aviso.
 
@@ -389,14 +394,13 @@ Con varias tablets en el mismo partido, **Deshacer** quita la última jugada de 
 |-------|----------------|--------|
 | Exclusión por faltas | 5 faltas (personales, técnicas y antideportivas) excluyen al jugador. Con 4 se marca como advertencia. | `basketball-rules.ts` (`FIBA_MAX_PLAYER_FOULS`) |
 | Bonus de equipo | Con 4 o más faltas de equipo en el período se enciende **Bonus**. Las faltas de cualquier suplementario cuentan como parte del 4.º cuarto. | `basketball-rules.ts`, `event-rules.ts` (`isSameTeamFoulPeriod`) |
-| Tiempos muertos | 2 en la primera mitad, 3 en la segunda y 1 por cada suplementario. Los no usados no pasan a la mitad siguiente. Al entrar a un suplementario nuevo se repone 1. | `timeouts.ts` |
+| Tiempos muertos | 2 en la primera mitad, 3 en la segunda y 1 por cada suplementario. Los no usados no pasan a la mitad siguiente. Al entrar a un suplementario nuevo se repone 1. Con el reloj del 4.º cuarto en 2:00 o menos, como máximo 2 (Art. 18.2.5): si quedaban 3, uno se pierde. | `timeouts.ts` (`isLastTwoMinutesOfFourthQuarter`) |
+| Entretiempo | Al terminar el 2.º cuarto el partido pasa a `HALFTIME`: no se registran jugadas, cambios ni tiempos muertos hasta comenzar el 3.er cuarto. | `match-use-cases.ts` (`startHalftime`, `startThirdQuarter`) |
 | Duración de períodos | 10 minutos por cuarto, 5 por suplementario, hasta 4 suplementarios. | `game-clock.ts` |
 | Convocatoria | Entre 5 y 12 jugadores, exactamente 5 titulares y todos ellos convocados. | `lineup-rules.ts` |
 | Valoración (PIR) | `(PTS + REB + AST + ROB + TAP) - (tiros de campo fallados + tiros libres fallados + PER + faltas cometidas)`. Cuenta todas las faltas del jugador. | `calculateFibaPir` |
 | +/- | Diferencia de puntos mientras el jugador estuvo en cancha. Parte del quinteto inicial (`startingLineupOwn`) y sigue cada cambio propio en orden. | `calculatePlayerPlusMinus`, `getStartingLineup` |
 | Doble o triple | Arco de triple a 6,75 m del aro (radio de 235 unidades sobre una media cancha SVG de 500 x 470). En las esquinas, la zona de triple es la franja junto a la línea lateral cerca de la línea de fondo. | `HalfCourtShotChart.tsx` (`isThreePointSpot`) |
-
-No modelado: la restricción FIBA de usar como máximo 2 tiempos muertos en los últimos 2 minutos del 4.º cuarto.
 
 Fuente única de verdad: el marcador, las faltas de equipo, los parciales y el box score se derivan siempre de la lista de jugadas del partido (`match-derivations.ts`). Los campos guardados en el partido son una copia que se recalcula en cada cambio.
 
@@ -461,17 +465,22 @@ Cómo funciona para quien usa la aplicación:
 | Cambios antes de la primera sincronización (tablet nueva o sin conexión desde el primer ingreso) | También entran en la cola y el estado los cuenta como pendientes. Cuando llega la primera copia completa del servidor, reemplaza los datos locales y los cambios pendientes se vuelven a aplicar encima; después se envían. |
 | Vuelve la conexión | La cola se envía sola y la tablet descarga lo que cambiaron las demás. Si el servidor no responde, reintenta cada vez más espaciado (1 s, 2 s, 4 s... hasta 60 s). |
 | Otra tablet guarda un cambio | El servidor avisa en vivo (Server-Sent Events) y esta tablet lo descarga en segundos. |
-| Dos tablets editan lo mismo (un jugador, una división, los datos de un partido) | Gana el cambio más reciente según la hora en que se hizo (last-write-wins). El registro se reemplaza completo: si una tablet edita el estadio y otra cambia el quinteto en cancha del mismo partido, queda la versión que se guardó última. |
+| Dos tablets editan el mismo jugador o división | Gana el cambio más reciente según la hora en que se hizo (last-write-wins) y el registro se reemplaza completo. |
+| Dos tablets editan el mismo partido | Se combinan campo por campo: cada dato del partido (estado, período, reloj, tiempos muertos, quinteto, estadio, etc.) guarda la hora de su último cambio y gana el más reciente; con la misma hora queda el del servidor. Si una tablet maneja el reloj y otra corrige el estadio, se conservan los dos cambios. Eliminar un partido gana solo si es posterior a todos sus cambios. |
+| Varias pestañas abiertas en el mismo navegador | Solo una pestaña (la principal) sincroniza y guarda los datos en el navegador. Las demás muestran lo que guarda la principal y le envían sus cambios al instante. Si se cierra la principal, otra pestaña toma su lugar sola, sin perder cambios. |
 | Jugadas | Nunca se pisan: cada jugada tiene su propio ID y se suma a la lista, ordenada por hora y luego por ID. Dos tablets pueden cargar jugadas del mismo partido a la vez sin perder ninguna. El marcador y las faltas se recalculan con todas. |
 | **Deshacer** una jugada | La jugada queda marcada como eliminada en el servidor (no se borra) y desaparece en todas las tablets. Una jugada eliminada no vuelve. |
 | El servidor rechaza un cambio | Si el rol no tiene permiso o el dato no es válido, el cambio se descarta y el estado muestra **Error** con la cantidad de cambios rechazados. Si el servidor tiene una versión más nueva, se descarta el cambio local y se descarga la del servidor. |
+| Jugadas de un partido que el servidor no tiene | El servidor las rechaza: una jugada solo se acepta si su partido existe (o llega en el mismo envío) y no está eliminado. La tablet envía siempre el partido antes que sus jugadas. |
 | La sesión venció | La aplicación pide iniciar sesión de nuevo. Si vuelve a entrar la misma cuenta, la cola se conserva y se envía después del ingreso. |
 | Otra persona inicia sesión en la misma tablet | La cola guarda quién hizo los cambios. Si entra una cuenta distinta, los cambios pendientes de la anterior se descartan (nunca se envían con la identidad de otra persona), un aviso informa "Se descartaron N cambios sin sincronizar de <nombre>" y la tablet descarga todo de nuevo del servidor. |
 | Se reinició la base del servidor | Cuando la tablet detecta que el servidor volvió atrás (con el próximo envío o aviso en vivo), descarga todo de nuevo, reemplaza su copia y vuelve a aplicar encima los cambios pendientes, que se envían a continuación. |
 
 Detalle técnico:
 
-- La aplicación compara el estado anterior y el nuevo del store (por referencia e ID) para detectar entidades creadas, editadas o eliminadas y jugadas nuevas o eliminadas. A cada registro le pone `updatedAt` (hora del cambio, siempre posterior a la versión anterior de ese registro) y lo guarda en la cola: un solo cambio pendiente por registro (`tipo:id`) y por jugada.
+- La aplicación compara el estado anterior y el nuevo del store para detectar entidades creadas, editadas o eliminadas y jugadas nuevas o eliminadas. A cada registro le pone `updatedAt` (hora del cambio, siempre posterior a la versión anterior de ese registro) y lo guarda en la cola: un solo cambio pendiente por registro (`tipo:id`) y por jugada. En un partido se marcan con esa hora solo los campos que cambiaron (`fieldVersions`); el marcador y las faltas no se versionan porque se recalculan desde las jugadas.
+- Fusión por campo de partidos (`src/core/application/sync/match-fields.ts`): la misma función se usa en el servidor al recibir y en la tablet al descargar. Los registros sin versiones por campo (anteriores a esta versión) cuentan con `updatedAt` en todos los campos.
+- Una sola pestaña sincroniza (`tab-coordinator.ts`): elección con el Web Lock `hoop-sync-leader`; las demás pestañas no escriben `hoop-club-storage` ni `hoop-sync-storage`, los recargan con el evento `storage` y envían sus cambios por `BroadcastChannel` hasta que la principal los confirma. Sin Web Locks (por ejemplo, la aplicación servida por http en la red local) o sin `BroadcastChannel`, cada pestaña sincroniza por su cuenta.
 - Un envío (`POST /api/sync/push`) lleva como máximo 500 registros y 2000 jugadas. Una eliminación viaja como marca (tombstone) con los últimos datos conocidos. Los partidos viajan sin jugadas; las jugadas van aparte.
 - La descarga (`GET /api/sync/pull?since=<cursor>`) trae todo lo que cambió después del cursor, de a páginas, y se aplica una sola vez al final. Lo descargado no vuelve a entrar en la cola.
 - Sin cursor (primera sincronización o reinicio de la base) primero se descarga la copia completa y después se envía la cola. La copia reemplaza los datos locales y la cola se vuelve a aplicar encima (`applyServerSnapshot`): registros pendientes creados, editados o eliminados, jugadas nuevas agregadas y jugadas eliminadas quitadas; luego se recalculan los marcadores. Un registro pendiente del que el servidor ya tiene una versión igual o más nueva se descarta, igual que en una descarga normal.
@@ -517,11 +526,11 @@ Se definen en `.env.local` (no se sube al repositorio; `.env.example` documenta 
 | `POST /api/auth/login` | `{ email, password }` en JSON. Responde `{ user }` y crea la cookie de sesión, o 401 con "Email o contraseña incorrectos". |
 | `POST /api/auth/logout` | Cierra la sesión y borra la cookie. Exige `Content-Type: application/json` (cuerpo `{}`); sin él responde 415. |
 | `GET /api/auth/me` | El usuario de la sesión (`id`, `email`, `name`, `role`) o 401. |
-| `POST /api/sync/push` | Recibe registros y jugadas; responde `{ accepted, rejected: [{ id, reason }], cursor }`. |
+| `POST /api/sync/push` | Recibe registros (los partidos con `fieldVersions` opcional: campo -> hora de su último cambio) y jugadas; responde `{ accepted, rejected: [{ id, reason }], cursor }`. |
 | `GET /api/sync/pull?since=<cursor>` | Cambios posteriores al cursor (incluye eliminaciones), de a páginas (`hasMore`). Sin `since`, todo. |
 | `GET /api/sync/stream` | Server-Sent Events: `event: changed` con el cursor nuevo tras cada escritura aceptada, y un latido cada 25 s. |
 
-Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el esquema del dominio, o un `updatedAt` más de 5 minutos adelantado respecto del reloj del servidor), `FORBIDDEN` (el rol no tiene el permiso) y `STALE` (el servidor ya tiene una versión igual o más nueva, o la jugada fue eliminada).
+Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el esquema del dominio, un `updatedAt` más de 5 minutos adelantado respecto del reloj del servidor, una versión de campo posterior a su `updatedAt`, o una jugada cuyo partido no existe en el servidor ni llega aceptado en el mismo envío), `FORBIDDEN` (el rol no tiene el permiso) y `STALE` (el servidor ya tiene una versión igual o más nueva de todos los campos, o la jugada fue eliminada).
 
 ### Seguridad
 
@@ -602,21 +611,21 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 
 ## 10. Limitaciones conocidas
 
+Resueltas en esta versión: los partidos se combinan campo por campo entre tablets, el servidor rechaza jugadas de partidos inexistentes, una sola pestaña sincroniza por navegador, la consola en vivo muestra el estado de sincronización, y el entretiempo y la regla de tiempos muertos de los últimos 2 minutos del 4.º cuarto están implementados.
+
 | Limitación | Detalle |
 |------------|---------|
-| Sin pruebas E2E de navegador | Las pruebas cubren el núcleo (dominio, casos de uso, hooks puros, sincronización, datos de demostración) y el servidor. La interfaz no tiene pruebas automatizadas en navegador. |
-| Conflictos por registro completo | Dos ediciones del mismo registro desde tablets distintas no se combinan campo por campo: gana la más reciente entera. En un partido en vivo conviene que una sola tablet maneje reloj, quinteto y tiempos muertos. Las jugadas no tienen este problema. |
-| Una pestaña por dispositivo | Dos pestañas de HoopOS abiertas en el mismo navegador comparten el `localStorage` sin coordinarse. Usar una sola. |
+| Sin pruebas E2E de navegador | Las pruebas cubren el núcleo (dominio, casos de uso, hooks puros, sincronización, coordinación de pestañas, datos de demostración) y el servidor. La interfaz no tiene pruebas automatizadas en navegador. |
+| Pestañas por http en la red local | La coordinación de pestañas usa Web Locks, que requiere https o `localhost`. Por http en la red local cada pestaña sincroniza por su cuenta: conviene usar una sola. |
 | Reinicio de la base | La tablet detecta un reinicio de la base del servidor recién con su próximo envío o aviso en vivo. |
 | Cambios rechazados | Un cambio que el servidor rechaza por permiso o validez se descarta y solo se informa la cantidad, no cuál fue. |
-| Consola en vivo sin indicador | La consola en vivo usa toda la pantalla y no muestra el estado de sincronización; se ve al volver a cualquier otra pantalla. |
-| Entretiempo no gestionado | El estado `HALFTIME` existe en el modelo, pero la consola no lo activa: el partido sigue "En vivo" entre el 2.º y el 3.er cuarto. |
+| Correcciones en el entretiempo | Durante el entretiempo no se puede deshacer la última jugada del 2.º cuarto: hay que comenzar el 3.er cuarto primero. |
 | Empate tras el 4.º suplementario | Si el reloj llega a 00:00 con empate al final del 4.º suplementario, solo se muestra un aviso. |
-| Tiempos muertos al final del partido | No se aplica el máximo de 2 tiempos muertos en los últimos 2 minutos del 4.º cuarto. |
 | Dorsal repetido | No se impide que dos jugadores del mismo equipo usen el mismo dorsal. |
 | Usuarios sin pantalla de gestión | Las cuentas se crean con `npm run db:seed`. No hay pantalla para crear usuarios ni cambiar contraseñas. |
 | Cambio de usuario sin conexión | Si otra cuenta entra en la tablet sin conexión, se descarta la cola de la anterior, pero sus cambios siguen a la vista hasta que llega la copia completa del servidor. |
 | Cierre de sesión sin conexión | La sesión del servidor sigue válida hasta que vence (30 días) o hasta el próximo ingreso en esa tablet. La aplicación lo avisa al cerrar sesión. |
+| Cierre de sesión con varias pestañas | Cerrar sesión en una pestaña no cierra las demás al instante: la pestaña principal pide iniciar sesión con su próximo envío al servidor. |
 
 ---
 
@@ -716,3 +725,6 @@ public/brand/               escudo del club
 | Cursor | Posición de la última descarga: la siguiente trae solo lo que cambió después. |
 | SSE (Server-Sent Events) | Canal del servidor al navegador para avisar cambios en vivo. |
 | RBAC | Control de acceso basado en roles. |
+| Versión por campo | Hora del último cambio de cada dato de un partido; permite combinar ediciones de distintas tablets sin pisarse. |
+| Pestaña principal | La única pestaña del navegador que sincroniza y guarda los datos; las demás le envían sus cambios. |
+| Entretiempo | Descanso tras el 2.º cuarto (`HALFTIME`): sin jugadas ni tiempos muertos hasta comenzar el 3.er cuarto. |
