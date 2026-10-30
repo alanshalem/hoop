@@ -43,12 +43,19 @@ export function toClubUser(authUser: AuthUser, knownUsers: readonly User[], now:
   };
 }
 
+/** Placeholder origin used only to check that `next` cannot leave the app. */
+const APP_ORIGIN = 'http://hoop.local';
+
+/** Browsers strip tabs and newlines from URLs and read `\` as `/`, so "/\t/evil.com" means "//evil.com". */
+const UNSAFE_URL_CHARS = /[\x00-\x1F\x7F\\]/;
+
 /**
- * Where to go after logging in: only same-origin app paths (no protocol-relative
- * or backslash tricks), never back to the login screen.
+ * Where to go after logging in: only same-origin app paths (a single leading
+ * `/`, no control characters or backslashes), never back to the login screen.
  */
 export function safeNextPath(next: string | null | undefined): string {
-  if (!next || !next.startsWith('/') || next.startsWith('//') || next.includes('\\')) return HOME_PATH;
+  if (!next || UNSAFE_URL_CHARS.test(next) || !/^\/(?![/\\])/.test(next)) return HOME_PATH;
+  if (new URL(next, APP_ORIGIN).origin !== APP_ORIGIN) return HOME_PATH;
   const pathname = next.split(/[?#]/, 1)[0];
   if (pathname === LOGIN_PATH || pathname.startsWith(`${LOGIN_PATH}/`)) return HOME_PATH;
   return next;

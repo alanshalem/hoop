@@ -39,6 +39,14 @@ describe('safeNextPath', () => {
       assert.strictEqual(safeNextPath(value), '/', String(value));
     }
   });
+
+  it('rejects control characters and backslashes that browsers strip or normalize (open redirect)', () => {
+    const attacks = ['/\t/evil.com', '/\n/evil.com', '/\r//evil.com', '//evil.com', '/\\evil.com', 'https://evil.com', '/\x00/evil.com', '/\x7f/evil.com', '/players\\..\\evil'];
+    for (const value of attacks) {
+      assert.strictEqual(safeNextPath(value), '/', JSON.stringify(value));
+    }
+    assert.strictEqual(safeNextPath('/players?x=1'), '/players?x=1');
+  });
 });
 
 describe('loginRedirectPath', () => {
