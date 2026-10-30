@@ -12,11 +12,11 @@ import { generatePlayByPlay, PeriodPlan } from './play-by-play-generator';
  * =============================================================================
  */
 
-export const SEED_CLUB_ID = 'club-hoop-arg';
+export const SEED_CLUB_ID = 'club-camg';
 
 export const CLUB_PROFILE = {
   id: SEED_CLUB_ID,
-  name: 'Hoop Athletic Club',
+  name: 'Club Atlético Monte Grande',
   season: '2025/2026',
 } as const;
 
@@ -38,11 +38,11 @@ function seedUser(id: string, name: string, email: string, role: User['role']): 
 }
 
 export const SEED_USERS: User[] = [
-  seedUser('user-coach-1', 'Federico Balbi', 'fbalbi@hoop.com.ar', 'HEAD_COACH'),
-  seedUser('user-assistant-1', 'Mariano Ginóbili', 'mginobili@hoop.com.ar', 'ASSISTANT_STATISTICIAN'),
-  seedUser('user-admin-1', 'Alejandro Montecchia', 'admin@hoop.com.ar', 'ADMIN'),
-  seedUser('user-coach-2', 'Sergio Hernández', 'shernandez@hoop.com.ar', 'HEAD_COACH'),
-  seedUser('user-coach-3', 'Julio Lamas', 'jlamas@hoop.com.ar', 'HEAD_COACH'),
+  seedUser('user-coach-1', 'Federico Balbi', 'fbalbi@camg.com.ar', 'HEAD_COACH'),
+  seedUser('user-assistant-1', 'Mariano Ginóbili', 'mginobili@camg.com.ar', 'ASSISTANT_STATISTICIAN'),
+  seedUser('user-admin-1', 'Alejandro Montecchia', 'admin@camg.com.ar', 'ADMIN'),
+  seedUser('user-coach-2', 'Sergio Hernández', 'shernandez@camg.com.ar', 'HEAD_COACH'),
+  seedUser('user-coach-3', 'Julio Lamas', 'jlamas@camg.com.ar', 'HEAD_COACH'),
 ];
 
 export const SEED_DIVISIONS: Division[] = [
@@ -305,7 +305,7 @@ export const SEED_PLAYERS: Player[] = [
 export const SEED_TEAMS: Team[] = [
   {
     id: 'team-primera',
-    name: 'Hoop Athletic Club - Primera',
+    name: `${CLUB_PROFILE.name} - Primera`,
     divisionId: 'div-primera',
     season: CLUB_PROFILE.season,
     headCoachId: 'user-coach-1',
@@ -318,7 +318,7 @@ export const SEED_TEAMS: Team[] = [
   },
   {
     id: 'team-u19',
-    name: 'Hoop Athletic Club - U19',
+    name: `${CLUB_PROFILE.name} - U19`,
     divisionId: 'div-u19',
     season: CLUB_PROFILE.season,
     headCoachId: 'user-coach-2',
@@ -328,7 +328,7 @@ export const SEED_TEAMS: Team[] = [
   },
   {
     id: 'team-u17',
-    name: 'Hoop Athletic Club - U17',
+    name: `${CLUB_PROFILE.name} - U17`,
     divisionId: 'div-u17',
     season: CLUB_PROFILE.season,
     headCoachId: 'user-coach-3',
@@ -436,7 +436,7 @@ export function createSeedMatches(now: Date): Match[] {
       rivalTeamName: 'Peñarol de Mar del Plata',
       condition: 'HOME',
       tournament: 'Torneo Federal - Fecha 9',
-      venue: 'Estadio Hoop Arena',
+      venue: 'Estadio CAMG',
       status: 'FINISHED',
       starterIds: ['p-1', 'p-3', 'p-6', 'p-7', 'p-10'],
       periods: [
@@ -474,7 +474,7 @@ export function createSeedMatches(now: Date): Match[] {
       rivalTeamName: 'Ferro Carril Oeste',
       condition: 'HOME',
       tournament: 'Torneo Federal - Fecha 11',
-      venue: 'Estadio Hoop Arena',
+      venue: 'Estadio CAMG',
       status: 'FINISHED',
       starterIds: ['p-1', 'p-3', 'p-5', 'p-7', 'p-9'],
       periods: [
@@ -495,7 +495,7 @@ export function createSeedMatches(now: Date): Match[] {
         rivalTeamName: 'Obras Sanitarias',
         condition: 'HOME',
         tournament: 'Torneo Federal - Fecha 12',
-        venue: 'Estadio Hoop Arena',
+        venue: 'Estadio CAMG',
         status: 'LIVE',
         starterIds: ['p-1', 'p-4', 'p-5', 'p-7', 'p-9'],
         periods: [

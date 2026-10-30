@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { createSeedState, SEED_LIVE_MATCH_ID } from './seed-data';
+import { CLUB_PROFILE, createSeedState, SEED_LIVE_MATCH_ID } from './seed-data';
 import { MatchSchema } from '@/core/domain/entities/match.types';
 import { PlayerSchema, TeamSchema, UserSchema } from '@/core/domain/entities/club.types';
 import {
@@ -158,6 +158,22 @@ describe('seed data', () => {
           assert.ok(cur.quarterTimeRemainingSeconds <= prev.quarterTimeRemainingSeconds, `${match.id} clock`);
         }
       }
+    }
+  });
+});
+
+describe('club identity', () => {
+  it('names the club Club Atlético Monte Grande in the profile, teams and own matches', () => {
+    const state = createSeedState(NOW);
+    assert.strictEqual(CLUB_PROFILE.name, 'Club Atlético Monte Grande');
+    for (const team of state.teams) {
+      assert.ok(team.name.startsWith('Club Atlético Monte Grande - '), team.name);
+    }
+    for (const match of state.matches) {
+      assert.ok(!/Hoop/.test(`${match.ownTeamName} ${match.venue ?? ''}`), match.id);
+    }
+    for (const user of state.users) {
+      assert.ok(!user.email.includes('hoop'), user.email);
     }
   });
 });

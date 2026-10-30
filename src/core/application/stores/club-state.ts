@@ -24,7 +24,7 @@ export interface ClubDataState {
  * Bump whenever the persisted shape changes; older storage is reseeded.
  * v2: derived scoreboard, startingLineupOwn, users, medicalNote, full play-by-play seed.
  */
-export const CLUB_STORE_VERSION = 2;
+export const CLUB_STORE_VERSION = 3;
 
 export function createInitialClubState(now: Date = new Date()): ClubDataState {
   const seed = createSeedState(now);

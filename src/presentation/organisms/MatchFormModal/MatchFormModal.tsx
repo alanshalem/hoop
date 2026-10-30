@@ -211,7 +211,7 @@ export const MatchFormModal: React.FC<MatchFormModalProps> = ({
         />
         <TextField
           label="Estadio o cancha"
-          placeholder="Ej. Estadio Hoop Arena"
+          placeholder="Ej. Estadio CAMG"
           error={errors.venue?.message}
           {...register('venue')}
         />
