@@ -15,7 +15,8 @@ import type { KeyValueStoragePort, LeaderLockPort, StorageEventsPort } from './t
  * - followers check it every LEASE_RENEW_MS and at once on a `storage` event
  *   (the leader released it: logout or the tab closing, see `pageHide`);
  * - a leader that finds a valid lease of another tab (its own expired while the
- *   tab was frozen or throttled) steps down (`onLost`).
+ *   tab was frozen or throttled) steps down (`onLost`), on renewal or as soon
+ *   as the `storage` event of that tab's claim arrives.
  * =============================================================================
  */
 
@@ -125,8 +126,15 @@ export function createLeaseLeaderLock(deps: LeaseLeaderLockDeps): LeaderLockPort
       };
 
       const stopStorageEvents = deps.storageEvents.subscribe((key) => {
-        // Followers react at once (the lease was released or replaced); the leader checks on renewal.
-        if (key === SYNC_LEADER_LEASE_KEY && role !== 'leader' && !claiming && !released) tryClaim();
+        if (key !== SYNC_LEADER_LEASE_KEY || claiming || released) return;
+        if (role !== 'leader') {
+          // Followers react at once: the lease was released or replaced.
+          tryClaim();
+        } else if (heldByAnotherTab(readLease())) {
+          // A leader whose timers were throttled let its lease expire and another tab
+          // took it: storage events still arrive, so it steps down now, not on renewal.
+          follow();
+        }
       });
       // Kept running: a page restored from the back/forward cache renews or re-claims it.
       const stopPageHide = deps.pageHide?.subscribe(() => {

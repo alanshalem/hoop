@@ -56,6 +56,7 @@ function harness({ withLock = true, withChannel = true, realEngine = false, lock
   let lockCallbacks: { onAcquired: () => void; onQueued: () => void; onLost?: () => void } | null = null;
   /** Edits handed over through the (fake) persisted handoff, by save order. */
   const handoffSaves: HandoffEdit[][] = [];
+  const handoffForgotten: string[] = [];
   let handoffLeft: HandoffEdit[] = [];
   let lockReleased = 0;
   let writable = true;
@@ -119,6 +120,9 @@ function harness({ withLock = true, withChannel = true, realEngine = false, lock
     handoff: handoff ?? {
       save: (edits) => {
         handoffSaves.push([...edits]);
+      },
+      forget: (editId) => {
+        handoffForgotten.push(editId);
       },
       drain: () => {
         const drained = handoffLeft;
@@ -197,6 +201,7 @@ function harness({ withLock = true, withChannel = true, realEngine = false, lock
     queue: () => lockCallbacks?.onQueued(),
     lose: () => lockCallbacks?.onLost?.(),
     handoffSaves,
+    handoffForgotten,
     /** Edits other (closed) tabs left in the persisted handoff. */
     leaveInHandoff: (edits: HandoffEdit[]) => {
       handoffLeft = edits;
@@ -355,6 +360,7 @@ describe('sync tab coordinator (S13.3)', () => {
     );
     assert.deepStrictEqual(tab.data.players, [edited]);
     assert.deepStrictEqual(tab.posted.at(-1), message({ type: 'ack', id: 'msg-9' }));
+    assert.deepStrictEqual(tab.handoffForgotten, ['msg-9'], 'the sender may close before the ack: its handoff copy goes now');
   });
 
   it('ignores messages from another protocol version or with an unknown shape', async () => {

@@ -70,8 +70,11 @@ export interface SyncEngine {
   syncNow(): Promise<void>;
   /** Pushes everything pending; resolves with the number of changes still pending. */
   flush(): Promise<number>;
-  /** Stamps changes the club store already holds (made in another tab) into the outbox. */
-  enqueue(diff: ClubDiff): void;
+  /**
+   * Stamps changes the club store already holds (made in another tab) into the
+   * outbox, at `madeAtMs` when given (the time the edit was made), else now.
+   */
+  enqueue(diff: ClubDiff, madeAtMs?: number): void;
   /** Resolves once no sync work is running. */
   whenIdle(): Promise<void>;
 }
@@ -119,10 +122,10 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     enqueue(diffClubState(previous, next));
   }
 
-  function enqueue(diff: ClubDiff): void {
+  function enqueue(diff: ClubDiff, madeAtMs?: number): void {
     if (diff.records.length === 0 && diff.events.length === 0) return;
     const { outbox, versions } = store.getState();
-    store.setState(enqueueChanges({ outbox, versions }, diff, now()));
+    store.setState(enqueueChanges({ outbox, versions }, diff, madeAtMs ?? now()));
     if (started) scheduleFlush();
   }
 

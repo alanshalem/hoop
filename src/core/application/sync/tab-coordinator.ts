@@ -1,6 +1,7 @@
 import { applyClubDiff } from './apply-club-diff';
 import { diffClubState } from './club-diff';
 import { countPending } from './outbox';
+import { dropSupersededChanges } from './stale-diff';
 import type { ClubDataPort, SyncEngine } from './sync-engine';
 import type { ClubDiff, SyncableClubData, SyncStatus, SyncStoreData } from './sync-types';
 
@@ -64,11 +65,15 @@ export interface KeyValueStoragePort {
 export interface HandoffEdit {
   id: string;
   diff: ClubDiff;
+  /** When the edit was made (ms): a later leader replays it at that time, never as new. */
+  madeAt?: number;
 }
 
 export interface EditHandoffPort {
   /** Keeps this tab's unacknowledged edits for the next leader (an empty list forgets them). */
   save(edits: readonly HandoffEdit[]): void;
+  /** The leader applied this edit: no tab key keeps it any longer. */
+  forget(editId: string): void;
   /** Takes the edits every tab of the current user left, oldest first. */
   drain(): HandoffEdit[];
 }
@@ -91,6 +96,8 @@ export interface PersistenceGatePort {
 
 export interface SyncTabCoordinatorDeps {
   engine: Pick<SyncEngine, 'start' | 'stop' | 'syncNow' | 'flush' | 'enqueue'>;
+  /** Clock for stamping local edits (defaults to Date.now). */
+  now?: () => number;
   club: ClubDataPort & { rehydrate(): Promise<void> };
   syncStore: {
     getState(): SyncStoreData;
@@ -167,15 +174,16 @@ export function createSyncTabCoordinator(deps: SyncTabCoordinatorDeps): SyncTabC
   let clubCleanup: (() => void) | null = null;
   let roleCleanups: (() => void)[] = [];
 
+  const now = deps.now ?? Date.now;
   /** Edits made while not leading, in order, until a leader acknowledges them. */
-  const unacked = new Map<string, ClubDiff>();
+  const unacked = new Map<string, { diff: ClubDiff; madeAt: number }>();
   let baseline: SyncableClubData | null = null;
   let reloading = false;
   let sharedStatus: string | null = null;
 
   const post = (body: TabMessageBody) => channel?.post({ v: TAB_PROTOCOL_VERSION, ...body } as TabMessage);
 
-  const persistUnacked = () => deps.handoff?.save([...unacked].map(([id, diff]) => ({ id, diff })));
+  const persistUnacked = () => deps.handoff?.save([...unacked].map(([id, edit]) => ({ id, ...edit })));
 
   function clearRoleListeners(): void {
     roleCleanups.forEach((cleanup) => cleanup());
@@ -188,6 +196,8 @@ export function createSyncTabCoordinator(deps: SyncTabCoordinatorDeps): SyncTabC
     if (currentRole === 'leader') {
       if (message.type === 'club-diff') {
         club.applyData(applyClubDiff(club.getData(), message.diff));
+        // Applied: the sender may close before the ack arrives, so its copy goes now.
+        deps.handoff?.forget(message.id);
         post({ type: 'ack', id: message.id });
       } else if (message.type === 'sync-now') {
         void engine.syncNow();
@@ -201,7 +211,7 @@ export function createSyncTabCoordinator(deps: SyncTabCoordinatorDeps): SyncTabC
   }
 
   function resendUnacked(): void {
-    for (const [id, diff] of unacked) post({ type: 'club-diff', id, diff });
+    for (const [id, { diff }] of unacked) post({ type: 'club-diff', id, diff });
   }
 
   /** Reloads the persisted club store without taking the reload for a local edit. */
@@ -225,7 +235,7 @@ export function createSyncTabCoordinator(deps: SyncTabCoordinatorDeps): SyncTabC
     const diff = diffClubState(previous, next);
     if (diff.records.length === 0 && diff.events.length === 0) return;
     const id = deps.newId();
-    unacked.set(id, diff);
+    unacked.set(id, { diff, madeAt: now() });
     persistUnacked();
     if (currentRole === 'follower') post({ type: 'club-diff', id, diff });
   }
@@ -282,13 +292,19 @@ export function createSyncTabCoordinator(deps: SyncTabCoordinatorDeps): SyncTabC
     // Edits made before leading that no leader confirmed, after those closed tabs
     // left: enqueued here (the reload may already hold them, so re-applying alone
     // would not be seen as a change), then re-applied in case the reload dropped them.
-    const pending = new Map((deps.handoff?.drain() ?? []).map(({ id, diff }) => [id, diff]));
-    for (const [id, diff] of unacked) pending.set(id, diff);
+    // Each one is replayed at the time it was made, without the changes a newer
+    // local version already superseded, so a stale edit never rewinds the data.
+    const pending = new Map<string, { diff: ClubDiff; madeAt?: number }>(
+      (deps.handoff?.drain() ?? []).map(({ id, diff, madeAt }) => [id, { diff, madeAt }])
+    );
+    for (const [id, edit] of unacked) pending.set(id, edit);
     unacked.clear();
     persistUnacked();
-    for (const diff of pending.values()) {
-      engine.enqueue(diff);
-      club.applyData(applyClubDiff(club.getData(), diff));
+    for (const { diff, madeAt } of pending.values()) {
+      const fresh = madeAt === undefined ? diff : dropSupersededChanges(diff, madeAt, syncStore.getState().versions);
+      if (fresh.records.length === 0 && fresh.events.length === 0) continue;
+      engine.enqueue(fresh, madeAt);
+      club.applyData(applyClubDiff(club.getData(), fresh));
     }
     post({ type: 'leader' });
   }
