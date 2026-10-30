@@ -1,36 +1,48 @@
 import { Division, Player, Team, User } from '@/core/domain/entities/club.types';
 import { Match } from '@/core/domain/entities/match.types';
+import { createMatch } from '@/core/application/use-cases/match-use-cases';
+import { withDerivedScoreboard } from '@/core/domain/rules/match-derivations';
+import { generatePlayByPlay, PeriodPlan } from './play-by-play-generator';
 
-export const SEED_CLUB_ID = 'club-hoop-arg';
+/**
+ * =============================================================================
+ * HOOP OS - SEED DATA
+ * Deterministic mock club. Match dates are relative to `now` so the dashboard
+ * always shows a live match today, recent results and an upcoming fixture.
+ * =============================================================================
+ */
+
+export const SEED_CLUB_ID = 'club-camg';
+
+export const CLUB_PROFILE = {
+  id: SEED_CLUB_ID,
+  name: 'Club Atlético Monte Grande',
+  season: '2025/2026',
+} as const;
+
+export const SEED_LIVE_MATCH_ID = 'match-live-today';
+export const SEED_ACTIVE_DIVISION_ID = 'div-primera';
+
+const SEED_CREATED_AT = '2025-08-01T12:00:00.000Z';
+
+function seedUser(id: string, name: string, email: string, role: User['role']): User {
+  return {
+    id,
+    name,
+    email,
+    role,
+    clubId: SEED_CLUB_ID,
+    createdAt: SEED_CREATED_AT,
+    updatedAt: SEED_CREATED_AT,
+  };
+}
 
 export const SEED_USERS: User[] = [
-  {
-    id: 'user-coach-1',
-    name: 'Federico Balbi',
-    email: 'fbalbi@hoop.com.ar',
-    role: 'HEAD_COACH',
-    clubId: SEED_CLUB_ID,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'user-assistant-1',
-    name: 'Mariano Ginóbili',
-    email: 'mginobili@hoop.com.ar',
-    role: 'ASSISTANT_STATISTICIAN',
-    clubId: SEED_CLUB_ID,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'user-admin-1',
-    name: 'Alejandro Montecchia',
-    email: 'admin@hoop.com.ar',
-    role: 'ADMIN',
-    clubId: SEED_CLUB_ID,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
+  seedUser('user-coach-1', 'Federico Balbi', 'fbalbi@camg.com.ar', 'HEAD_COACH'),
+  seedUser('user-assistant-1', 'Mariano Ginóbili', 'mginobili@camg.com.ar', 'ASSISTANT_STATISTICIAN'),
+  seedUser('user-admin-1', 'Alejandro Montecchia', 'admin@camg.com.ar', 'ADMIN'),
+  seedUser('user-coach-2', 'Sergio Hernández', 'shernandez@camg.com.ar', 'HEAD_COACH'),
+  seedUser('user-coach-3', 'Julio Lamas', 'jlamas@camg.com.ar', 'HEAD_COACH'),
 ];
 
 export const SEED_DIVISIONS: Division[] = [
@@ -215,6 +227,7 @@ export const SEED_PLAYERS: Player[] = [
     dominantHand: 'LEFT',
     position: 'C',
     status: 'INJURED',
+    medicalNote: 'Esguince de tobillo derecho (grado II). Alta estimada en 2 semanas.',
     teamId: 'team-primera',
     clubId: SEED_CLUB_ID,
   },
@@ -292,9 +305,9 @@ export const SEED_PLAYERS: Player[] = [
 export const SEED_TEAMS: Team[] = [
   {
     id: 'team-primera',
-    name: 'Hoop Athletic Club - Primera',
+    name: `${CLUB_PROFILE.name} - Primera`,
     divisionId: 'div-primera',
-    season: '2025/2026',
+    season: CLUB_PROFILE.season,
     headCoachId: 'user-coach-1',
     assistantCoachIds: ['user-assistant-1'],
     playerIds: [
@@ -305,190 +318,225 @@ export const SEED_TEAMS: Team[] = [
   },
   {
     id: 'team-u19',
-    name: 'Hoop Athletic Club - U19',
+    name: `${CLUB_PROFILE.name} - U19`,
     divisionId: 'div-u19',
-    season: '2025/2026',
-    headCoachId: 'user-coach-1',
+    season: CLUB_PROFILE.season,
+    headCoachId: 'user-coach-2',
     assistantCoachIds: ['user-assistant-1'],
     playerIds: ['p-u19-1', 'p-u19-2', 'p-u19-3'],
     clubId: SEED_CLUB_ID,
   },
   {
     id: 'team-u17',
-    name: 'Hoop Athletic Club - U17',
+    name: `${CLUB_PROFILE.name} - U17`,
     divisionId: 'div-u17',
-    season: '2025/2026',
-    headCoachId: 'user-coach-1',
+    season: CLUB_PROFILE.season,
+    headCoachId: 'user-coach-3',
     assistantCoachIds: [],
     playerIds: ['p-u17-1', 'p-u17-2'],
     clubId: SEED_CLUB_ID,
   },
 ];
 
-export const SEED_MATCHES: Match[] = [
-  // 1. PARTIDO FINALIZADO (Con historial completo)
-  {
-    id: 'match-past-1',
-    clubId: SEED_CLUB_ID,
-    divisionId: 'div-primera',
-    ownTeamId: 'team-primera',
-    ownTeamName: 'Hoop Athletic Club',
-    rivalTeamName: 'Ferro Carril Oeste',
-    date: '2026-10-24T20:30:00Z',
-    condition: 'HOME',
-    tournament: 'Torneo Federal - Conferencia Sur',
-    venue: 'Estadio Hoop Arena',
-    status: 'FINISHED',
-    currentQuarter: 'Q4',
-    quarterTimeRemainingSeconds: 0,
-    homeScore: 84,
-    awayScore: 78,
-    homeFoulsQuarter: 3,
-    awayFoulsQuarter: 4,
-    homeTimeouts: { firstHalfRemaining: 0, secondHalfRemaining: 1, overtimeRemaining: 1 },
-    awayTimeouts: { firstHalfRemaining: 0, secondHalfRemaining: 0, overtimeRemaining: 1 },
-    activeLineupOwn: ['p-1', 'p-3', 'p-5', 'p-7', 'p-9'],
-    rosterOwnPlayerIds: [
-      'p-1', 'p-2', 'p-3', 'p-4', 'p-5', 'p-6',
-      'p-7', 'p-8', 'p-9', 'p-10', 'p-11',
-    ],
-    events: [
-      {
-        id: 'ev-1',
-        matchId: 'match-past-1',
-        quarter: 'Q1',
-        quarterTimeRemainingSeconds: 580,
-        teamId: 'team-primera',
-        isOwnTeam: true,
-        playerId: 'p-1',
-        type: 'FG3_MADE',
-        coordinates: { x: 25, y: 35 },
-        scoreAtEvent: { home: 3, away: 0 },
-        timestamp: '2026-10-24T20:31:00Z',
-      },
-      {
-        id: 'ev-2',
-        matchId: 'match-past-1',
-        quarter: 'Q1',
-        quarterTimeRemainingSeconds: 540,
-        teamId: 'team-primera',
-        isOwnTeam: true,
-        playerId: 'p-7',
-        type: 'FG2_MADE',
-        coordinates: { x: 50, y: 15 },
-        scoreAtEvent: { home: 5, away: 0 },
-        timestamp: '2026-10-24T20:32:00Z',
-      },
-    ],
-  },
+const PRIMERA_ROSTER = ['p-1', 'p-2', 'p-3', 'p-4', 'p-5', 'p-6', 'p-7', 'p-8', 'p-9', 'p-10', 'p-11'];
 
-  // 2. PARTIDO EN VIVO / LISTO PARA JUGAR HOY
-  {
-    id: 'match-live-today',
-    clubId: SEED_CLUB_ID,
-    divisionId: 'div-primera',
-    ownTeamId: 'team-primera',
-    ownTeamName: 'Hoop Athletic Club',
-    rivalTeamName: 'Obras Sanitarias',
-    date: new Date().toISOString(),
-    condition: 'HOME',
-    tournament: 'Torneo Federal - Fecha 12',
-    venue: 'Estadio Hoop Arena',
-    status: 'LIVE',
-    currentQuarter: 'Q2',
-    quarterTimeRemainingSeconds: 428, // 07:08 en Q2
-    homeScore: 36,
-    awayScore: 31,
-    homeFoulsQuarter: 2,
-    awayFoulsQuarter: 4, // Rival en Bonus
-    homeTimeouts: { firstHalfRemaining: 1, secondHalfRemaining: 3, overtimeRemaining: 1 },
-    awayTimeouts: { firstHalfRemaining: 0, secondHalfRemaining: 3, overtimeRemaining: 1 },
-    activeLineupOwn: ['p-1', 'p-4', 'p-5', 'p-7', 'p-9'],
-    rosterOwnPlayerIds: [
-      'p-1', 'p-2', 'p-3', 'p-4', 'p-5', 'p-6',
-      'p-7', 'p-8', 'p-9', 'p-10', 'p-11',
-    ],
-    events: [
-      {
-        id: 'live-ev-1',
-        matchId: 'match-live-today',
-        quarter: 'Q1',
-        quarterTimeRemainingSeconds: 580,
-        teamId: 'team-primera',
-        isOwnTeam: true,
-        playerId: 'p-1',
-        type: 'FG2_MADE',
-        coordinates: { x: 48, y: 22 },
-        scoreAtEvent: { home: 2, away: 0 },
-        timestamp: new Date().toISOString(),
-      },
-      {
-        id: 'live-ev-2',
-        matchId: 'match-live-today',
-        quarter: 'Q1',
-        quarterTimeRemainingSeconds: 520,
-        teamId: 'rival-team',
-        isOwnTeam: false,
-        type: 'FG3_MADE',
-        scoreAtEvent: { home: 2, away: 3 },
-        timestamp: new Date().toISOString(),
-      },
-      {
-        id: 'live-ev-3',
-        matchId: 'match-live-today',
-        quarter: 'Q2',
-        quarterTimeRemainingSeconds: 490,
-        teamId: 'team-primera',
-        isOwnTeam: true,
-        playerId: 'p-7',
-        type: 'FG3_MADE',
-        coordinates: { x: 80, y: 40 },
-        scoreAtEvent: { home: 34, away: 31 },
-        timestamp: new Date().toISOString(),
-      },
-      {
-        id: 'live-ev-4',
-        matchId: 'match-live-today',
-        quarter: 'Q2',
-        quarterTimeRemainingSeconds: 450,
-        teamId: 'team-primera',
-        isOwnTeam: true,
-        playerId: 'p-9',
-        type: 'FG2_MADE',
-        coordinates: { x: 50, y: 12 },
-        scoreAtEvent: { home: 36, away: 31 },
-        timestamp: new Date().toISOString(),
-      },
-    ],
-  },
+const PRIMERA_SCORING_WEIGHTS: Record<string, number> = {
+  'p-1': 1.2,
+  'p-2': 1.3,
+  'p-3': 1.5,
+  'p-7': 1.6,
+  'p-8': 1.4,
+  'p-9': 1.1,
+};
 
-  // 3. PARTIDO PROGRAMADO (Próxima fecha)
-  {
-    id: 'match-upcoming-1',
-    clubId: SEED_CLUB_ID,
-    divisionId: 'div-primera',
-    ownTeamId: 'team-primera',
-    ownTeamName: 'Hoop Athletic Club',
-    rivalTeamName: 'Boca Juniors',
-    date: '2026-11-06T21:00:00Z',
-    condition: 'AWAY',
-    tournament: 'Torneo Federal - Fecha 13',
-    venue: 'Microestadio Luis Conde (La Bombonerita)',
-    status: 'SCHEDULED',
-    currentQuarter: 'Q1',
-    quarterTimeRemainingSeconds: 600,
-    homeScore: 0,
-    awayScore: 0,
-    homeFoulsQuarter: 0,
-    awayFoulsQuarter: 0,
-    homeTimeouts: { firstHalfRemaining: 2, secondHalfRemaining: 3, overtimeRemaining: 1 },
-    awayTimeouts: { firstHalfRemaining: 2, secondHalfRemaining: 3, overtimeRemaining: 1 },
-    activeLineupOwn: [],
-    rosterOwnPlayerIds: [
-      'p-1', 'p-2', 'p-3', 'p-4', 'p-5', 'p-6',
-      'p-7', 'p-8', 'p-9', 'p-10', 'p-11',
-    ],
-    events: [],
-  },
-];
+const OWN_TEAM = {
+  clubId: SEED_CLUB_ID,
+  divisionId: 'div-primera',
+  ownTeamId: 'team-primera',
+  ownTeamName: CLUB_PROFILE.name,
+};
 
+function atDayOffset(now: Date, days: number, hourUtc: number, minuteUtc = 0): Date {
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + days, hourUtc, minuteUtc)
+  );
+}
+
+function period(
+  quarter: PeriodPlan['quarter'],
+  own: number,
+  rival: number,
+  ownFouls: number,
+  rivalFouls: number,
+  endClock?: number
+): PeriodPlan {
+  return { quarter, own, rival, ownFouls, rivalFouls, endClock };
+}
+
+interface PlayedMatchSpec {
+  id: string;
+  seed: number;
+  kickoff: Date;
+  rivalTeamName: string;
+  condition: Match['condition'];
+  tournament: string;
+  venue: string;
+  status: 'LIVE' | 'FINISHED';
+  starterIds: string[];
+  periods: PeriodPlan[];
+  homeTimeouts: Match['homeTimeouts'];
+  awayTimeouts: Match['awayTimeouts'];
+}
+
+function buildPlayedMatch(spec: PlayedMatchSpec): Match {
+  const { events, activeLineup } = generatePlayByPlay({
+    matchId: spec.id,
+    ownTeamId: OWN_TEAM.ownTeamId,
+    condition: spec.condition,
+    kickoff: spec.kickoff,
+    seed: spec.seed,
+    players: SEED_PLAYERS,
+    rosterIds: PRIMERA_ROSTER,
+    starterIds: spec.starterIds,
+    scoringWeights: PRIMERA_SCORING_WEIGHTS,
+    periods: spec.periods,
+  });
+  const lastPeriod = spec.periods[spec.periods.length - 1];
+  const base = createMatch(
+    {
+      ...OWN_TEAM,
+      rivalTeamName: spec.rivalTeamName,
+      date: spec.kickoff.toISOString(),
+      condition: spec.condition,
+      tournament: spec.tournament,
+      venue: spec.venue,
+    },
+    { id: spec.id }
+  );
+  return withDerivedScoreboard({
+    ...base,
+    status: spec.status,
+    currentQuarter: lastPeriod.quarter,
+    quarterTimeRemainingSeconds: lastPeriod.endClock ?? 0,
+    homeTimeouts: spec.homeTimeouts,
+    awayTimeouts: spec.awayTimeouts,
+    rosterOwnPlayerIds: PRIMERA_ROSTER,
+    startingLineupOwn: spec.starterIds,
+    activeLineupOwn: activeLineup,
+    events,
+  });
+}
+
+export function createSeedMatches(now: Date): Match[] {
+  return [
+    buildPlayedMatch({
+      id: 'match-past-3',
+      seed: 3103,
+      kickoff: atDayOffset(now, -20, 23),
+      rivalTeamName: 'Peñarol de Mar del Plata',
+      condition: 'HOME',
+      tournament: 'Torneo Federal - Fecha 9',
+      venue: 'Estadio CAMG',
+      status: 'FINISHED',
+      starterIds: ['p-1', 'p-3', 'p-6', 'p-7', 'p-10'],
+      periods: [
+        period('Q1', 24, 18, 3, 2),
+        period('Q2', 20, 21, 4, 3),
+        period('Q3', 19, 22, 2, 4),
+        period('Q4', 25, 19, 3, 5),
+      ],
+      homeTimeouts: { firstHalfRemaining: 1, secondHalfRemaining: 1, overtimeRemaining: 1 },
+      awayTimeouts: { firstHalfRemaining: 0, secondHalfRemaining: 0, overtimeRemaining: 1 },
+    }),
+    buildPlayedMatch({
+      id: 'match-past-2',
+      seed: 2207,
+      kickoff: atDayOffset(now, -13, 0),
+      rivalTeamName: 'Quimsa',
+      condition: 'AWAY',
+      tournament: 'Torneo Federal - Fecha 10',
+      venue: 'Estadio Ciudad, Santiago del Estero',
+      status: 'FINISHED',
+      starterIds: ['p-2', 'p-4', 'p-5', 'p-8', 'p-9'],
+      periods: [
+        period('Q1', 18, 20, 3, 2),
+        period('Q2', 17, 19, 4, 3),
+        period('Q3', 20, 18, 3, 3),
+        period('Q4', 16, 22, 5, 2),
+      ],
+      homeTimeouts: { firstHalfRemaining: 1, secondHalfRemaining: 2, overtimeRemaining: 1 },
+      awayTimeouts: { firstHalfRemaining: 0, secondHalfRemaining: 0, overtimeRemaining: 1 },
+    }),
+    buildPlayedMatch({
+      id: 'match-past-1',
+      seed: 1024,
+      kickoff: atDayOffset(now, -6, 23, 30),
+      rivalTeamName: 'Ferro Carril Oeste',
+      condition: 'HOME',
+      tournament: 'Torneo Federal - Fecha 11',
+      venue: 'Estadio CAMG',
+      status: 'FINISHED',
+      starterIds: ['p-1', 'p-3', 'p-5', 'p-7', 'p-9'],
+      periods: [
+        period('Q1', 22, 19, 2, 3),
+        period('Q2', 14, 12, 4, 3),
+        period('Q3', 26, 24, 3, 4),
+        period('Q4', 22, 23, 3, 4),
+      ],
+      homeTimeouts: { firstHalfRemaining: 0, secondHalfRemaining: 1, overtimeRemaining: 1 },
+      awayTimeouts: { firstHalfRemaining: 0, secondHalfRemaining: 0, overtimeRemaining: 1 },
+    }),
+    {
+      ...buildPlayedMatch({
+        id: SEED_LIVE_MATCH_ID,
+        seed: 4242,
+        // Tip-off 45 minutes ago so every event timestamp is in the past.
+        kickoff: new Date(now.getTime() - 45 * 60 * 1000),
+        rivalTeamName: 'Obras Sanitarias',
+        condition: 'HOME',
+        tournament: 'Torneo Federal - Fecha 12',
+        venue: 'Estadio CAMG',
+        status: 'LIVE',
+        starterIds: ['p-1', 'p-4', 'p-5', 'p-7', 'p-9'],
+        periods: [
+          period('Q1', 26, 22, 3, 3),
+          // 07:08 left in Q2 and the rival already in bonus (4 team fouls).
+          period('Q2', 10, 9, 2, 4, 428),
+        ],
+        homeTimeouts: { firstHalfRemaining: 1, secondHalfRemaining: 3, overtimeRemaining: 1 },
+        awayTimeouts: { firstHalfRemaining: 0, secondHalfRemaining: 3, overtimeRemaining: 1 },
+      }),
+      date: now.toISOString(),
+    },
+    createMatch(
+      {
+        ...OWN_TEAM,
+        rivalTeamName: 'Boca Juniors',
+        date: atDayOffset(now, 7, 0).toISOString(),
+        condition: 'AWAY',
+        tournament: 'Torneo Federal - Fecha 13',
+        venue: 'Microestadio Luis Conde (La Bombonerita)',
+        rosterOwnPlayerIds: PRIMERA_ROSTER,
+      },
+      { id: 'match-upcoming-1' }
+    ),
+  ];
+}
+
+export interface SeedState {
+  users: User[];
+  divisions: Division[];
+  teams: Team[];
+  players: Player[];
+  matches: Match[];
+}
+
+export function createSeedState(now: Date = new Date()): SeedState {
+  return {
+    users: SEED_USERS,
+    divisions: SEED_DIVISIONS,
+    teams: SEED_TEAMS,
+    players: SEED_PLAYERS,
+    matches: createSeedMatches(now),
+  };
+}

@@ -1,5 +1,14 @@
-export * from './TouchButton/TouchButton';
+export { TouchButton } from './TouchButton/TouchButton';
+export type { TouchButtonProps } from './TouchButton/TouchButton';
+export * from './TouchButton/touch-button-styles';
+export * from './LinkButton/LinkButton';
+export * from './IconButton/IconButton';
+export * from './FilterChip/FilterChip';
+export * from './FormField/FormField';
+export * from './TextField/TextField';
+export * from './SelectField/SelectField';
 export * from './JerseyBadge/JerseyBadge';
 export * from './FoulDots/FoulDots';
 export * from './StatBadge/StatBadge';
 export * from './StatusPill/StatusPill';
+export * from './ClubCrest/ClubCrest';

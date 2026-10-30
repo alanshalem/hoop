@@ -1,0 +1,1 @@
+ALTER TABLE "sync_records" ADD COLUMN "field_versions" jsonb;

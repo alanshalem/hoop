@@ -59,6 +59,28 @@ export const PlayByPlayEventTypeSchema = z.enum([
 ]);
 export type PlayByPlayEventType = z.infer<typeof PlayByPlayEventTypeSchema>;
 
+/**
+ * Event labels in Spanish for play-by-play feeds and feedback.
+ */
+export const PLAY_BY_PLAY_EVENT_LABELS: Record<PlayByPlayEventType, string> = {
+  FT_MADE: 'Tiro libre convertido',
+  FT_MISS: 'Tiro libre fallado',
+  FG2_MADE: 'Doble convertido',
+  FG2_MISS: 'Doble fallado',
+  FG3_MADE: 'Triple convertido',
+  FG3_MISS: 'Triple fallado',
+  OREB: 'Rebote ofensivo',
+  DREB: 'Rebote defensivo',
+  AST: 'Asistencia',
+  STL: 'Robo',
+  BLK: 'Tapa',
+  TOV: 'Pérdida',
+  FOUL_PERSONAL: 'Falta personal',
+  FOUL_TECHNICAL: 'Falta técnica',
+  FOUL_UNSPORTSMANLIKE: 'Falta antideportiva',
+  SUBSTITUTION: 'Cambio',
+};
+
 // -----------------------------------------------------------------------------
 // EVENT DEFINITIONS & SCHEMAS
 // -----------------------------------------------------------------------------
@@ -165,6 +187,10 @@ export const MatchSchema = z.object({
     secondHalfRemaining: 3,
     overtimeRemaining: 1,
   }),
+  /**
+   * Starting five of the own team (used as the initial lineup for +/-).
+   */
+  startingLineupOwn: z.array(z.string()).max(5).default([]),
   /**
    * 5 active player IDs on court for own team.
    */

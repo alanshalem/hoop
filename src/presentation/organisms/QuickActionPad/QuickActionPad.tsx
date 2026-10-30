@@ -1,225 +1,179 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
-import gsap from 'gsap';
-import { AlertOctagon } from 'lucide-react';
-import { Player } from '@/core/domain/entities/club.types';
-import { PlayByPlayEventType } from '@/core/domain/entities/match.types';
-import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
+import React, { useRef } from 'react';
 import clsx from 'clsx';
+import { ArrowLeftRight, Lock, OctagonAlert, UserRound } from 'lucide-react';
+import type { Player } from '@/core/domain/entities/club.types';
+import type { PlayByPlayEventType } from '@/core/domain/entities/match.types';
+import { isPlayerFouledOut } from '@/core/domain/rules/basketball-rules';
+import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { MOTION, gsap } from '@/presentation/motion/motion';
+import { useMotion } from '@/presentation/motion/useMotion';
+import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
+import type { TouchButtonVariant } from '@/presentation/atoms/TouchButton/touch-button-styles';
 import styles from './QuickActionPad.module.css';
 
 export interface QuickActionPadProps {
+  /** On-court player the actions are recorded for. */
   selectedPlayer: Player | null;
   playerFouls?: number;
+  readOnly?: boolean;
   onRecordAction: (type: PlayByPlayEventType) => void;
-  onRequestSub?: () => void;
+  /** Opens the substitution flow for the selected player (fifth foul). */
+  onRequestSub: () => void;
 }
+
+interface PadAction {
+  type: PlayByPlayEventType;
+  label: string;
+  variant: TouchButtonVariant;
+  className?: string;
+}
+
+interface PadGroup {
+  title: string;
+  columns: 2 | 3;
+  actions: PadAction[];
+}
+
+const PAD_GROUPS: PadGroup[] = [
+  {
+    title: 'Convertidos',
+    columns: 3,
+    actions: [
+      { type: 'FT_MADE', label: '+1 TL', variant: 'success' },
+      { type: 'FG2_MADE', label: '+2', variant: 'primary' },
+      { type: 'FG3_MADE', label: '+3', variant: 'primary' },
+    ],
+  },
+  {
+    title: 'Fallados',
+    columns: 3,
+    actions: [
+      { type: 'FT_MISS', label: 'TL', variant: 'secondary' },
+      { type: 'FG2_MISS', label: '2P', variant: 'secondary' },
+      { type: 'FG3_MISS', label: '3P', variant: 'secondary' },
+    ],
+  },
+  {
+    title: 'Rebotes y juego',
+    columns: 2,
+    actions: [
+      { type: 'OREB', label: 'Reb. ofensivo', variant: 'courtAction' },
+      { type: 'DREB', label: 'Reb. defensivo', variant: 'courtAction' },
+      { type: 'AST', label: 'Asistencia', variant: 'courtAction' },
+      { type: 'STL', label: 'Robo', variant: 'courtAction' },
+      { type: 'BLK', label: 'Tapa', variant: 'courtAction' },
+      { type: 'TOV', label: 'Pérdida', variant: 'courtAction', className: styles.turnoverBtn },
+    ],
+  },
+  {
+    title: 'Faltas',
+    columns: 3,
+    actions: [
+      { type: 'FOUL_PERSONAL', label: 'Personal', variant: 'secondary', className: styles.foulBtn },
+      { type: 'FOUL_TECHNICAL', label: 'Técnica', variant: 'danger' },
+      { type: 'FOUL_UNSPORTSMANLIKE', label: 'Antidep.', variant: 'danger' },
+    ],
+  },
+];
 
 export const QuickActionPad: React.FC<QuickActionPadProps> = ({
   selectedPlayer,
   playerFouls = 0,
+  readOnly = false,
   onRecordAction,
   onRequestSub,
 }) => {
-  const alertRef = useRef<HTMLDivElement | null>(null);
-  const isFouledOut = playerFouls >= 5;
+  const bannerRef = useRef<HTMLDivElement | null>(null);
+  const isFouledOut = selectedPlayer !== null && isPlayerFouledOut(playerFouls);
 
-  useEffect(() => {
-    if (isFouledOut && alertRef.current) {
+  useMotion(
+    () => {
+      if (!isFouledOut || !bannerRef.current) return;
       gsap.fromTo(
-        alertRef.current,
+        bannerRef.current,
         { scale: 0.85, opacity: 0 },
-        { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(1.5)' }
+        { scale: 1, opacity: 1, duration: 0.35, ease: MOTION.ease.pop }
+      );
+    },
+    { dependencies: [isFouledOut, selectedPlayer?.id] }
+  );
+
+  const renderBody = () => {
+    if (readOnly) {
+      return (
+        <div className={styles.placeholder}>
+          <Lock size={ICON_SIZE.lg} aria-hidden="true" />
+          <p>Tu rol no puede registrar acciones en vivo.</p>
+        </div>
       );
     }
-  }, [isFouledOut]);
 
-  if (!selectedPlayer) {
+    if (!selectedPlayer) {
+      return (
+        <div className={styles.placeholder}>
+          <UserRound size={ICON_SIZE.lg} aria-hidden="true" />
+          <p>Selecciona un jugador en cancha para habilitar las acciones.</p>
+        </div>
+      );
+    }
+
     return (
-      <aside className={styles.container} aria-label="Pad de acciones rápidas">
-        <div className={styles.padHeader}>
-          <span className={styles.title}>Acciones Rápidas</span>
-        </div>
-        <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
-          <p>👈 Selecciona un jugador en cancha para habilitar el teclado numérico y las acciones.</p>
-        </div>
-      </aside>
+      <>
+        {isFouledOut && (
+          <div ref={bannerRef} className={styles.exclusionBanner} role="alert">
+            <span className={styles.exclusionTitle}>
+              <OctagonAlert size={ICON_SIZE.md} aria-hidden="true" />
+              5 faltas: jugador excluido
+            </span>
+            <p className={styles.exclusionText}>Reglamento FIBA: debe abandonar el juego de inmediato.</p>
+            <TouchButton
+              variant="danger"
+              size="lg"
+              fullWidth
+              leftIcon={<ArrowLeftRight size={ICON_SIZE.md} />}
+              onClick={onRequestSub}
+            >
+              Realizar sustitución
+            </TouchButton>
+          </div>
+        )}
+
+        {PAD_GROUPS.map((group) => (
+          <section key={group.title} className={styles.group} aria-label={group.title}>
+            <h3 className={styles.groupTitle}>{group.title}</h3>
+            <div className={clsx(styles.buttonGrid, group.columns === 3 ? styles.buttonGrid3 : styles.buttonGrid2)}>
+              {group.actions.map((action) => (
+                <TouchButton
+                  key={action.type}
+                  variant={action.variant}
+                  size="lg"
+                  className={clsx(styles.padBtn, action.className)}
+                  disabled={isFouledOut}
+                  onClick={() => onRecordAction(action.type)}
+                >
+                  {action.label}
+                </TouchButton>
+              ))}
+            </div>
+          </section>
+        ))}
+      </>
     );
-  }
+  };
 
   return (
-    <aside className={clsx(styles.container, 'no-scrollbar')} aria-label="Pad de acciones rápidas">
+    <aside className={clsx(styles.container, 'no-scrollbar')} aria-label="Pad de acciones rápidas" data-tour="live-pad">
       <div className={styles.padHeader}>
-        <span className={styles.title}>Acciones Rápidas</span>
-        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-orange)', fontWeight: 'bold' }}>
-          #{selectedPlayer.dorsal} {selectedPlayer.lastName}
-        </span>
+        <h2 className={styles.title}>Acciones rápidas</h2>
+        {selectedPlayer && !readOnly && (
+          <span className={styles.playerTag}>
+            #{selectedPlayer.dorsal} {selectedPlayer.lastName}
+          </span>
+        )}
       </div>
-
-      {/* 5TH FOUL EXCLUSION ALERT */}
-      {isFouledOut && (
-        <div ref={alertRef} className={styles.exclusionBanner}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <AlertOctagon size={18} />
-            <span>5 FALTAS: JUGADOR EXPULSADO</span>
-          </div>
-          <p style={{ fontSize: '11px', fontWeight: 'normal' }}>
-            Reglamento FIBA: Debe abandonar el juego de inmediato.
-          </p>
-          <TouchButton
-            variant="danger"
-            size="md"
-            onClick={onRequestSub}
-            style={{ marginTop: '4px' }}
-          >
-            REALIZAR SUSTITUCIÓN AHORA
-          </TouchButton>
-        </div>
-      )}
-
-      <div className={styles.actionGrid}>
-        {/* TIROS CONVERTIDOS */}
-        <div>
-          <span className={styles.groupTitle}>Tiros Convertidos</span>
-          <div className={styles.buttonGrid3}>
-            <TouchButton
-              variant="success"
-              size="lg"
-              disabled={isFouledOut}
-              onClick={() => onRecordAction('FT_MADE')}
-            >
-              +1 TL
-            </TouchButton>
-            <TouchButton
-              variant="primary"
-              size="lg"
-              disabled={isFouledOut}
-              onClick={() => onRecordAction('FG2_MADE')}
-            >
-              +2 DOBLE
-            </TouchButton>
-            <TouchButton
-              variant="primary"
-              size="lg"
-              disabled={isFouledOut}
-              onClick={() => onRecordAction('FG3_MADE')}
-            >
-              +3 TRIPLE
-            </TouchButton>
-          </div>
-        </div>
-
-        {/* TIROS ERRADOS */}
-        <div>
-          <span className={styles.groupTitle}>Tiros Fallados</span>
-          <div className={styles.buttonGrid3}>
-            <TouchButton
-              variant="secondary"
-              size="md"
-              disabled={isFouledOut}
-              onClick={() => onRecordAction('FT_MISS')}
-            >
-              Fallo TL
-            </TouchButton>
-            <TouchButton
-              variant="secondary"
-              size="md"
-              disabled={isFouledOut}
-              onClick={() => onRecordAction('FG2_MISS')}
-            >
-              Fallo 2P
-            </TouchButton>
-            <TouchButton
-              variant="secondary"
-              size="md"
-              disabled={isFouledOut}
-              onClick={() => onRecordAction('FG3_MISS')}
-            >
-              Fallo 3P
-            </TouchButton>
-          </div>
-        </div>
-
-        {/* REBOTES Y JUEGO */}
-        <div>
-          <span className={styles.groupTitle}>Rebotes y Juego</span>
-          <div className={styles.buttonGrid2}>
-            <TouchButton
-              variant="courtAction"
-              size="md"
-              disabled={isFouledOut}
-              onClick={() => onRecordAction('OREB')}
-            >
-              REB OFENSIVO
-            </TouchButton>
-            <TouchButton
-              variant="courtAction"
-              size="md"
-              disabled={isFouledOut}
-              onClick={() => onRecordAction('DREB')}
-            >
-              REB DEFENSIVO
-            </TouchButton>
-            <TouchButton
-              variant="courtAction"
-              size="md"
-              disabled={isFouledOut}
-              onClick={() => onRecordAction('AST')}
-            >
-              ASISTENCIA
-            </TouchButton>
-            <TouchButton
-              variant="courtAction"
-              size="md"
-              disabled={isFouledOut}
-              onClick={() => onRecordAction('STL')}
-            >
-              ROBO
-            </TouchButton>
-            <TouchButton
-              variant="courtAction"
-              size="md"
-              disabled={isFouledOut}
-              onClick={() => onRecordAction('BLK')}
-            >
-              TAPÓN
-            </TouchButton>
-            <TouchButton
-              variant="danger"
-              size="md"
-              disabled={isFouledOut}
-              onClick={() => onRecordAction('TOV')}
-            >
-              PÉRDIDA
-            </TouchButton>
-          </div>
-        </div>
-
-        {/* FALTAS */}
-        <div>
-          <span className={styles.groupTitle}>Faltas</span>
-          <div className={styles.buttonGrid2}>
-            <TouchButton
-              variant="secondary"
-              size="md"
-              disabled={isFouledOut}
-              onClick={() => onRecordAction('FOUL_PERSONAL')}
-              style={{ borderColor: 'var(--color-amber)', color: 'var(--color-amber)' }}
-            >
-              FALTA PERSONAL
-            </TouchButton>
-            <TouchButton
-              variant="danger"
-              size="md"
-              disabled={isFouledOut}
-              onClick={() => onRecordAction('FOUL_TECHNICAL')}
-            >
-              FALTA TÉCNICA
-            </TouchButton>
-          </div>
-        </div>
-      </div>
+      {renderBody()}
     </aside>
   );
 };

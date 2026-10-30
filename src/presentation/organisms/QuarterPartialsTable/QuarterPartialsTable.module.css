@@ -1,0 +1,79 @@
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.table th,
+.table td {
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.table thead th {
+  background-color: var(--brand-black);
+  color: var(--text-on-brand);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-display);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  border-bottom: 2px solid var(--brand-primary);
+}
+
+.table abbr {
+  text-decoration: none;
+}
+
+.table td {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.teamCol {
+  position: sticky;
+  left: 0;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  background-color: var(--bg-surface-1);
+}
+
+tbody .teamCol {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.ownRow .teamCol {
+  color: var(--brand-primary-ink);
+}
+
+.table td.periodWon {
+  color: var(--text-primary);
+}
+
+.finalCol {
+  border-left: 2px solid var(--border-strong);
+}
+
+.table td.finalCol {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-display);
+  color: var(--text-primary);
+}
+
+.table td.finalWon {
+  color: var(--brand-primary-ink);
+}

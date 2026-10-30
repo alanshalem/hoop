@@ -1,261 +1,274 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Plus, Search, UserPlus } from 'lucide-react';
-import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
-import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
-import { PlayerCard } from '@/presentation/molecules/PlayerCard/PlayerCard';
-import { PlayerFormModal } from '@/presentation/organisms/PlayerFormModal/PlayerFormModal';
-import { useClubStore } from '@/core/application/stores/useClubStore';
-import {
-  BasketballPosition,
-  Player,
-  PlayerPhysicalStatus,
-} from '@/core/domain/entities/club.types';
+import React, { useMemo, useState } from 'react';
+import { HeartPulse, Plus, Search, UserPlus, Users } from 'lucide-react';
 import clsx from 'clsx';
+import {
+  BASKETBALL_POSITION_LABELS,
+  BasketballPositionSchema,
+  PLAYER_STATUS_LABELS,
+  Player,
+  PlayerPhysicalStatusSchema,
+} from '@/core/domain/entities/club.types';
+import { can } from '@/core/domain/rules/permissions';
+import { calculateMatchBoxScore } from '@/core/domain/rules/match-derivations';
+import { useClubStore } from '@/core/application/stores/useClubStore';
+import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
+import { PageHeader } from '@/presentation/molecules/PageHeader/PageHeader';
+import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
+import { FilterChipGroup } from '@/presentation/molecules/FilterChipGroup/FilterChipGroup';
+import { PlayerCard } from '@/presentation/molecules/PlayerCard/PlayerCard';
+import { FilterChip } from '@/presentation/atoms/FilterChip/FilterChip';
+import { TextField } from '@/presentation/atoms/TextField/TextField';
+import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
+import { notify } from '@/presentation/organisms/DialogHost/dialog-store';
+import {
+  DOMINANT_HAND_LABELS,
+  PlayerFormModal,
+} from '@/presentation/organisms/PlayerFormModal/PlayerFormModal';
+import { isYouthCategory } from '@/presentation/organisms/DivisionFormModal/division-labels';
+import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import styles from './page.module.css';
 
+const ALL = 'ALL';
+const NO_TEAM = 'NO_TEAM';
+
+type Facet = 'division' | 'position' | 'status';
+type Filters = Record<Facet, string>;
+
+const FACETS: Facet[] = ['division', 'position', 'status'];
+
 export default function PlayersPage() {
-  const { players, divisions, teams, callUpPlayerToTeam } = useClubStore();
+  const players = useClubStore((state) => state.players);
+  const teams = useClubStore((state) => state.teams);
+  const divisions = useClubStore((state) => state.divisions);
+  const matches = useClubStore((state) => state.matches);
+  const role = useClubStore((state) => state.currentUser.role);
+  const callUpPlayerToTeam = useClubStore((state) => state.callUpPlayerToTeam);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDivisionId, setSelectedDivisionId] = useState<string>('ALL');
-  const [selectedPosition, setSelectedPosition] = useState<string>('ALL');
-  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const canManage = can(role, 'MANAGE_PLAYERS');
+  useScreenTour('players');
 
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState<Filters>({ division: ALL, position: ALL, status: ALL });
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [playerToEdit, setPlayerToEdit] = useState<Player | null>(null);
 
-  // Filtered Players
-  const filteredPlayers = useMemo(() => {
-    return players.filter((player) => {
-      // Search
-      const searchLower = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !searchLower ||
-        player.lastName.toLowerCase().includes(searchLower) ||
-        player.firstName.toLowerCase().includes(searchLower) ||
-        player.dorsal.toString().includes(searchLower);
+  const divisionIdOf = (player: Player): string =>
+    teams.find((t) => t.id === player.teamId)?.divisionId ?? NO_TEAM;
+  const divisionOf = (player: Player) => divisions.find((d) => d.id === divisionIdOf(player));
 
-      if (!matchesSearch) return false;
-
-      // Division
-      if (selectedDivisionId !== 'ALL') {
-        const team = teams.find((t) => t.id === player.teamId);
-        if (team?.divisionId !== selectedDivisionId) return false;
-      }
-
-      // Position
-      if (selectedPosition !== 'ALL' && player.position !== selectedPosition) {
-        return false;
-      }
-
-      // Status
-      if (selectedStatus !== 'ALL' && player.status !== selectedStatus) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [
-    players,
-    teams,
-    searchQuery,
-    selectedDivisionId,
-    selectedPosition,
-    selectedStatus,
-  ]);
-
-  const handleCallUp = (player: Player) => {
-    const primeraTeam = teams.find((t) => t.divisionId === 'div-primera');
-    if (!primeraTeam) return;
-
-    callUpPlayerToTeam(player.id, primeraTeam.id);
-    alert(
-      `¡${player.firstName} ${player.lastName} convocado al plantel de Primera División!`
-    );
+  const facetValue = (player: Player, facet: Facet): string => {
+    if (facet === 'division') return divisionIdOf(player);
+    if (facet === 'position') return player.position;
+    return player.status;
   };
 
-  const positions: BasketballPosition[] = ['PG', 'SG', 'SF', 'PF', 'C'];
-  const statuses: PlayerPhysicalStatus[] = ['ACTIVE', 'INJURED', 'SUSPENDED'];
+  // Season points per player, from the finished matches of every team.
+  const seasonPoints = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const match of matches) {
+      if (match.status !== 'FINISHED') continue;
+      for (const stats of Object.values(calculateMatchBoxScore(match).players)) {
+        totals.set(stats.playerId, (totals.get(stats.playerId) ?? 0) + stats.points);
+      }
+    }
+    return totals;
+  }, [matches]);
+
+  const query = search.trim().toLowerCase();
+  const searched = players.filter(
+    (p) =>
+      !query ||
+      p.firstName.toLowerCase().includes(query) ||
+      p.lastName.toLowerCase().includes(query) ||
+      p.dorsal.toString() === query
+  );
+
+  /** Matches every active filter except `skip` (faceted counts). */
+  const matchesFilters = (player: Player, skip?: Facet) =>
+    FACETS.every((facet) => facet === skip || filters[facet] === ALL || facetValue(player, facet) === filters[facet]);
+
+  const countFor = (facet: Facet, value: string) =>
+    searched.filter((p) => matchesFilters(p, facet) && (value === ALL || facetValue(p, facet) === value))
+      .length;
+
+  const visiblePlayers = searched
+    .filter((p) => matchesFilters(p))
+    .sort((a, b) => a.lastName.localeCompare(b.lastName, 'es'));
+
+  const setFilter = (facet: Facet, value: string) => setFilters((current) => ({ ...current, [facet]: value }));
+
+  const hasUnassigned = players.some((p) => divisionIdOf(p) === NO_TEAM);
+  const divisionChips = [
+    { value: ALL, label: 'Todas' },
+    ...divisions.map((d) => ({ value: d.id, label: d.name })),
+    ...(hasUnassigned ? [{ value: NO_TEAM, label: 'Sin equipo' }] : []),
+  ];
+  const positionChips = [
+    { value: ALL, label: 'Todas' },
+    ...BasketballPositionSchema.options.map((p) => ({ value: p, label: BASKETBALL_POSITION_LABELS[p].short })),
+  ];
+  const statusChips = [
+    { value: ALL, label: 'Todos' },
+    ...PlayerPhysicalStatusSchema.options.map((s) => ({ value: s, label: PLAYER_STATUS_LABELS[s] })),
+  ];
+
+  const firstTeam = teams.find(
+    (t) => divisions.find((d) => d.id === t.divisionId)?.category === 'PRIMERA'
+  );
+
+  const openForm = (player: Player | null) => {
+    setPlayerToEdit(player);
+    setIsFormOpen(true);
+  };
+
+  const handleCallUp = (player: Player) => {
+    if (!firstTeam) return;
+    const fullName = `${player.firstName} ${player.lastName}`;
+    const result = callUpPlayerToTeam(player.id, firstTeam.id);
+    if (result.ok) {
+      notify({
+        title: 'Jugador convocado',
+        message: `${fullName} ya forma parte del plantel de Primera y puede ser elegido en la convocatoria de sus partidos.`,
+        tone: 'success',
+      });
+    } else if (result.reason === 'ALREADY_IN_TEAM') {
+      notify({
+        title: 'Ya estaba convocado',
+        message: `${fullName} ya figura en el plantel de Primera.`,
+        tone: 'warning',
+      });
+    } else {
+      notify({
+        title: 'No se pudo convocar',
+        message: 'El jugador o el equipo de Primera ya no existen.',
+        tone: 'danger',
+      });
+    }
+  };
+
+  const renderChips = (facet: Facet, chips: Array<{ value: string; label: string }>) =>
+    chips.map((chip) => (
+      <FilterChip
+        key={chip.value}
+        label={chip.label}
+        pressed={filters[facet] === chip.value}
+        count={countFor(facet, chip.value)}
+        onClick={() => setFilter(facet, chip.value)}
+      />
+    ));
 
   return (
     <TabletAppShell>
-      <div className={styles.pageContainer}>
-        {/* HEADER */}
-        <div className={styles.header}>
-          <div className={styles.titleArea}>
-            <h1 className={styles.pageTitle}>Plantel de Jugadores</h1>
-            <p className={styles.pageSubtitle}>
-              Gestión de jugadores, ficha médica, dorsales y convocatoria de juveniles.
-            </p>
-          </div>
-
-          <TouchButton
-            variant="primary"
-            size="md"
-            leftIcon={<Plus size={18} />}
-            onClick={() => {
-              setPlayerToEdit(null);
-              setIsFormModalOpen(true);
-            }}
-          >
-            Nuevo Jugador
-          </TouchButton>
-        </div>
-
-        {/* SEARCH & FILTERS BAR */}
-        <div className={styles.filterBar}>
-          <div className={styles.searchBox}>
-            <Search size={18} color="var(--text-muted)" />
-            <input
-              type="text"
-              placeholder="Buscar por apellido, nombre o dorsal..."
-              className={styles.searchInput}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          {/* DIVISION CHIPS */}
-          <div className={clsx(styles.filterScrollRow, 'no-scrollbar')}>
-            <button
-              type="button"
-              className={clsx(
-                styles.filterChip,
-                selectedDivisionId === 'ALL' && styles.filterChipActive
-              )}
-              onClick={() => setSelectedDivisionId('ALL')}
-            >
-              Todas las Divisiones
-            </button>
-            {divisions.map((div) => (
-              <button
-                key={div.id}
-                type="button"
-                className={clsx(
-                  styles.filterChip,
-                  selectedDivisionId === div.id && styles.filterChipActive
-                )}
-                onClick={() => setSelectedDivisionId(div.id)}
+      <div className="page-container">
+        <PageHeader
+          title="Jugadores"
+          subtitle="Plantel del club, ficha física y médica, y convocatoria de juveniles."
+          actions={
+            canManage && (
+              <TouchButton
+                leftIcon={<Plus size={ICON_SIZE.md} />}
+                onClick={() => openForm(null)}
+                data-tour="players-create"
               >
-                {div.name}
-              </button>
-            ))}
-          </div>
+                Nuevo jugador
+              </TouchButton>
+            )
+          }
+        />
 
-          {/* POSITION & STATUS CHIPS */}
-          <div className={clsx(styles.filterScrollRow, 'no-scrollbar')}>
-            <button
-              type="button"
-              className={clsx(
-                styles.filterChip,
-                selectedPosition === 'ALL' && styles.filterChipActive
-              )}
-              onClick={() => setSelectedPosition('ALL')}
-            >
-              Cualquier Posición
-            </button>
-            {positions.map((pos) => (
-              <button
-                key={pos}
-                type="button"
-                className={clsx(
-                  styles.filterChip,
-                  selectedPosition === pos && styles.filterChipActive
-                )}
-                onClick={() => setSelectedPosition(pos)}
-              >
-                {pos}
-              </button>
-            ))}
+        <section className={styles.filterPanel} aria-label="Búsqueda y filtros" data-tour="players-filters">
+          <TextField
+            label="Buscar jugador"
+            type="search"
+            placeholder="Apellido, nombre o dorsal"
+            leftIcon={<Search size={ICON_SIZE.md} />}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          <FilterChipGroup label="División">{renderChips('division', divisionChips)}</FilterChipGroup>
+          <FilterChipGroup label="Posición">{renderChips('position', positionChips)}</FilterChipGroup>
+          <FilterChipGroup label="Estado">{renderChips('status', statusChips)}</FilterChipGroup>
+        </section>
 
-            <span style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-subtle)', margin: '0 4px' }} />
-
-            <button
-              type="button"
-              className={clsx(
-                styles.filterChip,
-                selectedStatus === 'ALL' && styles.filterChipActive
-              )}
-              onClick={() => setSelectedStatus('ALL')}
-            >
-              Todos los Estados
-            </button>
-            {statuses.map((st) => (
-              <button
-                key={st}
-                type="button"
-                className={clsx(
-                  styles.filterChip,
-                  selectedStatus === st && styles.filterChipActive
-                )}
-                onClick={() => setSelectedStatus(st)}
-              >
-                {st === 'ACTIVE' && 'Disponible'}
-                {st === 'INJURED' && 'Lesionado'}
-                {st === 'SUSPENDED' && 'Suspendido'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* PLAYERS LIST GRID */}
-        {filteredPlayers.length === 0 ? (
-          <div className={styles.emptyState}>
-            <p>No se encontraron jugadores con los filtros seleccionados.</p>
-          </div>
+        {visiblePlayers.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title={players.length === 0 ? 'Todavía no hay jugadores' : 'Sin resultados'}
+            description={
+              players.length === 0
+                ? 'Agrega jugadores para armar los planteles de cada división.'
+                : 'Ningún jugador coincide con la búsqueda y los filtros elegidos.'
+            }
+          />
         ) : (
-          <div className={styles.playersGrid}>
-            {filteredPlayers.map((player) => {
-              const team = teams.find((t) => t.id === player.teamId);
-              const isJuvenile =
-                team?.divisionId === 'div-u19' || team?.divisionId === 'div-u17';
+          <ul className={styles.grid}>
+            {visiblePlayers.map((player) => {
+              const division = divisionOf(player);
+              const canCallUp =
+                canManage && firstTeam !== undefined && division !== undefined && isYouthCategory(division.category);
+              const isCalledUp = firstTeam?.playerIds.includes(player.id) && player.teamId !== firstTeam.id;
 
               return (
-                <div key={player.id} className={styles.playerCardWrapper}>
+                <li key={player.id} className={styles.playerItem} data-reveal data-tour="player-card">
                   <PlayerCard
                     player={player}
-                    points={0}
-                    fouls={0}
-                    onClick={() => {
-                      setPlayerToEdit(player);
-                      setIsFormModalOpen(true);
-                    }}
+                    points={seasonPoints.get(player.id) ?? 0}
+                    onClick={canManage ? () => openForm(player) : undefined}
                   />
 
-                  <div className={styles.playerActionsRow}>
-                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
-                      {player.heightCm} cm · {player.dominantHand === 'LEFT' ? 'Zurdo' : 'Diestro'}
-                    </span>
+                  <dl className={styles.meta}>
+                    <div className={styles.metaItem}>
+                      <dt>Altura</dt>
+                      <dd className="tabular-nums">{player.heightCm} cm</dd>
+                    </div>
+                    <div className={styles.metaItem}>
+                      <dt>Mano</dt>
+                      <dd>{DOMINANT_HAND_LABELS[player.dominantHand]}</dd>
+                    </div>
+                    <div className={styles.metaItem}>
+                      <dt>División</dt>
+                      <dd>{division?.name ?? 'Sin equipo'}</dd>
+                    </div>
+                  </dl>
 
-                    {isJuvenile && (
-                      <button
-                        type="button"
-                        className={styles.actionButton}
-                        onClick={() => handleCallUp(player)}
-                        title="Convocar a Primera División"
-                      >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <UserPlus size={12} />
+                  {player.medicalNote && (
+                    <p
+                      className={clsx(
+                        styles.medicalNote,
+                        player.status === 'ACTIVE' && styles.medicalNoteResolved
+                      )}
+                    >
+                      <HeartPulse size={ICON_SIZE.sm} aria-hidden="true" />
+                      <span>{player.medicalNote}</span>
+                    </p>
+                  )}
+
+                  {(canCallUp || isCalledUp) && (
+                    <div className={styles.itemActions}>
+                      {isCalledUp && <span className={styles.calledUpTag}>Convocado a Primera</span>}
+                      {canCallUp && (
+                        <TouchButton
+                          variant="secondary"
+                          leftIcon={<UserPlus size={ICON_SIZE.md} />}
+                          onClick={() => handleCallUp(player)}
+                          data-tour="player-callup"
+                        >
                           Convocar a Primera
-                        </span>
-                      </button>
-                    )}
-                  </div>
-                </div>
+                        </TouchButton>
+                      )}
+                    </div>
+                  )}
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
-
-        {/* MODAL CREAR / EDITAR JUGADOR */}
-        <PlayerFormModal
-          isOpen={isFormModalOpen}
-          onClose={() => setIsFormModalOpen(false)}
-          playerToEdit={playerToEdit}
-        />
       </div>
+
+      <PlayerFormModal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} playerToEdit={playerToEdit} />
     </TabletAppShell>
   );
 }

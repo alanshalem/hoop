@@ -1,0 +1,102 @@
+.indicator {
+  --sync-tone: var(--text-secondary);
+  --sync-surface: var(--bg-surface-2);
+
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--touch-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--sync-tone);
+  border-radius: var(--radius-md);
+  background-color: var(--sync-surface);
+  color: var(--text-primary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.indicator:hover {
+  background-color: var(--bg-surface-3);
+}
+
+.indicator:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.synced {
+  --sync-tone: var(--color-success);
+}
+
+.syncing {
+  --sync-tone: var(--color-info);
+}
+
+.offline {
+  --sync-tone: var(--color-warning);
+  --sync-surface: var(--color-warning-subtle);
+}
+
+.error {
+  --sync-tone: var(--color-danger);
+  --sync-surface: var(--color-danger-subtle);
+}
+
+.icon {
+  flex-shrink: 0;
+  color: var(--sync-tone);
+}
+
+.spinning {
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.label {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-display);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.detail {
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Mobile top bar: pill with icon + label */
+.compact {
+  width: auto;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border-left-width: 1px;
+  border-color: var(--sync-tone);
+  border-radius: var(--radius-full);
+}
+
+.compact .label {
+  font-size: var(--text-2xs);
+}

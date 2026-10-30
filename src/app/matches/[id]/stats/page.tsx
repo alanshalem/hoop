@@ -1,331 +1,266 @@
 'use client';
 
-import React, { useState, useMemo, Suspense } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, BarChart2, Radio, Target } from 'lucide-react';
-import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
-import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
-import { BoxScoreTable } from '@/presentation/organisms/BoxScoreTable/BoxScoreTable';
-import { HalfCourtShotChart } from '@/presentation/organisms/HalfCourtShotChart/HalfCourtShotChart';
+import React, { Suspense, useMemo, useState } from 'react';
+import { useParams } from 'next/navigation';
+import clsx from 'clsx';
+import { BarChart3, CalendarX2, ClipboardList, Radio, Table2, Target } from 'lucide-react';
+import type { Match, Quarter } from '@/core/domain/entities/match.types';
+import type { ShootingStats } from '@/core/domain/rules/basketball-rules';
+import { calculateMatchBoxScore, getQuarterPartials } from '@/core/domain/rules/match-derivations';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import {
-  calculateTeamBoxScore,
-  calculatePercentage,
-} from '@/core/domain/rules/basketball-rules';
-import { Quarter } from '@/core/domain/entities/match.types';
-import clsx from 'clsx';
+  ALL_SHOTS,
+  calculateShotEffectiveness,
+  selectOwnShots,
+} from '@/core/application/hooks/shot-effectiveness';
+import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
+import { PageHeader } from '@/presentation/molecules/PageHeader/PageHeader';
+import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
+import { SectionCard } from '@/presentation/molecules/SectionCard/SectionCard';
+import { FilterChipGroup } from '@/presentation/molecules/FilterChipGroup/FilterChipGroup';
+import { FilterChip } from '@/presentation/atoms/FilterChip/FilterChip';
+import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
+import { BoxScoreTable } from '@/presentation/organisms/BoxScoreTable/BoxScoreTable';
+import { QuarterPartialsTable } from '@/presentation/organisms/QuarterPartialsTable/QuarterPartialsTable';
+import { HalfCourtShotChart } from '@/presentation/organisms/HalfCourtShotChart/HalfCourtShotChart';
+import { QUARTER_SHORT_LABELS } from '@/presentation/organisms/ScoreboardHeader/quarter-labels';
+import { MatchStatusBadge } from '@/presentation/organisms/MatchCard/MatchStatusBadge';
+import {
+  MATCH_CONDITION_LABELS,
+  formatMatchDate,
+  getMatchOutcome,
+  isMatchInPlay,
+  type MatchOutcome,
+} from '@/presentation/organisms/MatchCard/match-display';
+import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import styles from './page.module.css';
 
-function MatchStatsContent() {
-  const router = useRouter();
-  const params = useParams();
-  const matchId = (params?.id as string) || 'match-past-1';
+const OUTCOME_LABELS: Record<MatchOutcome, string> = {
+  WIN: 'Victoria',
+  LOSS: 'Derrota',
+  DRAW: 'Empate',
+};
 
-  const { matches, players } = useClubStore();
-  const match = matches.find((m) => m.id === matchId) || matches[0];
+const OUTCOME_CLASS: Record<MatchOutcome, string> = {
+  WIN: styles.outcomeWin,
+  LOSS: styles.outcomeLoss,
+  DRAW: styles.outcomeDraw,
+};
 
-  // Filters for Shot Chart
-  const [selectedQuarter, setSelectedQuarter] = useState<string>('ALL');
-  const [selectedPlayerFilter, setSelectedPlayerFilter] = useState<string>('ALL');
-
-  // Compute Full Box Score
-  const rosterPlayerIds = useMemo(() => {
-    return match?.rosterOwnPlayerIds?.length
-      ? match.rosterOwnPlayerIds
-      : match?.activeLineupOwn || [];
-  }, [match]);
-
-  const { players: playerStats, teamTotal } = useMemo(() => {
-    if (!match) {
-      return {
-        players: {},
-        teamTotal: {
-          teamId: '',
-          points: 0,
-          ft: { made: 0, attempted: 0, percentage: 0 },
-          fg2: { made: 0, attempted: 0, percentage: 0 },
-          fg3: { made: 0, attempted: 0, percentage: 0 },
-          fgTotal: { made: 0, attempted: 0, percentage: 0 },
-          offensiveRebounds: 0,
-          defensiveRebounds: 0,
-          totalRebounds: 0,
-          assists: 0,
-          steals: 0,
-          blocks: 0,
-          turnovers: 0,
-          totalFouls: 0,
-          pir: 0,
-        },
-      };
-    }
-
-    return calculateTeamBoxScore(
-      match.ownTeamId,
-      rosterPlayerIds,
-      match.events || [],
-      match.activeLineupOwn
-    );
-  }, [match, rosterPlayerIds]);
-
-  const playerBoxScoreList = useMemo(() => {
-    return rosterPlayerIds
-      .map((pid) => {
-        const player = players.find((p) => p.id === pid);
-        const stats = playerStats[pid];
-        if (!player || !stats) return null;
-        return { player, stats };
-      })
-      .filter((item): item is NonNullable<typeof item> => item !== null);
-  }, [rosterPlayerIds, players, playerStats]);
-
-  // Filtered Events for Analytical Shot Chart
-  const filteredShotEvents = useMemo(() => {
-    if (!match?.events) return [];
-    return match.events.filter((ev) => {
-      if (selectedQuarter !== 'ALL' && ev.quarter !== selectedQuarter) return false;
-      if (
-        selectedPlayerFilter !== 'ALL' &&
-        ev.playerId !== selectedPlayerFilter
-      )
-        return false;
-      return true;
-    });
-  }, [match, selectedQuarter, selectedPlayerFilter]);
-
-  // Effectiveness calculation for filtered events
-  const shotAnalytics = useMemo(() => {
-    let fg2Made = 0;
-    let fg2Att = 0;
-    let fg3Made = 0;
-    let fg3Att = 0;
-
-    for (const ev of filteredShotEvents) {
-      if (ev.type === 'FG2_MADE') {
-        fg2Made++;
-        fg2Att++;
-      } else if (ev.type === 'FG2_MISS') {
-        fg2Att++;
-      } else if (ev.type === 'FG3_MADE') {
-        fg3Made++;
-        fg3Att++;
-      } else if (ev.type === 'FG3_MISS') {
-        fg3Att++;
+// cacheComponents: useParams suspends on dynamic routes, so it needs a Suspense boundary.
+export default function MatchStatsPage() {
+  return (
+    <Suspense
+      fallback={
+        <p className={styles.loading} role="status">
+          Cargando planilla...
+        </p>
       }
-    }
+    >
+      <MatchStatsGate />
+    </Suspense>
+  );
+}
 
-    const fgTotalMade = fg2Made + fg3Made;
-    const fgTotalAtt = fg2Att + fg3Att;
-
-    return {
-      fg2Pct: calculatePercentage(fg2Made, fg2Att),
-      fg2Stats: `${fg2Made}/${fg2Att}`,
-      fg3Pct: calculatePercentage(fg3Made, fg3Att),
-      fg3Stats: `${fg3Made}/${fg3Att}`,
-      totalPct: calculatePercentage(fgTotalMade, fgTotalAtt),
-      totalStats: `${fgTotalMade}/${fgTotalAtt}`,
-    };
-  }, [filteredShotEvents]);
+function MatchStatsGate() {
+  const { id } = useParams<{ id: string }>();
+  const match = useClubStore((state) => state.matches.find((m) => m.id === id));
 
   if (!match) {
     return (
       <TabletAppShell>
-        <div style={{ padding: '40px', color: '#fff', textAlign: 'center' }}>
-          Partido no encontrado.
+        <div className="page-container">
+          <PageHeader title="Planilla del partido" backHref="/matches" backLabel="Volver a partidos" />
+          <EmptyState
+            icon={CalendarX2}
+            title="Partido no encontrado"
+            description="El partido no existe o fue eliminado del calendario."
+            action={
+              <LinkButton href="/matches" variant="secondary">
+                Ir a partidos
+              </LinkButton>
+            }
+          />
         </div>
       </TabletAppShell>
     );
   }
 
-  const quartersList: Quarter[] = ['Q1', 'Q2', 'Q3', 'Q4'];
+  // Remount (fresh filters) when navigating to another match.
+  return <MatchStats key={match.id} match={match} />;
+}
+
+const EffectivenessTile: React.FC<{ label: string; stats: ShootingStats }> = ({ label, stats }) => (
+  <div className={styles.effTile} data-reveal>
+    <span className={styles.effValue}>{stats.percentage}%</span>
+    <span className={styles.effLabel}>{label}</span>
+    <span className={styles.effDetail}>
+      {stats.made}/{stats.attempted}
+    </span>
+  </div>
+);
+
+function MatchStats({ match }: { match: Match }) {
+  const players = useClubStore((state) => state.players);
+  const [quarterFilter, setQuarterFilter] = useState<Quarter | typeof ALL_SHOTS>(ALL_SHOTS);
+  const [playerFilter, setPlayerFilter] = useState<string>(ALL_SHOTS);
+  // A scheduled match shows a gate without the sheet, so it declares no tour.
+  useScreenTour('stats', { enabled: match.status !== 'SCHEDULED' });
+
+  const { own, rival, outcome } = getMatchOutcome(match);
+  const inPlay = isMatchInPlay(match);
+  const { date, time } = formatMatchDate(match.date);
+
+  const partials = useMemo(() => getQuarterPartials(match.events, match.condition), [match.events, match.condition]);
+  const box = useMemo(() => calculateMatchBoxScore(match), [match]);
+
+  const boxRows = useMemo(
+    () =>
+      match.rosterOwnPlayerIds.flatMap((playerId) => {
+        const player = players.find((p) => p.id === playerId);
+        const stats = box.players[playerId];
+        return player && stats ? [{ player, stats }] : [];
+      }),
+    [match.rosterOwnPlayerIds, players, box]
+  );
+
+  const shots = useMemo(
+    () => selectOwnShots(match.events, { quarter: quarterFilter, playerId: playerFilter }),
+    [match.events, quarterFilter, playerFilter]
+  );
+  const effectiveness = calculateShotEffectiveness(shots);
+  const unplacedShots = shots.filter((shot) => !shot.coordinates).length;
+  const shooters = boxRows.filter(({ stats }) => stats.fgTotal.attempted > 0);
+
+  const header = (
+    <PageHeader
+      title={`${match.ownTeamName} vs ${match.rivalTeamName}`}
+      subtitle={`${match.tournament} · ${date} ${time} h · ${MATCH_CONDITION_LABELS[match.condition]}${match.venue ? ` · ${match.venue}` : ''}`}
+      backHref="/matches"
+      backLabel="Volver a partidos"
+      actions={
+        inPlay && (
+          <LinkButton href={`/matches/${match.id}/live`} leftIcon={<Radio size={ICON_SIZE.md} />}>
+            Consola en vivo
+          </LinkButton>
+        )
+      }
+    />
+  );
+
+  if (match.status === 'SCHEDULED') {
+    return (
+      <TabletAppShell>
+        <div className="page-container">
+          {header}
+          <EmptyState
+            icon={ClipboardList}
+            title="El partido todavía no comenzó"
+            description="La planilla se completa con las jugadas registradas en la consola en vivo."
+            action={
+              <LinkButton href={`/matches/${match.id}/lineup`} variant="secondary">
+                Ver convocatoria
+              </LinkButton>
+            }
+          />
+        </div>
+      </TabletAppShell>
+    );
+  }
 
   return (
     <TabletAppShell>
-      <div className={styles.pageContainer}>
-        {/* HEADER */}
-        <div className={styles.header}>
-          <div className={styles.titleArea}>
-            <button
-              type="button"
-              className={styles.backBtn}
-              onClick={() => router.push('/matches')}
-            >
-              <ArrowLeft size={16} /> Volver a Partidos
-            </button>
-            <h1 className={styles.pageTitle}>Planilla Estadística & Shot Chart</h1>
-            <p className={styles.pageSubtitle}>
-              {match.ownTeamName} ({match.homeScore}) vs {match.rivalTeamName} ({match.awayScore}) · {match.tournament}
-            </p>
-          </div>
+      <div className="page-container">
+        {header}
 
-          {match.status === 'LIVE' && (
-            <TouchButton
-              variant="primary"
-              size="md"
-              leftIcon={<Radio size={16} />}
-              onClick={() => router.push(`/matches/${match.id}/live`)}
-            >
-              Volver a Consola en Vivo
-            </TouchButton>
+        <section className={styles.scoreHero} data-surface="board" aria-label="Resultado" data-tour="stats-score">
+          <div className={clsx(styles.heroTeam, styles.heroOwn)}>
+            <span className={styles.heroName}>{match.ownTeamName}</span>
+            <span className={styles.heroScore}>{own}</span>
+          </div>
+          <div className={styles.heroCenter}>
+            <MatchStatusBadge status={match.status} detail={inPlay ? QUARTER_SHORT_LABELS[match.currentQuarter] : undefined} />
+            {!inPlay && <span className={clsx(styles.outcome, OUTCOME_CLASS[outcome])}>{OUTCOME_LABELS[outcome]}</span>}
+          </div>
+          <div className={clsx(styles.heroTeam, styles.heroRival)}>
+            <span className={styles.heroScore}>{rival}</span>
+            <span className={styles.heroName}>{match.rivalTeamName}</span>
+          </div>
+        </section>
+
+        <SectionCard title="Parciales por período" icon={Table2} data-tour="stats-partials">
+          <QuarterPartialsTable partials={partials} ownName={match.ownTeamName} rivalName={match.rivalTeamName} />
+        </SectionCard>
+
+        <SectionCard
+          title="Box score"
+          icon={BarChart3}
+          data-tour="stats-boxscore"
+          description="Estadísticas FIBA del equipo. El +/- se mide desde el quinteto inicial."
+        >
+          {boxRows.length === 0 ? (
+            <p className={styles.note}>No hay jugadores convocados para este partido.</p>
+          ) : (
+            <BoxScoreTable playerBoxScores={boxRows} teamTotal={box.teamTotal} />
           )}
-        </div>
+        </SectionCard>
 
-        {/* 1. COMPARATIVA POR CUARTOS */}
-        <div className={styles.quarterComparisonCard}>
-          <h2 className={styles.cardTitle}>Parciales por Cuarto</h2>
-          <table className={styles.quarterTable}>
-            <thead>
-              <tr>
-                <th className={styles.teamColHeader}>Equipo</th>
-                <th>Q1</th>
-                <th>Q2</th>
-                <th>Q3</th>
-                <th>Q4</th>
-                <th>FINAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className={styles.teamColHeader}>{match.ownTeamName}</td>
-                <td>22</td>
-                <td>14</td>
-                <td>26</td>
-                <td>22</td>
-                <td className={styles.finalScoreCol}>{match.homeScore}</td>
-              </tr>
-              <tr>
-                <td className={styles.teamColHeader}>{match.rivalTeamName}</td>
-                <td>19</td>
-                <td>12</td>
-                <td>24</td>
-                <td>23</td>
-                <td className={styles.finalScoreCol}>{match.awayScore}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <SectionCard title="Mapa de tiros" icon={Target} description="Tiros de campo del equipo filtrados por período y jugador.">
+          <div className={styles.shotSection}>
+            <div className={styles.shotFilters} data-tour="stats-filters">
+              <FilterChipGroup label="Período">
+                <FilterChip
+                  label="Todos"
+                  pressed={quarterFilter === ALL_SHOTS}
+                  count={selectOwnShots(match.events, { quarter: ALL_SHOTS, playerId: playerFilter }).length}
+                  onClick={() => setQuarterFilter(ALL_SHOTS)}
+                />
+                {partials.map(({ quarter }) => (
+                  <FilterChip
+                    key={quarter}
+                    label={QUARTER_SHORT_LABELS[quarter]}
+                    pressed={quarterFilter === quarter}
+                    count={selectOwnShots(match.events, { quarter, playerId: playerFilter }).length}
+                    onClick={() => setQuarterFilter(quarter)}
+                  />
+                ))}
+              </FilterChipGroup>
 
-        {/* 2. TABLA BOX SCORE FIBA PROFESIONAL */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-            <BarChart2 size={20} color="var(--color-orange)" />
-            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'bold' }}>
-              Box Score Oficial FIBA
-            </h2>
-          </div>
-          <BoxScoreTable
-            playerBoxScores={playerBoxScoreList}
-            teamTotal={teamTotal}
-          />
-        </div>
+              <FilterChipGroup label="Jugador">
+                <FilterChip label="Todo el equipo" pressed={playerFilter === ALL_SHOTS} onClick={() => setPlayerFilter(ALL_SHOTS)} />
+                {shooters.map(({ player, stats }) => (
+                  <FilterChip
+                    key={player.id}
+                    label={`${player.dorsal} ${player.lastName}`}
+                    pressed={playerFilter === player.id}
+                    count={stats.fgTotal.attempted}
+                    onClick={() => setPlayerFilter(player.id)}
+                  />
+                ))}
+              </FilterChipGroup>
 
-        {/* 3. SHOT CHART ANALÍTICO CON FILTROS POR JUGADOR Y POR CUARTO */}
-        <div className={styles.shotChartSection}>
-          <div className={styles.shotChartLeft}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Target size={20} color="var(--color-orange)" />
-              <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 'bold' }}>
-                Mapa de Tiros Analítico
-              </h2>
+              <div className={styles.effGrid} aria-label="Efectividad por zona">
+                <EffectivenessTile label="Dobles" stats={effectiveness.fg2} />
+                <EffectivenessTile label="Triples" stats={effectiveness.fg3} />
+                <EffectivenessTile label="Total campo" stats={effectiveness.total} />
+              </div>
+
+              {unplacedShots > 0 && (
+                <p className={styles.note}>
+                  {unplacedShots === 1
+                    ? '1 tiro registrado desde el pad no tiene ubicación en el mapa.'
+                    : `${unplacedShots} tiros registrados desde el pad no tienen ubicación en el mapa.`}
+                </p>
+              )}
             </div>
 
-            <div className={styles.filtersPanel}>
-              {/* FILTRO POR CUARTO */}
-              <div className={styles.filterGroup}>
-                <span className={styles.filterLabel}>Filtrar por Cuarto:</span>
-                <div className={styles.filterChips}>
-                  <button
-                    type="button"
-                    className={clsx(
-                      styles.chip,
-                      selectedQuarter === 'ALL' && styles.chipActive
-                    )}
-                    onClick={() => setSelectedQuarter('ALL')}
-                  >
-                    Todos
-                  </button>
-                  {quartersList.map((q) => (
-                    <button
-                      key={q}
-                      type="button"
-                      className={clsx(
-                        styles.chip,
-                        selectedQuarter === q && styles.chipActive
-                      )}
-                      onClick={() => setSelectedQuarter(q)}
-                    >
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* FILTRO POR JUGADOR */}
-              <div className={styles.filterGroup}>
-                <span className={styles.filterLabel}>Filtrar por Jugador:</span>
-                <div className={styles.filterChips}>
-                  <button
-                    type="button"
-                    className={clsx(
-                      styles.chip,
-                      selectedPlayerFilter === 'ALL' && styles.chipActive
-                    )}
-                    onClick={() => setSelectedPlayerFilter('ALL')}
-                  >
-                    Todo el Equipo
-                  </button>
-                  {playerBoxScoreList.map(({ player }) => (
-                    <button
-                      key={player.id}
-                      type="button"
-                      className={clsx(
-                        styles.chip,
-                        selectedPlayerFilter === player.id && styles.chipActive
-                      )}
-                      onClick={() => setSelectedPlayerFilter(player.id)}
-                    >
-                      #{player.dorsal} {player.lastName}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* EFECTIVIDAD CALCULADA */}
-              <div className={styles.accuracySummary}>
-                <div className={styles.accItem}>
-                  <span className={styles.accVal}>{shotAnalytics.fg2Pct}%</span>
-                  <span className={styles.accLbl}>Dobles ({shotAnalytics.fg2Stats})</span>
-                </div>
-                <div className={styles.accItem}>
-                  <span className={styles.accVal}>{shotAnalytics.fg3Pct}%</span>
-                  <span className={styles.accLbl}>Triples ({shotAnalytics.fg3Stats})</span>
-                </div>
-                <div className={styles.accItem}>
-                  <span className={styles.accVal}>{shotAnalytics.totalPct}%</span>
-                  <span className={styles.accLbl}>Total Campo ({shotAnalytics.totalStats})</span>
-                </div>
-              </div>
+            <div className={styles.chartContainer} data-tour="stats-chart">
+              <HalfCourtShotChart events={shots} readOnly />
             </div>
           </div>
-
-          {/* DIBUJO DE MEDIA CANCHA CON TIROS FILTRADOS */}
-          <div className={styles.chartContainer}>
-            <HalfCourtShotChart
-              events={filteredShotEvents}
-              selectedPlayer={null}
-              onRecordShot={() => {}}
-              onUndoLastEvent={() => {}}
-            />
-          </div>
-        </div>
+        </SectionCard>
       </div>
     </TabletAppShell>
-  );
-}
-
-export default function MatchStatsPage() {
-  return (
-    <Suspense fallback={<div style={{ padding: 40, color: '#fff' }}>Cargando estadísticas...</div>}>
-      <MatchStatsContent />
-    </Suspense>
   );
 }

@@ -1,229 +1,259 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import gsap from 'gsap';
-import { Play, Pause, Clock } from 'lucide-react';
-import { Match, Quarter } from '@/core/domain/entities/match.types';
-import { isTeamInBonus } from '@/core/domain/rules/basketball-rules';
+import React, { useRef } from 'react';
 import clsx from 'clsx';
+import { Pause, Play, Timer } from 'lucide-react';
+import type { Quarter } from '@/core/domain/entities/match.types';
+import type { TeamSide } from '@/core/application/use-cases/match-use-cases';
+import { FIBA_TEAM_FOULS_BONUS_THRESHOLD, isTeamInBonus } from '@/core/domain/rules/basketball-rules';
+import { formatGameClock } from '@/core/domain/rules/game-clock';
+import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { MOTION, gsap } from '@/presentation/motion/motion';
+import { useMotion, useMotionOnChange } from '@/presentation/motion/useMotion';
+import { QUARTER_LABELS, QUARTER_SHORT_LABELS } from './quarter-labels';
 import styles from './ScoreboardHeader.module.css';
 
-export interface ScoreboardHeaderProps {
-  match: Match;
-  onQuarterChange: (quarter: Quarter) => void;
-  onScoreRival: (points: number) => void;
-  onTimeoutRival: () => void;
-  onTimeoutOwn: () => void;
-  onToggleClock?: (isRunning: boolean) => void;
+export interface ScoreboardTeam {
+  side: TeamSide;
+  name: string;
+  score: number;
+  teamFouls: number;
+  timeoutsLeft: number;
 }
 
-export const ScoreboardHeader: React.FC<ScoreboardHeaderProps> = ({
-  match,
-  onQuarterChange,
-  onScoreRival,
-  onTimeoutRival,
-  onTimeoutOwn,
-  onToggleClock,
-}) => {
-  const homeScoreRef = useRef<HTMLSpanElement | null>(null);
-  const awayScoreRef = useRef<HTMLSpanElement | null>(null);
+export interface ScoreboardHeaderProps {
+  home: ScoreboardTeam;
+  away: ScoreboardTeam;
+  quarter: Quarter;
+  /** Periods the operator can switch to. */
+  quarters: readonly Quarter[];
+  clockSeconds: number;
+  isClockRunning: boolean;
+  /** Hides every control (clock, periods, timeouts). */
+  readOnly?: boolean;
+  /** Interval after Q2: shows "Entretiempo" instead of the clock and locks periods and timeouts. */
+  isHalftime?: boolean;
+  onSelectQuarter: (quarter: Quarter) => void;
+  onToggleClock: () => void;
+  /** Adds (or subtracts) seconds to the clock. */
+  onAdjustClock: (deltaSeconds: number) => void;
+  onTimeout: (side: TeamSide) => void;
+}
 
-  // Clock state
-  const [secondsRemaining, setSecondsRemaining] = useState(
-    match.quarterTimeRemainingSeconds || 600
-  );
-  const [isClockRunning, setIsClockRunning] = useState(false);
+const CLOCK_STEP_SECONDS = 10;
+const FOUL_LIGHTS = Array.from({ length: FIBA_TEAM_FOULS_BONUS_THRESHOLD }, (_, i) => i + 1);
 
-  // Animate home score when it changes
-  useEffect(() => {
-    if (homeScoreRef.current) {
-      gsap.fromTo(
-        homeScoreRef.current,
-        { scale: 1.35, color: 'var(--color-green)' },
-        { scale: 1, color: 'var(--text-primary)', duration: 0.35, ease: 'back.out(2)' }
-      );
-    }
-  }, [match.homeScore]);
+/** LED digits: bump plus a green glow when the score goes up, club red when it is corrected down. */
+const ScoreNumber: React.FC<{ score: number }> = ({ score }) => {
+  const numberRef = useRef<HTMLSpanElement | null>(null);
+  const glowUpRef = useRef<HTMLSpanElement | null>(null);
+  const glowDownRef = useRef<HTMLSpanElement | null>(null);
 
-  // Animate away score when it changes
-  useEffect(() => {
-    if (awayScoreRef.current) {
-      gsap.fromTo(
-        awayScoreRef.current,
-        { scale: 1.35, color: 'var(--color-red)' },
-        { scale: 1, color: 'var(--text-primary)', duration: 0.35, ease: 'back.out(2)' }
-      );
-    }
-  }, [match.awayScore]);
-
-  // Clock countdown timer
-  useEffect(() => {
-    if (!isClockRunning) return;
-
-    const interval = setInterval(() => {
-      setSecondsRemaining((prev) => {
-        if (prev <= 1) {
-          setIsClockRunning(false);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isClockRunning]);
-
-  const toggleClock = () => {
-    const newState = !isClockRunning;
-    setIsClockRunning(newState);
-    onToggleClock?.(newState);
-  };
-
-  const quarters: Quarter[] = ['Q1', 'Q2', 'Q3', 'Q4', 'OT1'];
-
-  const homeBonus = isTeamInBonus(match.homeFoulsQuarter);
-  const awayBonus = isTeamInBonus(match.awayFoulsQuarter);
-
-  const formatClock = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
+  useMotionOnChange(score, (previous, current) => {
+    gsap.fromTo(numberRef.current, { scale: 1.3 }, { scale: 1, duration: 0.4, ease: 'back.out(2)' });
+    const glow = current > previous ? glowUpRef.current : glowDownRef.current;
+    gsap.fromTo(
+      glow,
+      { opacity: 0.95, scale: 0.6 },
+      { opacity: 0, scale: 1.25, duration: MOTION.duration.slow * 1.4, ease: MOTION.ease.out }
+    );
+  });
 
   return (
-    <header className={styles.headerContainer} role="region" aria-label="Tablero electrónico de partido">
-      {/* LOCAL / OWN TEAM */}
-      <div className={styles.teamPanel}>
-        <div className={styles.teamMeta}>
-          <span className={styles.teamName}>{match.ownTeamName}</span>
-          <div className={styles.foulBonusRow}>
-            <div className={styles.foulLights} aria-label={`${match.homeFoulsQuarter} faltas de equipo`}>
-              {[1, 2, 3, 4].map((i) => (
-                <span
-                  key={i}
-                  className={clsx(
-                    styles.foulLight,
-                    match.homeFoulsQuarter >= i && styles.foulLightActive
-                  )}
-                />
-              ))}
-            </div>
-            {homeBonus && <span className={styles.bonusBadge}>BONUS</span>}
-            <button
-              type="button"
-              className={styles.timeoutBtn}
-              onClick={onTimeoutOwn}
-              title="Pedir tiempo muerto propio"
-            >
-              <Clock size={12} /> TM
-            </button>
-          </div>
-        </div>
+    <span className={styles.scoreCell}>
+      <span ref={glowUpRef} className={clsx(styles.scoreGlow, styles.scoreGlowUp)} aria-hidden="true" />
+      <span ref={glowDownRef} className={clsx(styles.scoreGlow, styles.scoreGlowDown)} aria-hidden="true" />
+      <span ref={numberRef} className={styles.scoreNumber}>
+        {score}
+      </span>
+    </span>
+  );
+};
 
-        <span ref={homeScoreRef} className={styles.scoreNumber}>
-          {match.homeScore}
-        </span>
+/** Team foul lights: the light that just turned on pops in. */
+const FoulLights: React.FC<{ teamFouls: number }> = ({ teamFouls }) => {
+  const lightsRef = useRef<HTMLSpanElement | null>(null);
+
+  useMotionOnChange(
+    teamFouls,
+    (previous, current) => {
+      if (current <= previous || current > FIBA_TEAM_FOULS_BONUS_THRESHOLD) return;
+      gsap.fromTo(
+        `[data-foul-light="${current}"]`,
+        { scale: 0.3, opacity: 0.4 },
+        { scale: 1, opacity: 1, duration: MOTION.duration.base, ease: MOTION.ease.pop }
+      );
+    },
+    { scope: lightsRef }
+  );
+
+  return (
+    <span
+      ref={lightsRef}
+      className={styles.foulLights}
+      role="img"
+      aria-label={`${teamFouls} faltas de equipo en el período`}
+    >
+      {FOUL_LIGHTS.map((i) => (
+        <span
+          key={i}
+          data-foul-light={i}
+          className={clsx(styles.foulLight, teamFouls >= i && styles.foulLightActive)}
+        />
+      ))}
+    </span>
+  );
+};
+
+/** BONUS badge: pops in, then breathes while the team stays in bonus. */
+const BonusBadge: React.FC = () => {
+  const ref = useRef<HTMLSpanElement | null>(null);
+
+  useMotion(
+    () => {
+      gsap
+        .timeline()
+        .fromTo(ref.current, { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: MOTION.duration.base, ease: MOTION.ease.pop })
+        .to(ref.current, { opacity: 0.7, scale: 0.96, duration: 0.6, ease: MOTION.ease.soft, repeat: -1, yoyo: true });
+    },
+    { scope: ref }
+  );
+
+  return (
+    <span ref={ref} className={styles.bonusBadge}>
+      Bonus
+    </span>
+  );
+};
+
+interface TeamPanelProps {
+  team: ScoreboardTeam;
+  conditionLabel: string;
+  isAway: boolean;
+  readOnly: boolean;
+  onTimeout: (side: TeamSide) => void;
+}
+
+const TeamPanel: React.FC<TeamPanelProps> = ({ team, conditionLabel, isAway, readOnly, onTimeout }) => {
+  const inBonus = isTeamInBonus(team.teamFouls);
+  const isOwn = team.side === 'OWN';
+
+  return (
+    <div className={clsx(styles.teamPanel, isAway && styles.teamPanelAway, isOwn && styles.teamPanelOwn)}>
+      <div className={styles.teamMeta}>
+        <span className={styles.teamCondition}>{conditionLabel}</span>
+        <span className={styles.teamName}>{team.name}</span>
+        <div className={styles.foulRow}>
+          <FoulLights teamFouls={team.teamFouls} />
+          <span className={styles.foulCount}>{team.teamFouls} F</span>
+          {inBonus && <BonusBadge />}
+        </div>
       </div>
 
-      {/* CENTER: QUARTER SELECTOR & GAME CLOCK */}
+      <ScoreNumber score={team.score} />
+
+      <button
+        type="button"
+        className={clsx(styles.timeoutBtn, team.timeoutsLeft === 0 && styles.timeoutBtnEmpty)}
+        data-tour="live-timeout"
+        onClick={() => onTimeout(team.side)}
+        disabled={readOnly}
+        aria-label={`Tiempo muerto para ${team.name}. Quedan ${team.timeoutsLeft} en el período`}
+      >
+        <Timer size={ICON_SIZE.md} aria-hidden="true" />
+        <span className={styles.timeoutLabel}>TM</span>
+        <span className={styles.timeoutCount}>{team.timeoutsLeft}</span>
+      </button>
+    </div>
+  );
+};
+
+export const ScoreboardHeader: React.FC<ScoreboardHeaderProps> = ({
+  home,
+  away,
+  quarter,
+  quarters,
+  clockSeconds,
+  isClockRunning,
+  readOnly = false,
+  isHalftime = false,
+  onSelectQuarter,
+  onToggleClock,
+  onAdjustClock,
+  onTimeout,
+}) => {
+  const locked = readOnly || isHalftime;
+  return (
+    <header className={styles.headerContainer} data-surface="board" aria-label="Tablero electrónico del partido" data-tour="live-scoreboard">
+      <TeamPanel team={home} conditionLabel="Local" isAway={false} readOnly={locked} onTimeout={onTimeout} />
+
       <div className={styles.centerGameControl}>
-        <div className={styles.quarterSelector} role="tablist" aria-label="Seleccionar cuarto">
+        <div className={styles.quarterSelector} role="group" aria-label="Período">
           {quarters.map((q) => (
             <button
               key={q}
               type="button"
-              className={clsx(
-                styles.quarterBtn,
-                match.currentQuarter === q && styles.quarterBtnActive
-              )}
-              onClick={() => onQuarterChange(q)}
+              className={clsx(styles.quarterBtn, quarter === q && styles.quarterBtnActive)}
+              aria-pressed={quarter === q}
+              aria-label={QUARTER_LABELS[q]}
+              disabled={locked && quarter !== q}
+              onClick={() => onSelectQuarter(q)}
             >
-              {q}
+              {QUARTER_SHORT_LABELS[q]}
             </button>
           ))}
         </div>
 
-        <div className={styles.clockRow}>
-          <button
-            type="button"
-            className={styles.clockToggleBtn}
-            onClick={toggleClock}
-            aria-label={isClockRunning ? 'Pausar reloj' : 'Reanudar reloj'}
-          >
-            {isClockRunning ? <Pause size={20} /> : <Play size={20} />}
-          </button>
-
-          <span
-            className={clsx(
-              styles.clockDisplay,
-              isClockRunning && styles.clockRunning
-            )}
-          >
-            {formatClock(secondsRemaining)}
+        {isHalftime ? (
+          <span className={styles.halftimeLabel} role="status">
+            Entretiempo
           </span>
-        </div>
-      </div>
-
-      {/* VISITANTE / RIVAL TEAM + QUICK ACTIONS */}
-      <div className={styles.teamPanel}>
-        <span ref={awayScoreRef} className={styles.scoreNumber}>
-          {match.awayScore}
-        </span>
-
-        <div className={styles.teamMeta}>
-          <span className={styles.teamName}>{match.rivalTeamName}</span>
-          <div className={styles.foulBonusRow}>
-            <div className={styles.foulLights} aria-label={`${match.awayFoulsQuarter} faltas de equipo rival`}>
-              {[1, 2, 3, 4].map((i) => (
-                <span
-                  key={i}
-                  className={clsx(
-                    styles.foulLight,
-                    match.awayFoulsQuarter >= i && styles.foulLightActive
-                  )}
-                />
-              ))}
-            </div>
-            {awayBonus && <span className={styles.bonusBadge}>BONUS</span>}
+        ) : (
+          <div className={styles.clockRow}>
+            {!readOnly && (
+              <button
+                type="button"
+                className={styles.clockStepBtn}
+                onClick={() => onAdjustClock(-CLOCK_STEP_SECONDS)}
+                aria-label={`Restar ${CLOCK_STEP_SECONDS} segundos al reloj`}
+              >
+                -{CLOCK_STEP_SECONDS}s
+              </button>
+            )}
+            <span
+              className={clsx(styles.clockDisplay, isClockRunning && styles.clockRunning, clockSeconds === 0 && styles.clockExpired)}
+              role="timer"
+              aria-label={`Reloj de juego ${formatGameClock(clockSeconds)}`}
+            >
+              {formatGameClock(clockSeconds)}
+            </span>
+            {!readOnly && (
+              <button
+                type="button"
+                className={styles.clockStepBtn}
+                onClick={() => onAdjustClock(CLOCK_STEP_SECONDS)}
+                aria-label={`Sumar ${CLOCK_STEP_SECONDS} segundos al reloj`}
+              >
+                +{CLOCK_STEP_SECONDS}s
+              </button>
+            )}
+            {!readOnly && (
+              <button
+                type="button"
+                className={clsx(styles.clockToggleBtn, isClockRunning && styles.clockToggleRunning)}
+                data-tour="live-clock"
+                onClick={onToggleClock}
+                disabled={!isClockRunning && clockSeconds === 0}
+                aria-label={isClockRunning ? 'Pausar reloj' : 'Iniciar reloj'}
+              >
+                {isClockRunning ? <Pause size={ICON_SIZE.lg} /> : <Play size={ICON_SIZE.lg} />}
+              </button>
+            )}
           </div>
-        </div>
-
-        {/* RIVAL SCORE / TIMEOUT SHORTCUTS */}
-        <div className={styles.rivalActions}>
-          <button
-            type="button"
-            className={styles.quickScoreBtn}
-            onClick={() => onScoreRival(1)}
-            title="Sumar 1 punto a rival"
-          >
-            +1
-          </button>
-          <button
-            type="button"
-            className={styles.quickScoreBtn}
-            onClick={() => onScoreRival(2)}
-            title="Sumar 2 puntos a rival"
-          >
-            +2
-          </button>
-          <button
-            type="button"
-            className={styles.quickScoreBtn}
-            onClick={() => onScoreRival(3)}
-            title="Sumar 3 puntos a rival"
-          >
-            +3
-          </button>
-          <button
-            type="button"
-            className={styles.timeoutBtn}
-            onClick={onTimeoutRival}
-            title="Pedir tiempo muerto"
-          >
-            <Clock size={14} /> TM
-          </button>
-        </div>
+        )}
       </div>
+
+      <TeamPanel team={away} conditionLabel="Visitante" isAway readOnly={locked} onTimeout={onTimeout} />
     </header>
   );
 };

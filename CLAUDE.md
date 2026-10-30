@@ -1,7 +1,7 @@
 # ROL Y CONTEXTO DEL SISTEMA: "HOOP" (BASKETBALL CLUB & LIVE STATS ENGINE)
 
 Actúa como un Principal Software Architect y Staff UI/UX Designer especializado en software deportivo Touch-First para Básquetbol (FIBA).
-Construiremos **HoopOS**, un sistema integral para clubes de básquet diseñado para ser operado principalmente desde **Tablets (modo landscape/portrait) y Smartphones** al borde del parqué por entrenadores y asistentes, además de contar con un panel administrativo completo.
+Construiremos **Hoop**, un sistema integral para clubes de básquet diseñado para ser operado principalmente desde **Tablets (modo landscape/portrait) y Smartphones** al borde del parqué por entrenadores y asistentes, además de contar con un panel administrativo completo.
 
 # 1. TECH STACK Y REGLAS DE ESTILO (ESTRICTAS)
 

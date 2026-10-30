@@ -1,420 +1,323 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import {
+import type {
   Division,
   Player,
-  Team,
   User,
-  UserRole,
 } from '@/core/domain/entities/club.types';
-import {
+import type {
   Match,
   PlayByPlayEvent,
+  Quarter,
 } from '@/core/domain/entities/match.types';
+import { withDerivedScoreboard } from '@/core/domain/rules/match-derivations';
+import * as club from '@/core/application/use-cases/club-use-cases';
+import * as matchUseCases from '@/core/application/use-cases/match-use-cases';
+import type {
+  ClubData,
+  NewDivisionInput,
+} from '@/core/application/use-cases/club-use-cases';
+import type {
+  CreateMatchInput,
+  MatchResult,
+  RecordEventInput,
+  RecordEventReason,
+  RequestTimeoutResult,
+  StartMatchResult,
+  SubstitutionReason,
+  TeamSide,
+  UndoReason,
+} from '@/core/application/use-cases/match-use-cases';
+import { CLUB_PROFILE } from '@/core/infrastructure/mocks/seed-data';
+import { reconcileSelection } from '@/core/application/sync/pull-merge';
+import type { SyncableClubData } from '@/core/application/sync/sync-types';
 import {
-  SEED_USERS,
-  SEED_DIVISIONS,
-  SEED_TEAMS,
-  SEED_PLAYERS,
-  SEED_MATCHES,
-} from '@/core/infrastructure/mocks/seed-data';
+  CLUB_STORE_VERSION,
+  ClubDataState,
+  createInitialClubState,
+  migrateClubState,
+} from './club-state';
+import { CLUB_STORAGE_KEY, gatedLocalStorage } from './persistence-gate';
 
-export interface ClubStoreState {
-  // Current user / RBAC
-  currentUser: User;
-  switchRole: (role: UserRole) => void;
+export type ActionResult<Reason extends string> =
+  | { ok: true }
+  | { ok: false; reason: Reason };
+
+export type MatchNotFound = { ok: false; reason: 'MATCH_NOT_FOUND' };
+
+export interface ClubStoreState extends ClubDataState {
+  // Current user / RBAC: the authenticated account (role comes from the server)
+  setCurrentUser: (user: User) => void;
+
+  // Sync
+  /** Replaces the synced collections with pulled server data, keeping valid selections. */
+  applySyncedData: (data: SyncableClubData) => void;
 
   // Divisions
-  divisions: Division[];
-  activeDivisionId: string;
   setActiveDivision: (divisionId: string) => void;
-  addDivision: (division: Omit<Division, 'id'>) => void;
-  updateDivision: (id: string, updates: Partial<Division>) => void;
+  /** Creates the division and its team for the current season; returns the division ID. */
+  addDivision: (division: NewDivisionInput, headCoachId?: string) => string;
+  updateDivision: (id: string, updates: Partial<Omit<Division, 'id'>>) => void;
+  /** Also removes its team and leaves its players without a team. */
   deleteDivision: (id: string) => void;
-
-  // Teams
-  teams: Team[];
-  addTeam: (team: Omit<Team, 'id'>) => void;
-  updateTeam: (id: string, updates: Partial<Team>) => void;
-  deleteTeam: (id: string) => void;
+  /** `userId: null` unassigns the head coach. */
+  assignHeadCoach: (
+    teamId: string,
+    userId: string | null
+  ) => ActionResult<'TEAM_NOT_FOUND' | 'USER_NOT_HEAD_COACH'>;
 
   // Players
-  players: Player[];
-  addPlayer: (player: Omit<Player, 'id'>) => void;
-  updatePlayer: (id: string, updates: Partial<Player>) => void;
+  /** Returns the new player ID. */
+  addPlayer: (player: Omit<Player, 'id'>) => string;
+  updatePlayer: (id: string, updates: Partial<Omit<Player, 'id'>>) => void;
   deletePlayer: (id: string) => void;
-  callUpPlayerToTeam: (playerId: string, targetTeamId: string) => void;
+  callUpPlayerToTeam: (
+    playerId: string,
+    targetTeamId: string
+  ) => ActionResult<'PLAYER_NOT_FOUND' | 'TEAM_NOT_FOUND' | 'ALREADY_IN_TEAM'>;
 
   // Matches
-  matches: Match[];
-  activeMatchId: string;
   setActiveMatch: (matchId: string) => void;
-  addMatch: (match: Omit<Match, 'id'>) => void;
-  updateMatch: (id: string, updates: Partial<Match>) => void;
+  /** Returns the new match ID. */
+  addMatch: (match: CreateMatchInput) => string;
+  /** Generic edit; the scoreboard is re-derived from events. */
+  updateMatch: (id: string, updates: Partial<Omit<Match, 'id'>>) => void;
+  deleteMatch: (id: string) => void;
+  /** Legacy lineup setter (sets starting five and current lineup). Prefer startMatch. */
   setStartingLineup: (matchId: string, playerIds: string[]) => void;
+  startMatch: (
+    matchId: string,
+    rosterIds: string[],
+    starterIds: string[]
+  ) => StartMatchResult | MatchNotFound;
+  recordEvent: (
+    matchId: string,
+    input: RecordEventInput
+  ) => MatchResult<RecordEventReason> | MatchNotFound;
+  undoLastEvent: (matchId: string) => MatchResult<UndoReason> | MatchNotFound;
   substitutePlayer: (
     matchId: string,
     playerOutId: string,
-    playerInId: string
-  ) => void;
+    playerInId: string,
+    clockSeconds?: number
+  ) => MatchResult<SubstitutionReason> | MatchNotFound;
+  /** Consumes a FIBA timeout; refusal comes back as NO_TIMEOUTS_LEFT. */
+  requestTimeout: (
+    matchId: string,
+    side: TeamSide,
+    clockSeconds?: number
+  ) => RequestTimeoutResult | MatchNotFound;
+  /** Leaving the first half (Q1/Q2) passes through HALFTIME (see `startThirdQuarter`). */
+  changeQuarter: (matchId: string, quarter: Quarter) => void;
+  /** End of Q2: the match goes to HALFTIME (no plays, no timeouts). */
+  startHalftime: (
+    matchId: string
+  ) => MatchResult<'MATCH_NOT_LIVE' | 'NOT_END_OF_FIRST_HALF'> | MatchNotFound;
+  /** Leaves HALFTIME: Q3, clock 10:00, LIVE. */
+  startThirdQuarter: (matchId: string) => MatchResult<'NOT_HALFTIME'> | MatchNotFound;
+  setClock: (matchId: string, seconds: number) => void;
+  finishMatch: (
+    matchId: string,
+    clockSeconds?: number
+  ) => MatchResult<'MATCH_NOT_LIVE'> | MatchNotFound;
+
+  /** @deprecated Use recordEvent. */
   addPlayByPlayEvent: (
     matchId: string,
     event: Omit<PlayByPlayEvent, 'id' | 'timestamp' | 'scoreAtEvent'>
   ) => void;
+  /** @deprecated Use undoLastEvent. */
   undoLastPlayByPlayEvent: (matchId: string) => void;
+}
 
-  // Reset
-  resetToSeedData: () => void;
+type MatchOutcome = { ok: true; match: Match } | { ok: false; reason: string };
+
+const MATCH_NOT_FOUND: MatchNotFound = { ok: false, reason: 'MATCH_NOT_FOUND' };
+
+function createId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function eventContext(): matchUseCases.UseCaseContext {
+  return { id: createId('ev'), now: new Date().toISOString() };
+}
+
+function withClock(match: Match, clockSeconds?: number): Match {
+  return clockSeconds === undefined ? match : matchUseCases.setClock(match, clockSeconds);
+}
+
+function toActionResult<Reason extends string>(
+  result: { ok: true } | { ok: false; reason: Reason }
+): ActionResult<Reason> {
+  return result.ok ? { ok: true } : { ok: false, reason: result.reason };
 }
 
 export const useClubStore = create<ClubStoreState>()(
   persist(
-    (set, get) => ({
-      // INITIAL SEED STATE
-      currentUser: SEED_USERS[0],
-      switchRole: (role: UserRole) => {
-        const matchingUser =
-          SEED_USERS.find((u) => u.role === role) || {
-            ...get().currentUser,
-            role,
-          };
-        set({ currentUser: matchingUser });
-      },
+    (set, get) => {
+      const clubData = (): ClubData => {
+        const { divisions, teams, players } = get();
+        return { divisions, teams, players };
+      };
 
-      divisions: SEED_DIVISIONS,
-      activeDivisionId: 'div-primera',
-      setActiveDivision: (divisionId: string) =>
-        set({ activeDivisionId: divisionId }),
-
-      addDivision: (newDiv) =>
+      const mapMatch = (matchId: string, update: (match: Match) => Match): void => {
         set((state) => ({
-          divisions: [
-            ...state.divisions,
-            { ...newDiv, id: `div-${Date.now()}` },
-          ],
-        })),
+          matches: state.matches.map((m) => (m.id === matchId ? update(m) : m)),
+        }));
+      };
 
-      updateDivision: (id, updates) =>
-        set((state) => ({
-          divisions: state.divisions.map((d) =>
-            d.id === id ? { ...d, ...updates } : d
-          ),
-        })),
+      /** Runs a match use-case and stores the new match when it succeeds. */
+      const runMatchUseCase = <R extends MatchOutcome>(
+        matchId: string,
+        run: (match: Match) => R
+      ): R | MatchNotFound => {
+        const match = get().matches.find((m) => m.id === matchId);
+        if (!match) return MATCH_NOT_FOUND;
+        const result = run(match);
+        const outcome: MatchOutcome = result;
+        if (outcome.ok) mapMatch(matchId, () => outcome.match);
+        return result;
+      };
 
-      deleteDivision: (id) =>
-        set((state) => ({
-          divisions: state.divisions.filter((d) => d.id !== id),
-        })),
+      return {
+        ...createInitialClubState(),
 
-      teams: SEED_TEAMS,
-      addTeam: (newTeam) =>
-        set((state) => ({
-          teams: [...state.teams, { ...newTeam, id: `team-${Date.now()}` }],
-        })),
+        setCurrentUser: (user) => set({ currentUser: user }),
 
-      updateTeam: (id, updates) =>
-        set((state) => ({
-          teams: state.teams.map((t) =>
-            t.id === id ? { ...t, ...updates } : t
-          ),
-        })),
+        applySyncedData: (data) => set((state) => ({ ...data, ...reconcileSelection(state, data) })),
 
-      deleteTeam: (id) =>
-        set((state) => ({
-          teams: state.teams.filter((t) => t.id !== id),
-        })),
+        setActiveDivision: (divisionId) => set({ activeDivisionId: divisionId }),
 
-      players: SEED_PLAYERS,
-      addPlayer: (newPlayer) =>
-        set((state) => {
-          const playerId = `p-${Date.now()}`;
-          const createdPlayer: Player = { ...newPlayer, id: playerId };
-          // If assigned to a team, also update the team roster
-          const updatedTeams = state.teams.map((team) => {
-            if (team.id === newPlayer.teamId) {
-              return {
-                ...team,
-                playerIds: [...team.playerIds, playerId],
-              };
-            }
-            return team;
-          });
+        addDivision: (division, headCoachId) => {
+          const divisionId = createId('div');
+          set(
+            club.createDivision(clubData(), division, {
+              divisionId,
+              teamId: createId('team'),
+              season: CLUB_PROFILE.season,
+              clubName: CLUB_PROFILE.name,
+              headCoachId,
+            })
+          );
+          return divisionId;
+        },
 
-          return {
-            players: [...state.players, createdPlayer],
-            teams: updatedTeams,
-          };
-        }),
+        updateDivision: (id, updates) =>
+          set(club.updateDivision(clubData(), id, updates, { clubName: CLUB_PROFILE.name })),
 
-      updatePlayer: (id, updates) =>
-        set((state) => ({
-          players: state.players.map((p) =>
-            p.id === id ? { ...p, ...updates } : p
-          ),
-        })),
+        deleteDivision: (id) => set(club.deleteDivision(clubData(), id)),
 
-      deletePlayer: (id) =>
-        set((state) => ({
-          players: state.players.filter((p) => p.id !== id),
-          teams: state.teams.map((t) => ({
-            ...t,
-            playerIds: t.playerIds.filter((pid) => pid !== id),
+        assignHeadCoach: (teamId, userId) => {
+          const result = club.assignHeadCoach(clubData(), get().users, teamId, userId);
+          if (result.ok) set(result.data);
+          return toActionResult(result);
+        },
+
+        addPlayer: (player) => {
+          const id = createId('p');
+          set(club.addPlayer(clubData(), player, { id }));
+          return id;
+        },
+
+        updatePlayer: (id, updates) => set(club.updatePlayer(clubData(), id, updates)),
+
+        deletePlayer: (id) => set(club.deletePlayer(clubData(), id)),
+
+        callUpPlayerToTeam: (playerId, targetTeamId) => {
+          const result = club.callUpPlayer(clubData(), playerId, targetTeamId);
+          if (result.ok) set(result.data);
+          return toActionResult(result);
+        },
+
+        setActiveMatch: (matchId) => set({ activeMatchId: matchId }),
+
+        addMatch: (input) => {
+          const id = createId('match');
+          set((state) => ({ matches: [...state.matches, matchUseCases.createMatch(input, { id })] }));
+          return id;
+        },
+
+        updateMatch: (id, updates) =>
+          mapMatch(id, (m) => withDerivedScoreboard({ ...m, ...updates })),
+
+        deleteMatch: (id) =>
+          set((state) => ({ matches: state.matches.filter((m) => m.id !== id) })),
+
+        setStartingLineup: (matchId, playerIds) =>
+          mapMatch(matchId, (m) => ({
+            ...m,
+            startingLineupOwn: playerIds.slice(0, 5),
+            activeLineupOwn: playerIds.slice(0, 5),
           })),
-        })),
 
-      callUpPlayerToTeam: (playerId, targetTeamId) =>
-        set((state) => {
-          const targetTeam = state.teams.find((t) => t.id === targetTeamId);
-          if (!targetTeam) return state;
+        startMatch: (matchId, rosterIds, starterIds) =>
+          runMatchUseCase(matchId, (m) => matchUseCases.startMatch(m, rosterIds, starterIds)),
 
-          if (targetTeam.playerIds.includes(playerId)) return state;
+        recordEvent: (matchId, input) =>
+          runMatchUseCase(matchId, (m) => matchUseCases.recordEvent(m, input, eventContext())),
 
-          const updatedTeams = state.teams.map((t) =>
-            t.id === targetTeamId
-              ? { ...t, playerIds: [...t.playerIds, playerId] }
-              : t
-          );
+        undoLastEvent: (matchId) => runMatchUseCase(matchId, matchUseCases.undoLastEvent),
 
-          return { teams: updatedTeams };
-        }),
-
-      matches: SEED_MATCHES,
-      activeMatchId: 'match-live-today',
-      setActiveMatch: (matchId: string) => set({ activeMatchId: matchId }),
-
-      addMatch: (newMatch) =>
-        set((state) => ({
-          matches: [
-            ...state.matches,
-            { ...newMatch, id: `match-${Date.now()}`, events: [] },
-          ],
-        })),
-
-      updateMatch: (id, updates) =>
-        set((state) => ({
-          matches: state.matches.map((m) =>
-            m.id === id ? { ...m, ...updates } : m
+        substitutePlayer: (matchId, playerOutId, playerInId, clockSeconds) =>
+          runMatchUseCase(matchId, (m) =>
+            matchUseCases.substitutePlayer(
+              withClock(m, clockSeconds),
+              playerOutId,
+              playerInId,
+              eventContext()
+            )
           ),
-        })),
 
-      setStartingLineup: (matchId, playerIds) =>
-        set((state) => ({
-          matches: state.matches.map((m) => {
-            if (m.id !== matchId) return m;
-            return {
-              ...m,
-              activeLineupOwn: playerIds.slice(0, 5),
-            };
-          }),
-        })),
+        requestTimeout: (matchId, side, clockSeconds) =>
+          runMatchUseCase(matchId, (m) =>
+            matchUseCases.requestTimeout(withClock(m, clockSeconds), side)
+          ),
 
-      substitutePlayer: (matchId, playerOutId, playerInId) =>
-        set((state) => {
-          const targetMatch = state.matches.find((m) => m.id === matchId);
-          if (!targetMatch) return state;
+        changeQuarter: (matchId, quarter) =>
+          mapMatch(matchId, (m) => matchUseCases.changeQuarter(m, quarter)),
 
-          const currentLineup = targetMatch.activeLineupOwn || [];
-          const newLineup = currentLineup.map((pid) =>
-            pid === playerOutId ? playerInId : pid
-          );
+        startHalftime: (matchId) => runMatchUseCase(matchId, matchUseCases.startHalftime),
 
-          const subEvent: PlayByPlayEvent = {
-            id: `ev-sub-${Date.now()}`,
-            matchId,
-            quarter: targetMatch.currentQuarter,
-            quarterTimeRemainingSeconds:
-              targetMatch.quarterTimeRemainingSeconds,
-            teamId: targetMatch.ownTeamId,
-            isOwnTeam: true,
-            type: 'SUBSTITUTION',
-            substitution: { playerInId, playerOutId },
-            scoreAtEvent: {
-              home: targetMatch.homeScore,
-              away: targetMatch.awayScore,
-            },
-            timestamp: new Date().toISOString(),
-          };
+        startThirdQuarter: (matchId) => runMatchUseCase(matchId, matchUseCases.startThirdQuarter),
 
-          return {
-            matches: state.matches.map((m) =>
-              m.id === matchId
-                ? {
-                    ...m,
-                    activeLineupOwn: newLineup,
-                    events: [...m.events, subEvent],
-                  }
-                : m
-            ),
-          };
-        }),
+        setClock: (matchId, seconds) =>
+          mapMatch(matchId, (m) => matchUseCases.setClock(m, seconds)),
 
-      addPlayByPlayEvent: (matchId, eventData) =>
-        set((state) => {
-          const match = state.matches.find((m) => m.id === matchId);
-          if (!match) return state;
+        finishMatch: (matchId, clockSeconds) =>
+          runMatchUseCase(matchId, (m) => matchUseCases.finishMatch(withClock(m, clockSeconds))),
 
-          let homeDelta = 0;
-          let awayDelta = 0;
-          let foulDelta = 0;
+        addPlayByPlayEvent: (matchId, event) => {
+          get().recordEvent(matchId, {
+            type: event.type,
+            isOwnTeam: event.isOwnTeam,
+            playerId: event.playerId,
+            assistedByPlayerId: event.assistedByPlayerId,
+            coordinates: event.coordinates,
+            clockSeconds: event.quarterTimeRemainingSeconds,
+          });
+        },
 
-          // Points calculation
-          let points = 0;
-          if (eventData.type === 'FT_MADE') points = 1;
-          else if (eventData.type === 'FG2_MADE') points = 2;
-          else if (eventData.type === 'FG3_MADE') points = 3;
-
-          const isHomeScore =
-            (match.condition === 'HOME' && eventData.isOwnTeam) ||
-            (match.condition === 'AWAY' && !eventData.isOwnTeam);
-
-          if (isHomeScore) {
-            homeDelta = points;
-          } else {
-            awayDelta = points;
-          }
-
-          // Foul calculation
-          if (
-            eventData.type === 'FOUL_PERSONAL' ||
-            eventData.type === 'FOUL_TECHNICAL' ||
-            eventData.type === 'FOUL_UNSPORTSMANLIKE'
-          ) {
-            foulDelta = 1;
-          }
-
-          const newHomeScore = match.homeScore + homeDelta;
-          const newAwayScore = match.awayScore + awayDelta;
-
-          const newHomeFouls =
-            (match.condition === 'HOME' && eventData.isOwnTeam) ||
-            (match.condition === 'AWAY' && !eventData.isOwnTeam)
-              ? match.homeFoulsQuarter + foulDelta
-              : match.homeFoulsQuarter;
-
-          const newAwayFouls =
-            (match.condition === 'HOME' && !eventData.isOwnTeam) ||
-            (match.condition === 'AWAY' && eventData.isOwnTeam)
-              ? match.awayFoulsQuarter + foulDelta
-              : match.awayFoulsQuarter;
-
-          const fullEvent: PlayByPlayEvent = {
-            ...eventData,
-            id: `ev-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-            scoreAtEvent: {
-              home: newHomeScore,
-              away: newAwayScore,
-            },
-            timestamp: new Date().toISOString(),
-          };
-
-          return {
-            matches: state.matches.map((m) =>
-              m.id === matchId
-                ? {
-                    ...m,
-                    homeScore: newHomeScore,
-                    awayScore: newAwayScore,
-                    homeFoulsQuarter: newHomeFouls,
-                    awayFoulsQuarter: newAwayFouls,
-                    events: [...m.events, fullEvent],
-                  }
-                : m
-            ),
-          };
-        }),
-
-      undoLastPlayByPlayEvent: (matchId) =>
-        set((state) => {
-          const match = state.matches.find((m) => m.id === matchId);
-          if (!match || match.events.length === 0) return state;
-
-          const lastEvent = match.events[match.events.length - 1];
-          const remainingEvents = match.events.slice(0, -1);
-
-          // Revert points if last event was scoring
-          let homeDelta = 0;
-          let awayDelta = 0;
-          let points = 0;
-          if (lastEvent.type === 'FT_MADE') points = 1;
-          else if (lastEvent.type === 'FG2_MADE') points = 2;
-          else if (lastEvent.type === 'FG3_MADE') points = 3;
-
-          const isHomeScore =
-            (match.condition === 'HOME' && lastEvent.isOwnTeam) ||
-            (match.condition === 'AWAY' && !lastEvent.isOwnTeam);
-
-          if (isHomeScore) {
-            homeDelta = points;
-          } else {
-            awayDelta = points;
-          }
-
-          // Revert foul if last event was a foul
-          let foulDelta = 0;
-          if (
-            lastEvent.type === 'FOUL_PERSONAL' ||
-            lastEvent.type === 'FOUL_TECHNICAL' ||
-            lastEvent.type === 'FOUL_UNSPORTSMANLIKE'
-          ) {
-            foulDelta = 1;
-          }
-
-          const newHomeScore = Math.max(0, match.homeScore - homeDelta);
-          const newAwayScore = Math.max(0, match.awayScore - awayDelta);
-
-          const newHomeFouls =
-            (match.condition === 'HOME' && lastEvent.isOwnTeam) ||
-            (match.condition === 'AWAY' && !lastEvent.isOwnTeam)
-              ? Math.max(0, match.homeFoulsQuarter - foulDelta)
-              : match.homeFoulsQuarter;
-
-          const newAwayFouls =
-            (match.condition === 'HOME' && !lastEvent.isOwnTeam) ||
-            (match.condition === 'AWAY' && lastEvent.isOwnTeam)
-              ? Math.max(0, match.awayFoulsQuarter - foulDelta)
-              : match.awayFoulsQuarter;
-
-          // Revert substitution if it was a sub
-          let activeLineup = match.activeLineupOwn;
-          if (lastEvent.type === 'SUBSTITUTION' && lastEvent.substitution) {
-            activeLineup = match.activeLineupOwn.map((pid) =>
-              pid === lastEvent.substitution!.playerInId
-                ? lastEvent.substitution!.playerOutId
-                : pid
-            );
-          }
-
-          return {
-            matches: state.matches.map((m) =>
-              m.id === matchId
-                ? {
-                    ...m,
-                    homeScore: newHomeScore,
-                    awayScore: newAwayScore,
-                    homeFoulsQuarter: newHomeFouls,
-                    awayFoulsQuarter: newAwayFouls,
-                    activeLineupOwn: activeLineup,
-                    events: remainingEvents,
-                  }
-                : m
-            ),
-          };
-        }),
-
-      resetToSeedData: () =>
-        set({
-          currentUser: SEED_USERS[0],
-          divisions: SEED_DIVISIONS,
-          teams: SEED_TEAMS,
-          players: SEED_PLAYERS,
-          matches: SEED_MATCHES,
-          activeDivisionId: 'div-primera',
-          activeMatchId: 'match-live-today',
-        }),
-    }),
+        undoLastPlayByPlayEvent: (matchId) => {
+          get().undoLastEvent(matchId);
+        },
+      };
+    },
     {
-      name: 'hoop-club-storage',
-      storage: createJSONStorage(() => localStorage),
+      name: CLUB_STORAGE_KEY,
+      version: CLUB_STORE_VERSION,
+      // Only the tab running the sync engine writes it (S13.3).
+      storage: createJSONStorage(gatedLocalStorage),
+      partialize: (state): ClubDataState => ({
+        currentUser: state.currentUser,
+        users: state.users,
+        divisions: state.divisions,
+        activeDivisionId: state.activeDivisionId,
+        teams: state.teams,
+        players: state.players,
+        matches: state.matches,
+        activeMatchId: state.activeMatchId,
+      }),
+      migrate: (persisted, version) => migrateClubState(persisted, version),
     }
   )
 );

@@ -1,181 +1,186 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Award } from 'lucide-react';
-import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
-import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
-import { ModalSheet } from '@/presentation/molecules/ModalSheet/ModalSheet';
+import { Award, CalendarRange, Pencil, Plus, Shield, Trash2, Users } from 'lucide-react';
+import clsx from 'clsx';
+import type { Division } from '@/core/domain/entities/club.types';
+import { can } from '@/core/domain/rules/permissions';
 import { useClubStore } from '@/core/application/stores/useClubStore';
-import { DivisionCategory } from '@/core/domain/entities/club.types';
+import { CLUB_PROFILE } from '@/core/infrastructure/mocks/seed-data';
+import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
+import { PageHeader } from '@/presentation/molecules/PageHeader/PageHeader';
+import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
+import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
+import { IconButton } from '@/presentation/atoms/IconButton/IconButton';
+import { confirm } from '@/presentation/organisms/DialogHost/dialog-store';
+import { DivisionFormModal } from '@/presentation/organisms/DivisionFormModal/DivisionFormModal';
+import { DIVISION_CATEGORY_LABELS } from '@/presentation/organisms/DivisionFormModal/division-labels';
+import { DivisionRosterModal } from '@/presentation/organisms/DivisionRosterModal/DivisionRosterModal';
+import { getTeamRosterPlayers } from '@/presentation/organisms/DivisionRosterModal/team-roster';
+import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import styles from './page.module.css';
 
 export default function DivisionsPage() {
-  const { divisions, teams, players, addDivision } = useClubStore();
+  const divisions = useClubStore((state) => state.divisions);
+  const teams = useClubStore((state) => state.teams);
+  const players = useClubStore((state) => state.players);
+  const users = useClubStore((state) => state.users);
+  const role = useClubStore((state) => state.currentUser.role);
+  const deleteDivision = useClubStore((state) => state.deleteDivision);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newDivName, setNewDivName] = useState('');
-  const [newDivCategory, setNewDivCategory] = useState<DivisionCategory>('U15');
-  const [newDivDesc, setNewDivDesc] = useState('');
+  const canManage = can(role, 'MANAGE_DIVISIONS');
+  useScreenTour('divisions');
 
-  const handleCreateDivision = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newDivName.trim()) return;
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [divisionToEdit, setDivisionToEdit] = useState<Division | null>(null);
+  const [isRosterOpen, setIsRosterOpen] = useState(false);
+  const [rosterDivisionId, setRosterDivisionId] = useState<string | null>(null);
 
-    addDivision({
-      name: newDivName.trim(),
-      category: newDivCategory,
-      gender: 'MALE',
-      clubId: 'club-hoop-arg',
-      description: newDivDesc.trim(),
+  const openForm = (division: Division | null) => {
+    setDivisionToEdit(division);
+    setIsFormOpen(true);
+  };
+
+  const openRoster = (divisionId: string) => {
+    setRosterDivisionId(divisionId);
+    setIsRosterOpen(true);
+  };
+
+  const handleDelete = async (division: Division, playerCount: number) => {
+    const accepted = await confirm({
+      title: 'Eliminar división',
+      message: `Se eliminará "${division.name}" junto con su equipo. ${
+        playerCount > 0
+          ? `Sus ${playerCount} jugadores quedarán sin equipo asignado.`
+          : 'No tiene jugadores asignados.'
+      } Los partidos de la división se conservan en el calendario.`,
+      confirmLabel: 'Eliminar división',
+      tone: 'danger',
     });
-
-    setIsModalOpen(false);
-    setNewDivName('');
-    setNewDivDesc('');
+    if (accepted) deleteDivision(division.id);
   };
 
   return (
     <TabletAppShell>
-      <div className={styles.pageContainer}>
-        <div className={styles.header}>
-          <div className={styles.titleArea}>
-            <h1 className={styles.pageTitle}>Divisiones y Planteles</h1>
-            <p className={styles.pageSubtitle}>
-              Estructura deportiva del club, categorías formativas y cuerpo técnico.
-            </p>
-          </div>
-
-          <TouchButton
-            variant="primary"
-            size="md"
-            leftIcon={<Plus size={18} />}
-            onClick={() => setIsModalOpen(true)}
-          >
-            Nueva División
-          </TouchButton>
-        </div>
-
-        <div className={styles.grid}>
-          {divisions.map((div) => {
-            const team = teams.find((t) => t.divisionId === div.id);
-            const teamPlayers = players.filter((p) => p.teamId === team?.id);
-
-            return (
-              <div key={div.id} className={styles.divisionCard}>
-                <div>
-                  <div className={styles.cardTop}>
-                    <h2 className={styles.divName}>{div.name}</h2>
-                    <span className={styles.tag}>{div.category}</span>
-                  </div>
-                  {div.description && (
-                    <p className={styles.divDesc}>{div.description}</p>
-                  )}
-                </div>
-
-                <div className={styles.cardStats}>
-                  <div className={styles.statItem}>
-                    <span className={styles.statValue}>
-                      {teamPlayers.length}
-                    </span>
-                    <span className={styles.statLabel}>Jugadores</span>
-                  </div>
-                  <div className={styles.statItem}>
-                    <span className={styles.statValue}>
-                      {team?.season || '2025/2026'}
-                    </span>
-                    <span className={styles.statLabel}>Temporada</span>
-                  </div>
-                </div>
-
-                <div className={styles.coachInfo}>
-                  <Award size={16} color="var(--color-orange)" />
-                  <span>DT Asignado: Federico Balbi</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* MODAL CREAR DIVISION */}
-        <ModalSheet
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          title="Agregar Nueva División"
-        >
-          <form onSubmit={handleCreateDivision} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>Nombre de la División</label>
-              <input
-                type="text"
-                value={newDivName}
-                onChange={(e) => setNewDivName(e.target.value)}
-                placeholder="Ej. Sub-15 (U15) Masculino"
-                style={{
-                  minHeight: '48px',
-                  padding: '0 12px',
-                  backgroundColor: 'var(--bg-surface-2)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--text-primary)',
-                }}
-                required
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>Categoría</label>
-              <select
-                value={newDivCategory}
-                onChange={(e) => setNewDivCategory(e.target.value as DivisionCategory)}
-                style={{
-                  minHeight: '48px',
-                  padding: '0 12px',
-                  backgroundColor: 'var(--bg-surface-2)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--text-primary)',
-                }}
+      <div className="page-container">
+        <PageHeader
+          title="Divisiones"
+          subtitle={`Estructura deportiva del club, planteles y cuerpo técnico · Temporada ${CLUB_PROFILE.season}`}
+          actions={
+            canManage && (
+              <TouchButton
+                leftIcon={<Plus size={ICON_SIZE.md} />}
+                onClick={() => openForm(null)}
+                data-tour="divisions-create"
               >
-                <option value="PRIMERA">Primera División</option>
-                <option value="U21">Sub-21 (U21)</option>
-                <option value="U19">Sub-19 (U19)</option>
-                <option value="U17">Sub-17 (U17)</option>
-                <option value="U15">Sub-15 (U15)</option>
-                <option value="U13">Sub-13 (U13)</option>
-                <option value="MINI">Mini Básquet</option>
-                <option value="FEMENINO">Femenino</option>
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>Descripción / Torneo</label>
-              <input
-                type="text"
-                value={newDivDesc}
-                onChange={(e) => setNewDivDesc(e.target.value)}
-                placeholder="Ej. Torneo Apertura Febamba"
-                style={{
-                  minHeight: '48px',
-                  padding: '0 12px',
-                  backgroundColor: 'var(--bg-surface-2)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--text-primary)',
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-              <TouchButton type="button" variant="ghost" size="md" onClick={() => setIsModalOpen(false)}>
-                Cancelar
+                Nueva división
               </TouchButton>
-              <TouchButton type="submit" variant="primary" size="md">
-                Guardar División
-              </TouchButton>
-            </div>
-          </form>
-        </ModalSheet>
+            )
+          }
+        />
+
+        {divisions.length === 0 ? (
+          <EmptyState
+            icon={Shield}
+            title="Todavía no hay divisiones"
+            description={
+              canManage
+                ? 'Crea la primera división para armar su plantel y su calendario.'
+                : 'Un administrador debe crear las divisiones del club.'
+            }
+            action={
+              canManage && (
+                <TouchButton leftIcon={<Plus size={ICON_SIZE.md} />} onClick={() => openForm(null)}>
+                  Nueva división
+                </TouchButton>
+              )
+            }
+          />
+        ) : (
+          <ul className={styles.grid}>
+            {divisions.map((division) => {
+              const team = teams.find((t) => t.divisionId === division.id);
+              const playerCount = getTeamRosterPlayers(team, players).length;
+              const coach = users.find((u) => u.id === team?.headCoachId);
+
+              return (
+                <li key={division.id} className={styles.divisionCard} data-reveal data-tour="division-card">
+                  <div className={styles.cardTop}>
+                    <h2 className={styles.divisionName}>{division.name}</h2>
+                    <span className={styles.categoryTag}>{DIVISION_CATEGORY_LABELS[division.category]}</span>
+                  </div>
+                  {division.description && <p className={styles.description}>{division.description}</p>}
+
+                  <dl className={styles.stats}>
+                    <div className={styles.statItem}>
+                      <dt className={styles.statLabel}>
+                        <Users size={ICON_SIZE.sm} aria-hidden="true" />
+                        Jugadores
+                      </dt>
+                      <dd className={clsx(styles.statValue, 'tabular-nums')}>{playerCount}</dd>
+                    </div>
+                    <div className={styles.statItem}>
+                      <dt className={styles.statLabel}>
+                        <CalendarRange size={ICON_SIZE.sm} aria-hidden="true" />
+                        Temporada
+                      </dt>
+                      <dd className={clsx(styles.statValue, 'tabular-nums')}>
+                        {team?.season ?? CLUB_PROFILE.season}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <p className={clsx(styles.coach, !coach && styles.coachMissing)}>
+                    <Award size={ICON_SIZE.sm} aria-hidden="true" />
+                    {coach ? `Entrenador: ${coach.name}` : 'Sin entrenador asignado'}
+                  </p>
+
+                  <div className={styles.cardActions}>
+                    <TouchButton
+                      variant="secondary"
+                      leftIcon={<Users size={ICON_SIZE.md} />}
+                      className={styles.rosterButton}
+                      onClick={() => openRoster(division.id)}
+                      data-tour="division-roster"
+                    >
+                      Ver plantel
+                    </TouchButton>
+                    {canManage && (
+                      <>
+                        <IconButton
+                          aria-label={`Editar ${division.name}`}
+                          variant="secondary"
+                          icon={<Pencil size={ICON_SIZE.md} />}
+                          onClick={() => openForm(division)}
+                          data-tour="division-edit"
+                        />
+                        <IconButton
+                          aria-label={`Eliminar ${division.name}`}
+                          variant="danger"
+                          icon={<Trash2 size={ICON_SIZE.md} />}
+                          onClick={() => handleDelete(division, playerCount)}
+                        />
+                      </>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
+
+      <DivisionFormModal
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        divisionToEdit={divisionToEdit}
+      />
+      <DivisionRosterModal
+        isOpen={isRosterOpen}
+        onClose={() => setIsRosterOpen(false)}
+        divisionId={rosterDivisionId}
+      />
     </TabletAppShell>
   );
 }

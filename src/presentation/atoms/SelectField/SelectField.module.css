@@ -1,0 +1,11 @@
+.select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+
+.select option {
+  background-color: var(--bg-surface-1);
+  color: var(--text-primary);
+}

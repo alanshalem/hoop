@@ -1,5 +1,1 @@
-/**
- * Infrastructure mocks barrel
- */
-export {};
-
+export * from './seed-data';

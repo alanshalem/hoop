@@ -1,0 +1,50 @@
+.content {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.toneIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--touch-xl);
+  height: var(--touch-xl);
+  border-radius: var(--radius-full);
+  border: 1px solid currentColor;
+}
+
+.toneInfo {
+  color: var(--color-info);
+  background-color: var(--color-info-subtle);
+}
+
+.toneSuccess {
+  color: var(--color-success);
+  background-color: var(--color-success-subtle);
+  box-shadow: var(--shadow-glow-success);
+}
+
+.toneWarning {
+  color: var(--color-warning);
+  background-color: var(--color-warning-subtle);
+  box-shadow: var(--shadow-glow-warning);
+}
+
+.toneDanger {
+  color: var(--color-danger);
+  background-color: var(--color-danger-subtle);
+  box-shadow: var(--shadow-glow-danger);
+}
+
+.message {
+  flex: 1;
+  min-width: 0;
+  align-self: center;
+  font-size: var(--text-lg);
+  line-height: var(--leading-normal);
+  color: var(--text-primary);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}

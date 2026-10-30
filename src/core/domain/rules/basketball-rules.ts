@@ -2,6 +2,7 @@ import {
   PlayByPlayEvent,
   Quarter,
 } from '../entities/match.types';
+import { getEventPoints, isFoulEvent, isSameTeamFoulPeriod } from './event-rules';
 
 /**
  * =============================================================================
@@ -183,8 +184,8 @@ export function getPlayerFoulsFromEvents(
 
 /**
  * Computes team fouls for a specific quarter.
- * Note on FIBA Overtime: Art. 41.1.3 states that overtimes carry team fouls from Q4 or count toward penalty.
- * If separate tracking per quarter is passed, this checks the specific quarter.
+ * FIBA Art. 41.1.1: fouls in any overtime count as committed in Q4, so for an
+ * overtime (or Q4) this counts Q4 plus every overtime.
  */
 export function getTeamFoulsForQuarter(
   quarter: Quarter,
@@ -194,15 +195,8 @@ export function getTeamFoulsForQuarter(
   let count = 0;
   for (const event of events) {
     if (event.teamId !== teamId) continue;
-    if (event.quarter !== quarter) continue;
-
-    if (
-      event.type === 'FOUL_PERSONAL' ||
-      event.type === 'FOUL_TECHNICAL' ||
-      event.type === 'FOUL_UNSPORTSMANLIKE'
-    ) {
-      count++;
-    }
+    if (!isSameTeamFoulPeriod(event.quarter, quarter)) continue;
+    if (isFoulEvent(event.type)) count++;
   }
   return count;
 }
@@ -226,7 +220,7 @@ export function isTeamInBonusFromEvents(
 /**
  * Official FIBA Performance Index Rating (PIR) calculation formula:
  *
- * PIR = (PTS + REB + AST + STL + BLK) - (Missed FG + Missed FT + TOV + Personal Fouls)
+ * PIR = (PTS + REB + AST + STL + BLK) - (Missed FG + Missed FT + TOV + Fouls committed)
  *
  * Positive values increase rating; missed opportunities, turnovers, and fouls decrease it.
  */
@@ -290,11 +284,7 @@ export function calculatePlayerPlusMinus(
     }
 
     // Only scoring events affect +/-
-    let points = 0;
-    if (event.type === 'FT_MADE') points = 1;
-    else if (event.type === 'FG2_MADE') points = 2;
-    else if (event.type === 'FG3_MADE') points = 3;
-
+    const points = getEventPoints(event.type);
     if (points === 0) continue;
 
     // Check if the target player was on court when this basket occurred
