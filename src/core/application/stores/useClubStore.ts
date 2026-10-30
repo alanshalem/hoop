@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   Division,
   Player,
-  UserRole,
+  User,
 } from '@/core/domain/entities/club.types';
 import type {
   Match,
@@ -29,6 +29,8 @@ import type {
   UndoReason,
 } from '@/core/application/use-cases/match-use-cases';
 import { CLUB_PROFILE } from '@/core/infrastructure/mocks/seed-data';
+import { reconcileSelection } from '@/core/application/sync/pull-merge';
+import type { SyncableClubData } from '@/core/application/sync/sync-types';
 import {
   CLUB_STORE_VERSION,
   ClubDataState,
@@ -43,8 +45,12 @@ export type ActionResult<Reason extends string> =
 export type MatchNotFound = { ok: false; reason: 'MATCH_NOT_FOUND' };
 
 export interface ClubStoreState extends ClubDataState {
-  // Current user / RBAC
-  switchRole: (role: UserRole) => void;
+  // Current user / RBAC: the authenticated account (role comes from the server)
+  setCurrentUser: (user: User) => void;
+
+  // Sync
+  /** Replaces the synced collections with pulled server data, keeping valid selections. */
+  applySyncedData: (data: SyncableClubData) => void;
 
   // Divisions
   setActiveDivision: (divisionId: string) => void;
@@ -171,10 +177,9 @@ export const useClubStore = create<ClubStoreState>()(
       return {
         ...createInitialClubState(),
 
-        switchRole: (role) => {
-          const { users, currentUser } = get();
-          set({ currentUser: users.find((u) => u.role === role) ?? { ...currentUser, role } });
-        },
+        setCurrentUser: (user) => set({ currentUser: user }),
+
+        applySyncedData: (data) => set((state) => ({ ...data, ...reconcileSelection(state, data) })),
 
         setActiveDivision: (divisionId) => set({ activeDivisionId: divisionId }),
 

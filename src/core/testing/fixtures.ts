@@ -1,3 +1,4 @@
+import type { Division, Player, Team } from '@/core/domain/entities/club.types';
 import type { Match, PlayByPlayEvent } from '@/core/domain/entities/match.types';
 
 /**
@@ -19,6 +20,46 @@ export function makeEvent(overrides: Partial<PlayByPlayEvent> = {}): PlayByPlayE
     type: 'FG2_MADE',
     scoreAtEvent: { home: 0, away: 0 },
     timestamp: '2026-10-01T20:00:00.000Z',
+    ...overrides,
+  };
+}
+
+export function makeDivision(overrides: Partial<Division> = {}): Division {
+  return {
+    id: 'div-test',
+    name: 'Primera Test',
+    category: 'PRIMERA',
+    gender: 'MALE',
+    clubId: 'club-test',
+    ...overrides,
+  };
+}
+
+export function makeTeam(overrides: Partial<Team> = {}): Team {
+  return {
+    id: 'team-own',
+    name: 'Own Team',
+    divisionId: 'div-test',
+    season: '2026',
+    assistantCoachIds: [],
+    playerIds: [],
+    clubId: 'club-test',
+    ...overrides,
+  };
+}
+
+export function makePlayer(overrides: Partial<Player> = {}): Player {
+  return {
+    id: 'p1',
+    firstName: 'Test',
+    lastName: 'Player',
+    dorsal: 7,
+    heightCm: 190,
+    dominantHand: 'RIGHT',
+    position: 'PG',
+    status: 'ACTIVE',
+    teamId: 'team-own',
+    clubId: 'club-test',
     ...overrides,
   };
 }

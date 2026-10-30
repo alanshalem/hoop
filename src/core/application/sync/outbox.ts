@@ -1,0 +1,156 @@
+import { recordKey, timeOf } from './sync-records';
+import type {
+  ClubDiff,
+  Outbox,
+  OutboxEventEntry,
+  OutboxRecordEntry,
+  PushPayload,
+  PushResult,
+  SyncEvent,
+  SyncRecord,
+  VersionMap,
+} from './sync-types';
+
+/** Server limits of `POST /api/sync/push` (src/server/sync/api-schema.ts). */
+export const PUSH_LIMITS = { records: 500, events: 2000 } as const;
+
+export function createEmptyOutbox(): Outbox {
+  return { records: {}, events: {}, nextRev: 1 };
+}
+
+export function countPending(outbox: Outbox): number {
+  return Object.keys(outbox.records).length + Object.keys(outbox.events).length;
+}
+
+/**
+ * Change time for a record: now, but always later than the version it replaces,
+ * so a local edit wins over the version it was made on (even with clock skew).
+ */
+export function nextUpdatedAt(previous: string | undefined, nowMs: number): string {
+  const after = previous === undefined ? nowMs : Math.max(nowMs, timeOf(previous) + 1);
+  return new Date(after).toISOString();
+}
+
+export interface OutboxState {
+  outbox: Outbox;
+  versions: VersionMap;
+}
+
+/**
+ * Adds local changes to the outbox, stamping `updatedAt` into the entry and the
+ * versions map. One entry per `kind:id` (the latest wins) and per event id; an
+ * event removed before any push attempt is simply dropped.
+ */
+export function enqueueChanges({ outbox, versions }: OutboxState, diff: ClubDiff, nowMs: number): OutboxState {
+  const records = { ...outbox.records };
+  const events = { ...outbox.events };
+  const nextVersions = { ...versions };
+  let nextRev = outbox.nextRev;
+
+  for (const change of diff.records) {
+    const key = recordKey(change.kind, change.id);
+    const updatedAt = nextUpdatedAt(nextVersions[key], nowMs);
+    nextVersions[key] = updatedAt;
+    records[key] = { ...change, updatedAt, rev: nextRev++ };
+  }
+
+  for (const change of diff.events) {
+    const pending = events[change.id];
+    if (!change.deleted) {
+      // A pending tombstone always wins: the server never revives a deleted event.
+      if (!pending?.deleted) events[change.id] = { ...change, rev: nextRev++, attempted: false };
+    } else if (pending && !pending.deleted && !pending.attempted) {
+      delete events[change.id];
+    } else {
+      events[change.id] = { ...change, rev: nextRev++, attempted: false };
+    }
+  }
+
+  return { outbox: { records, events, nextRev }, versions: nextVersions };
+}
+
+export interface PushBatch {
+  payload: PushPayload;
+  records: { key: string; id: string; rev: number }[];
+  events: { id: string; rev: number }[];
+  size: number;
+}
+
+/** The oldest pending changes that fit in one push. */
+export function buildPushBatch(outbox: Outbox, limits = PUSH_LIMITS): PushBatch {
+  const recordEntries = Object.entries(outbox.records).slice(0, limits.records);
+  const eventEntries = Object.values(outbox.events).slice(0, limits.events);
+  return {
+    payload: {
+      records: recordEntries.map(([, entry]) => toPushRecord(entry)),
+      events: eventEntries.map(toPushEvent),
+    },
+    records: recordEntries.map(([key, entry]) => ({ key, id: entry.id, rev: entry.rev })),
+    events: eventEntries.map((entry) => ({ id: entry.id, rev: entry.rev })),
+    size: recordEntries.length + eventEntries.length,
+  };
+}
+
+function toPushRecord(entry: OutboxRecordEntry): SyncRecord {
+  const record: Partial<OutboxRecordEntry> = { ...entry };
+  delete record.rev;
+  return record as SyncRecord;
+}
+
+function toPushEvent({ id, matchId, data, deleted }: OutboxEventEntry): SyncEvent {
+  return { id, matchId, data, deleted };
+}
+
+/** Marks the batch events as possibly known by the server (see `enqueueChanges`). */
+export function markBatchAttempted(outbox: Outbox, batch: PushBatch): Outbox {
+  if (batch.events.length === 0) return outbox;
+  const events = { ...outbox.events };
+  for (const { id } of batch.events) {
+    if (events[id]) events[id] = { ...events[id], attempted: true };
+  }
+  return { ...outbox, events };
+}
+
+export interface ApplyPushOutcome {
+  outbox: Outbox;
+  /** Batch entries the server answered for (removed from the outbox). */
+  settledCount: number;
+  /** FORBIDDEN or INVALID rejections: those changes are dropped and reported. */
+  errorCount: number;
+}
+
+/**
+ * Settles the batch: accepted entries leave the outbox; STALE ones too (the next
+ * pull brings the server version); FORBIDDEN/INVALID ones are dropped and
+ * counted. An entry changed again while the push was in flight stays pending.
+ */
+export function applyPushResult(outbox: Outbox, batch: PushBatch, result: PushResult): ApplyPushOutcome {
+  const answered = new Set(result.accepted);
+  const failed = new Set<string>();
+  for (const { id, reason } of result.rejected) {
+    answered.add(id);
+    if (reason !== 'STALE') failed.add(id);
+  }
+
+  const records = { ...outbox.records };
+  const events = { ...outbox.events };
+  let settledCount = 0;
+  let errorCount = 0;
+  const settle = (id: string) => {
+    settledCount += 1;
+    if (failed.has(id)) errorCount += 1;
+  };
+
+  for (const { key, id, rev } of batch.records) {
+    if (!answered.has(id) || records[key]?.rev !== rev) continue;
+    delete records[key];
+    settle(id);
+  }
+  for (const { id, rev } of batch.events) {
+    if (!answered.has(id) || events[id]?.rev !== rev) continue;
+    delete events[id];
+    settle(id);
+  }
+
+  return { outbox: { ...outbox, records, events }, settledCount, errorCount };
+}
