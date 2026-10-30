@@ -1,40 +1,270 @@
+/* =============================================================================
+   HOOP OS - DESIGN SYSTEM TOKENS & GLOBAL STYLES
+   Optimized for Courtside Tablet & Mobile Operations (FIBA Basketball)
+   ============================================================================= */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ---------------------------------------------------------------------------
+     COLOR PALETTE - ARENA DARK (High-Contrast Courtside Theme - Default)
+     --------------------------------------------------------------------------- */
+  --bg-base: #0B0F17;
+  --bg-surface-1: #161F30;
+  --bg-surface-2: #1E293B;
+  --bg-surface-3: #2A3A54;
+
+  --border-subtle: #2A3B52;
+  --border-strong: #3E5677;
+  --border-focus: rgba(255, 107, 0, 0.6);
+
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --text-inverse: #0B0F17;
+
+  /* Semantics: Basketball Court Accents */
+  --color-orange: #FF6B00;
+  --color-orange-hover: #E05E00;
+  --color-orange-active: #C45200;
+  --color-orange-subtle: rgba(255, 107, 0, 0.15);
+  --color-orange-glow: rgba(255, 107, 0, 0.35);
+
+  --color-green: #10B981;
+  --color-green-hover: #059669;
+  --color-green-subtle: rgba(16, 185, 129, 0.15);
+  --color-green-glow: rgba(16, 185, 129, 0.35);
+
+  --color-red: #EF4444;
+  --color-red-hover: #DC2626;
+  --color-red-subtle: rgba(239, 68, 68, 0.15);
+  --color-red-glow: rgba(239, 68, 68, 0.35);
+
+  --color-amber: #F59E0B;
+  --color-amber-hover: #D97706;
+  --color-amber-subtle: rgba(245, 158, 11, 0.15);
+  --color-amber-glow: rgba(245, 158, 11, 0.35);
+
+  --color-blue: #3B82F6;
+  --color-blue-hover: #2563EB;
+  --color-blue-subtle: rgba(59, 130, 246, 0.15);
+
+  --color-wood: #B45309;
+  --color-wood-dark: #78350F;
+  --color-court-floor: #121A29;
+  --color-court-line: rgba(241, 245, 249, 0.35);
+  --color-court-key: rgba(255, 107, 0, 0.08);
+
+  /* ---------------------------------------------------------------------------
+     TYPOGRAPHY SCALE (Fluid clamp-based for Responsive Tablet/Mobile)
+     --------------------------------------------------------------------------- */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --font-athletic: "DIN Alternate", "Trebuchet MS", ui-monospace, sans-serif;
+
+  --text-2xs: clamp(0.625rem, 0.58rem + 0.2vw, 0.6875rem); /* 10-11px */
+  --text-xs: clamp(0.7rem, 0.65rem + 0.25vw, 0.75rem);      /* 11-12px */
+  --text-sm: clamp(0.8rem, 0.75rem + 0.25vw, 0.875rem);     /* 13-14px */
+  --text-base: clamp(0.95rem, 0.9rem + 0.25vw, 1rem);       /* 15-16px */
+  --text-lg: clamp(1.1rem, 1rem + 0.5vw, 1.25rem);          /* 18-20px */
+  --text-xl: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);       /* 20-24px */
+  --text-2xl: clamp(1.5rem, 1.35rem + 0.75vw, 1.875rem);    /* 24-30px */
+  --text-3xl: clamp(1.85rem, 1.6rem + 1.25vw, 2.25rem);     /* 30-36px */
+  --text-4xl: clamp(2.25rem, 1.9rem + 1.75vw, 3rem);        /* 36-48px */
+  --text-scoreboard: clamp(3rem, 2.4rem + 3vw, 4.5rem);     /* 48-72px */
+  --text-timer: clamp(2.5rem, 2rem + 2.5vw, 4rem);          /* 40-64px */
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-black: 900;
+
+  --leading-none: 1;
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.5;
+
+  /* ---------------------------------------------------------------------------
+     SPACING & LAYOUT GRID (4px base)
+     --------------------------------------------------------------------------- */
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* ---------------------------------------------------------------------------
+     BORDER RADIUS
+     --------------------------------------------------------------------------- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  /* ---------------------------------------------------------------------------
+     SHADOWS & ELEVATION
+     --------------------------------------------------------------------------- */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.6);
+  --shadow-glow-orange: 0 0 24px var(--color-orange-glow);
+  --shadow-glow-green: 0 0 24px var(--color-green-glow);
+  --shadow-glow-red: 0 0 24px var(--color-red-glow);
+  --shadow-glow-amber: 0 0 24px var(--color-amber-glow);
+
+  /* ---------------------------------------------------------------------------
+     Z-INDEX SYSTEM
+     --------------------------------------------------------------------------- */
+  --z-deep: -1;
+  --z-base: 1;
+  --z-elevated: 10;
+  --z-court-markers: 25;
+  --z-sticky: 100;
+  --z-drawer: 500;
+  --z-modal: 1000;
+  --z-toast: 2000;
+  --z-tooltip: 3000;
+
+  /* ---------------------------------------------------------------------------
+     TOUCH TARGETS & ERGONOMICS (Court Tablet Requirements)
+     --------------------------------------------------------------------------- */
+  --touch-min: 48px;
+  --touch-lg: 56px;
+  --touch-xl: 64px;
+  --touch-action: manipulation;
+
+  /* ---------------------------------------------------------------------------
+     TRANSITIONS & ANIMATIONS (GPU-accelerated properties)
+     --------------------------------------------------------------------------- */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 350ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* -----------------------------------------------------------------------------
+   LIGHT THEME OVERRIDES (Optional / Daytime Outdoor / Administrative)
+   ----------------------------------------------------------------------------- */
+[data-theme='light'] {
+  --bg-base: #F8FAFC;
+  --bg-surface-1: #FFFFFF;
+  --bg-surface-2: #F1F5F9;
+  --bg-surface-3: #E2E8F0;
+
+  --border-subtle: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --border-focus: rgba(234, 88, 12, 0.5);
+
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --text-inverse: #F8FAFC;
+
+  --color-orange: #EA580C;
+  --color-orange-hover: #C2410C;
+  --color-orange-active: #9A3412;
+  --color-orange-subtle: rgba(234, 88, 12, 0.12);
+  --color-orange-glow: rgba(234, 88, 12, 0.25);
+
+  --color-green: #059669;
+  --color-green-hover: #047857;
+  --color-green-subtle: rgba(5, 150, 105, 0.12);
+  --color-green-glow: rgba(5, 150, 105, 0.25);
+
+  --color-red: #DC2626;
+  --color-red-hover: #B91C1C;
+  --color-red-subtle: rgba(220, 38, 38, 0.12);
+  --color-red-glow: rgba(220, 38, 38, 0.25);
+
+  --color-amber: #D97706;
+  --color-amber-hover: #B45309;
+  --color-amber-subtle: rgba(217, 119, 6, 0.12);
+  --color-amber-glow: rgba(217, 119, 6, 0.25);
+
+  --color-blue: #2563EB;
+  --color-blue-hover: #1D4ED8;
+  --color-blue-subtle: rgba(37, 99, 235, 0.12);
+
+  --color-court-floor: #F1F5F9;
+  --color-court-line: rgba(15, 23, 42, 0.35);
+  --color-court-key: rgba(234, 88, 12, 0.08);
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+}
+
+/* =============================================================================
+   MODERN CSS RESET & TOUCH ERGONOMICS
+   ============================================================================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html {
   height: 100%;
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
 }
 
 html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+/* Touch Action Manipulation - prevents 300ms double-tap delay on tablets & phones */
+a,
+button,
+input,
+select,
+textarea,
+label,
+[role='button'],
+.touch-target {
+  touch-action: manipulation;
+}
+
+button {
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 a {
@@ -42,8 +272,60 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+/* Tabular figures for numbers, game clock and statistics */
+.tabular-nums,
+[data-tabular-nums='true'] {
+  font-family: var(--font-athletic), var(--font-mono);
+  font-feature-settings: 'tnum' 1, 'cv05' 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Prevent accidental text selection during fast courtside touches */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* =============================================================================
+   TOUCH SCROLLBAR CLEAN HIDDEN UTILITIES
+   ============================================================================= */
+
+/* Clean hidden scrollbars across WebKit, Firefox and Edge */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;    /* Firefox */
+  -webkit-overflow-scrolling: touch;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+  width: 0;
+  height: 0;
+}
+
+/* Custom discreet dark scrollbar for explicit scrollable areas */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

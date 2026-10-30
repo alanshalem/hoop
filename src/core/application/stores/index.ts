@@ -1,0 +1,5 @@
+/**
+ * Application stores barrel
+ */
+export {};
+

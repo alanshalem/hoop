@@ -1,0 +1,5 @@
+/**
+ * Application hooks barrel
+ */
+export {};
+

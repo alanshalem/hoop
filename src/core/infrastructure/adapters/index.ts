@@ -1,0 +1,5 @@
+/**
+ * Infrastructure adapters barrel
+ */
+export {};
+

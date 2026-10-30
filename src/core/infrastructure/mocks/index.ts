@@ -1,0 +1,5 @@
+/**
+ * Infrastructure mocks barrel
+ */
+export {};
+

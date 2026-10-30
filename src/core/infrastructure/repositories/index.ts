@@ -1,0 +1,5 @@
+/**
+ * Infrastructure repositories barrel
+ */
+export {};
+
