@@ -213,7 +213,7 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
         {children}
       </main>
 
-      {/* Tablet: brings the hidden rail back. */}
+      {/* Brings the hidden navigation back, on every screen size. */}
       {navCollapsed && (
         <button
           type="button"
