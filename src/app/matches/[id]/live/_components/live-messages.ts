@@ -1,9 +1,11 @@
 import type { Quarter } from '@/core/domain/entities/match.types';
 import { getTimeoutPeriod, isLastTwoMinutesOfFourthQuarter, type TimeoutPeriod } from '@/core/domain/rules/timeouts';
 import type {
+  RecordChartReason,
   RecordEventReason,
   RequestTimeoutResult,
   SubstitutionReason,
+  UndoChartReason,
   UndoReason,
 } from '@/core/application/use-cases/match-use-cases';
 
@@ -11,6 +13,8 @@ import type {
 export type ConsoleRefusal =
   | RecordEventReason
   | UndoReason
+  | RecordChartReason
+  | UndoChartReason
   | SubstitutionReason
   | Extract<RequestTimeoutResult, { ok: false }>['reason']
   | 'NOT_END_OF_FIRST_HALF'
@@ -25,6 +29,8 @@ export const REFUSAL_MESSAGES: Record<ConsoleRefusal, string> = {
   NOT_HALFTIME: 'El partido no está en el entretiempo.',
   INVALID_EVENT: 'La acción no es válida para este registro.',
   NO_EVENTS: 'No hay jugadas para deshacer.',
+  INVALID_CHART_CODE: 'El código no corresponde a esa categoría de la planilla.',
+  NO_CHART_ENTRIES: 'No hay entradas de la planilla para deshacer.',
   PLAYER_NOT_ON_COURT: 'El jugador que sale no está en cancha.',
   PLAYER_ALREADY_ON_COURT: 'El jugador que entra ya está en cancha.',
   PLAYER_NOT_IN_ROSTER: 'El jugador no está en la convocatoria del partido.',

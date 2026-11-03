@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
-import { Coffee, Crosshair, Eye, Play, Users, Zap } from 'lucide-react';
+import { BarChart3, ClipboardList, Coffee, Crosshair, Eye, Play, Users, Zap } from 'lucide-react';
 import { USER_ROLE_LABELS } from '@/core/domain/entities/club.types';
 import type { PlayByPlayEventType, Quarter } from '@/core/domain/entities/match.types';
 import type { CourtCoordinates } from '@/core/domain/value-objects/coordinates';
@@ -26,6 +26,7 @@ import {
 } from '@/presentation/organisms/OnCourtLineup/OnCourtLineup';
 import { HalfCourtShotChart } from '@/presentation/organisms/HalfCourtShotChart/HalfCourtShotChart';
 import { QuickActionPad } from '@/presentation/organisms/QuickActionPad/QuickActionPad';
+import { ChartPad, type ChartPadEntryInput } from '@/presentation/organisms/ChartPad/ChartPad';
 import { PlayByPlayTimeline } from '@/presentation/organisms/PlayByPlayTimeline/PlayByPlayTimeline';
 import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import { ConsoleToolbar } from './ConsoleToolbar';
@@ -39,6 +40,8 @@ import {
 import styles from './LiveConsole.module.css';
 
 type MobileTab = 'lineup' | 'chart' | 'pad';
+/** The tactical sheet (Planilla) is the core of the console; stats are secondary. */
+type ConsoleMode = 'sheet' | 'stats';
 
 const MOBILE_QUERY = '(max-width: 899px)';
 
@@ -59,6 +62,7 @@ export function LiveConsole({ matchId }: { matchId: string }) {
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [substitution, setSubstitution] = useState<SubstitutionDraft | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>('chart');
+  const [consoleMode, setConsoleMode] = useState<ConsoleMode>('sheet');
 
   const { match, teams, clock } = live;
   // Never interrupt a running clock: the tour waits until it is paused (or is replayed explicitly).
@@ -137,6 +141,19 @@ export function LiveConsole({ matchId }: { matchId: string }) {
     const result = live.undo();
     if (!result.ok) void notifyRefusal(result.reason, 'Nada para deshacer');
   };
+
+  const handleChartEntry = (input: ChartPadEntryInput): boolean => {
+    const result = live.recordChartEntry(input);
+    if (!result.ok) void notifyRefusal(result.reason, 'Entrada no registrada');
+    return result.ok;
+  };
+
+  const handleChartUndo = () => {
+    const result = live.undoChartEntry();
+    if (!result.ok) void notifyRefusal(result.reason, 'Nada para deshacer');
+  };
+
+  const statEvents = match.events.filter((event) => event.type !== 'CHART');
 
   const handleSelectPlayer = (playerId: string) => {
     setSelectedPlayerId(playerId);
@@ -290,6 +307,46 @@ export function LiveConsole({ matchId }: { matchId: string }) {
         </p>
       )}
 
+      <div className={styles.modeSwitch} role="tablist" aria-label="Modo de la consola">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={consoleMode === 'sheet'}
+          className={clsx(styles.modeBtn, consoleMode === 'sheet' && styles.modeActive)}
+          onClick={() => setConsoleMode('sheet')}
+        >
+          <ClipboardList size={ICON_SIZE.sm} aria-hidden="true" />
+          Planilla
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={consoleMode === 'stats'}
+          className={clsx(styles.modeBtn, consoleMode === 'stats' && styles.modeActive)}
+          onClick={() => setConsoleMode('stats')}
+        >
+          <BarChart3 size={ICON_SIZE.sm} aria-hidden="true" />
+          Estadística
+        </button>
+      </div>
+
+      {consoleMode === 'sheet' && (
+        <div className={styles.sheetConsole}>
+          <ChartPad
+            className={styles.sheetPad}
+            onCourtPlayers={live.onCourtPlayers}
+            benchPlayers={live.benchPlayers}
+            events={match.events}
+            readOnly={readOnly}
+            locked={live.isHalftime}
+            onRecord={handleChartEntry}
+            onUndo={handleChartUndo}
+          />
+        </div>
+      )}
+
+      {consoleMode === 'stats' && (
+      <>
       <div className={styles.mobileTabs} role="tablist" aria-label="Secciones de la consola" data-tour="live-tabs">
         {mobileTabs.map((tab) => (
           <button
@@ -333,7 +390,7 @@ export function LiveConsole({ matchId }: { matchId: string }) {
           />
           <PlayByPlayTimeline
             className={styles.timeline}
-            events={match.events}
+            events={statEvents}
             players={players}
             rivalName={match.rivalTeamName}
             limit={6}
@@ -352,6 +409,8 @@ export function LiveConsole({ matchId }: { matchId: string }) {
           />
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }
