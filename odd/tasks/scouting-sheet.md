@@ -40,7 +40,7 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 - [x] T8 [S10] Browser check with Docker + seed. Route: inline. Commit: n/a (evidence L10)
 - [x] T9 [S11] Offensive result step (made + points). Route: inline, test-first. Commit: b80b2b5
 - [x] T10 [S12] Scoring chart entries add to the scoreboard. Route: inline, test-first. Commit: ce8d85a
-- [x] T11 [S13] Collapsible navigation. Route: inline, test-first. Commit: _pending_
+- [x] T11 [S13] Collapsible navigation. Route: inline, test-first. Commit: b454ced
 - T12 [S14] Rival rosters, rival player on chart entries, richer recent entries, seed roster. Route: worker. Commit: _pending_
 
 ## Log
