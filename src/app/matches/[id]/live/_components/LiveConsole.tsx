@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
-import { BarChart3, ClipboardList, Coffee, Crosshair, Eye, Play, Users, Zap } from 'lucide-react';
+import { BarChart3, ClipboardList, Coffee, Crosshair, Eye, PencilLine, Play, Table2, Users, Zap } from 'lucide-react';
 import { USER_ROLE_LABELS } from '@/core/domain/entities/club.types';
 import type { PlayByPlayEventType, Quarter } from '@/core/domain/entities/match.types';
 import type { CourtCoordinates } from '@/core/domain/value-objects/coordinates';
@@ -27,6 +27,7 @@ import {
 import { HalfCourtShotChart } from '@/presentation/organisms/HalfCourtShotChart/HalfCourtShotChart';
 import { QuickActionPad } from '@/presentation/organisms/QuickActionPad/QuickActionPad';
 import { ChartPad, type ChartPadEntryInput } from '@/presentation/organisms/ChartPad/ChartPad';
+import { ChartSheetTable } from '@/presentation/organisms/ChartSheetTable/ChartSheetTable';
 import { PlayByPlayTimeline } from '@/presentation/organisms/PlayByPlayTimeline/PlayByPlayTimeline';
 import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import { ConsoleToolbar } from './ConsoleToolbar';
@@ -42,6 +43,8 @@ import styles from './LiveConsole.module.css';
 type MobileTab = 'lineup' | 'chart' | 'pad';
 /** The tactical sheet (Planilla) is the core of the console; stats are secondary. */
 type ConsoleMode = 'sheet' | 'stats';
+/** Mobile only: the sheet mode alternates between the pad and the sheet view. */
+type SheetTab = 'entry' | 'view';
 
 const MOBILE_QUERY = '(max-width: 899px)';
 
@@ -63,6 +66,7 @@ export function LiveConsole({ matchId }: { matchId: string }) {
   const [substitution, setSubstitution] = useState<SubstitutionDraft | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>('chart');
   const [consoleMode, setConsoleMode] = useState<ConsoleMode>('sheet');
+  const [sheetTab, setSheetTab] = useState<SheetTab>('entry');
 
   const { match, teams, clock } = live;
   // Never interrupt a running clock: the tour waits until it is paused (or is replayed explicitly).
@@ -255,6 +259,11 @@ export function LiveConsole({ matchId }: { matchId: string }) {
     { value: 'pad', label: 'Acciones', icon: <Zap size={ICON_SIZE.sm} /> },
   ];
 
+  const sheetTabs: Array<{ value: SheetTab; label: string; icon: React.ReactNode }> = [
+    { value: 'entry', label: 'Cargar', icon: <PencilLine size={ICON_SIZE.sm} /> },
+    { value: 'view', label: 'Ver planilla', icon: <Table2 size={ICON_SIZE.sm} /> },
+  ];
+
   return (
     <div className={styles.liveViewport}>
       <ScoreboardHeader
@@ -332,16 +341,39 @@ export function LiveConsole({ matchId }: { matchId: string }) {
 
       {consoleMode === 'sheet' && (
         <div className={styles.sheetConsole}>
-          <ChartPad
-            className={styles.sheetPad}
-            onCourtPlayers={live.onCourtPlayers}
-            benchPlayers={live.benchPlayers}
-            events={match.events}
-            readOnly={readOnly}
-            locked={live.isHalftime}
-            onRecord={handleChartEntry}
-            onUndo={handleChartUndo}
-          />
+          <div className={styles.mobileTabs} role="tablist" aria-label="Secciones de la planilla">
+            {sheetTabs.map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                role="tab"
+                aria-selected={sheetTab === tab.value}
+                className={clsx(styles.mobileTabBtn, sheetTab === tab.value && styles.mobileTabActive)}
+                onClick={() => setSheetTab(tab.value)}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className={styles.sheetBody}>
+            <div className={clsx(styles.sheetPadSlot, sheetTab !== 'entry' && styles.columnHidden)}>
+              <ChartPad
+                className={styles.sheetPad}
+                onCourtPlayers={live.onCourtPlayers}
+                benchPlayers={live.benchPlayers}
+                events={match.events}
+                readOnly={readOnly}
+                locked={live.isHalftime}
+                onRecord={handleChartEntry}
+                onUndo={handleChartUndo}
+              />
+            </div>
+            <div className={clsx(styles.sheetView, sheetTab !== 'view' && styles.columnHidden)}>
+              <ChartSheetTable compact events={match.events} players={players} />
+            </div>
+          </div>
         </div>
       )}
 

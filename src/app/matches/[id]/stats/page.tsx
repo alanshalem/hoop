@@ -23,6 +23,7 @@ import { FilterChip } from '@/presentation/atoms/FilterChip/FilterChip';
 import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
 import { BoxScoreTable } from '@/presentation/organisms/BoxScoreTable/BoxScoreTable';
 import { QuarterPartialsTable } from '@/presentation/organisms/QuarterPartialsTable/QuarterPartialsTable';
+import { ChartSheetTable } from '@/presentation/organisms/ChartSheetTable/ChartSheetTable';
 import { HalfCourtShotChart } from '@/presentation/organisms/HalfCourtShotChart/HalfCourtShotChart';
 import { QUARTER_SHORT_LABELS } from '@/presentation/organisms/ScoreboardHeader/quarter-labels';
 import { MatchStatusBadge } from '@/presentation/organisms/MatchCard/MatchStatusBadge';
@@ -188,6 +189,14 @@ function MatchStats({ match }: { match: Match }) {
             <span className={styles.heroName}>{match.rivalTeamName}</span>
           </div>
         </section>
+
+        <SectionCard
+          title="Planilla"
+          icon={ClipboardList}
+          description="Planilla táctica cargada en vivo: azul = acción positiva, rojo = negativa."
+        >
+          <ChartSheetTable events={match.events} players={players} />
+        </SectionCard>
 
         <SectionCard title="Parciales por período" icon={Table2} data-tour="stats-partials">
           <QuarterPartialsTable partials={partials} ownName={match.ownTeamName} rivalName={match.rivalTeamName} />

@@ -1,0 +1,265 @@
+/* Tactical sheet: blue = positive action, red = negative (paper sheet inks). */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background-color: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+}
+
+.grid,
+.summary {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.th,
+.td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+/* Header row in club black, in every theme */
+.th {
+  background-color: var(--brand-black);
+  color: var(--text-on-brand);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-display);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  white-space: nowrap;
+  border-bottom: 2px solid var(--brand-primary);
+}
+
+.th abbr {
+  text-decoration: none;
+  cursor: help;
+}
+
+.grid .td {
+  vertical-align: top;
+}
+
+/* STICKY CATEGORY / PLAYER COLUMN */
+.categoryCol {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 132px;
+  text-align: left;
+  background-color: var(--bg-surface-1);
+  border-right: 2px solid var(--border-subtle);
+}
+
+.td.categoryCol {
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-display);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+}
+
+.th.categoryCol {
+  z-index: 3;
+  background-color: var(--brand-black);
+}
+
+.periodCell {
+  min-width: 120px;
+}
+
+.summaryCol {
+  border-left: 2px solid var(--border-strong);
+}
+
+.totalCol {
+  border-left: 2px solid var(--border-strong);
+  background-color: var(--bg-surface-2);
+}
+
+.th.totalCol {
+  background-color: var(--brand-black);
+}
+
+/* ENTRY CHIPS: "#7 P" / "EQ P" */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-1-5);
+}
+
+.chip {
+  padding: var(--space-0-5) var(--space-1-5);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-xs);
+  font-family: var(--font-display);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-display);
+  line-height: var(--leading-snug);
+  white-space: nowrap;
+  cursor: help;
+}
+
+.chip.positive {
+  background-color: var(--color-info-subtle);
+}
+
+.chip.negative {
+  background-color: var(--color-danger-subtle);
+}
+
+.positive {
+  color: var(--color-info);
+}
+
+.negative {
+  color: var(--color-danger);
+}
+
+.td.positive,
+.td.negative {
+  font-weight: var(--font-weight-bold);
+}
+
+.totals {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.count {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-display);
+  color: var(--text-primary);
+}
+
+.points {
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.dash {
+  color: var(--text-muted);
+}
+
+.codeCounts {
+  display: block;
+  margin-top: var(--space-0-5);
+  font-family: var(--font-display);
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* PER-PLAYER SUMMARY */
+.summary .td {
+  white-space: nowrap;
+}
+
+.summary tbody tr:nth-child(even) .td {
+  background-color: var(--bg-surface-2);
+}
+
+.playerCell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.dorsal {
+  min-width: 2ch;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-display);
+  color: var(--brand-primary-ink);
+  text-align: right;
+}
+
+.playerName {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.summary tbody tr.teamRow .td {
+  background-color: var(--bg-surface-2);
+  border-top: 2px solid var(--border-strong);
+}
+
+.teamRow .playerName {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--brand-primary-ink);
+}
+
+/* LEGEND */
+.legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.legendGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+
+.legendTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-display);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.legendList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+}
+
+.legendItem {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+}
+
+.legendSymbol {
+  min-width: 2.5em;
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+}
+
+.empty {
+  padding: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
