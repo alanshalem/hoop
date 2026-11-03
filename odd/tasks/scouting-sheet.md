@@ -18,10 +18,10 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 
 ## Tasks
 
-- T1 [S1,S2,S3,S5] Domain + use-cases: `CHART` event type with `chart: { category, code, points? }`, catalog, sheet aggregation, `recordChartEntry` / `undoLastChartEntry`, stat undo ignores chart events. Route: inline, test-first. Commit: _pending_
-- T2 [S1,S3] Live console "Planilla" panel (mode toggle, player chips, code grid, points selector, undo, last entries). Route: inline. Commit: _pending_
-- T3 [S4] Sheet view organism + match page integration (stats page section, live console access). Route: inline. Commit: _pending_
-- T4 [S6] Manual + seed chart entries for finished/live matches. Route: inline. Commit: _pending_
+- [x] T1 [S1,S2,S3,S5] Domain + use-cases: `CHART` event type with `chart: { category, code, points? }`, catalog, sheet aggregation, `recordChartEntry` / `undoLastChartEntry`, stat undo ignores chart events. Route: inline, test-first. Commit: 56c59cb
+- [x] T2 [S1,S3] Live console "Planilla" panel (mode toggle, player chips, code grid, points selector, undo, last entries). Route: inline. Commit: 2142964
+- [x] T3 [S4] Sheet view organism + match page integration (stats page section, live console access). Route: inline. Commit: 65a2f27
+- [x] T4 [S6] Manual + seed chart entries for finished/live matches. Route: inline. Commit: 97ef965
 
 ## Log
 
@@ -30,3 +30,4 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 - L3 (user): "Haz todo como tu pienses/recomiendes... Debe haber un estandar para esto, buscalo en internet si es que hay un estandar o alguna forma de hacer esto y toma el ejemplo desde ahi. Me explico?"
 - L4 (research): No universal charting standard. Sources: FIBA Statisticians' Manual 2024 Annex B (turnover types); hoopcoach.org "How to chart a game" (offense/defense editions); coachingtoolbox.net turnover chart (player, type, how, phase); Tom Kelsey half-court defense chart (each basket allowed: play, missed technique, players, points); NBA.com hustle stats (deflections, contested shots, box outs, charges, loose balls).
 - L5 (decision): Chart entries travel as play-by-play events of type `CHART` to reuse the existing offline-first sync (no new table). Existing stat recording stays; the custom per-club catalog is deferred (YAGNI) — codes are stable string ids so it can be added later.
+- L6 (evidence): npm test 492/492 pass; tsc clean; eslint clean on touched areas. Seed differential: non-chart seed events byte-identical before/after T4. Browser check not run: Docker (Postgres) was not running, so login was unavailable.
