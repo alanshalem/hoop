@@ -212,14 +212,8 @@ export function undoLastEvent(match: Match): MatchResult<UndoReason> {
     ? match.activeLineupOwn.map((id) => (id === sub.playerInId ? sub.playerOutId : id))
     : match.activeLineupOwn;
 
-  return {
-    ok: true,
-    match: withDerivedScoreboard({
-      ...match,
-      activeLineupOwn,
-      events: match.events.filter((_, index) => index !== lastIndex),
-    }),
-  };
+  // A scoring play recorded by a chart entry takes that entry with it (S12).
+  return { ok: true, match: withoutLinked({ ...match, activeLineupOwn }, lastIndex) };
 }
 
 /** Only active codes of the club's catalog (the built-in one by default) can be recorded (S9). */
@@ -246,9 +240,27 @@ export function recordChartEntry(
 
   const clocked =
     input.clockSeconds === undefined ? match : setClock(match, input.clockSeconds);
-  const chart = buildChartEntry(input, isPointsAllowed, isOffense);
+  let chart = buildChartEntry(input, isPointsAllowed, isOffense);
+  let scored = clocked;
+  // Points allowed go to the rival and made offensive actions to the own team, as a real scoring play (S12).
+  const scoringType = chart.points !== undefined ? SCORING_PLAY_BY_POINTS[chart.points] : undefined;
+  if (scoringType) {
+    const scoreEventId = `${ctx.id}-score`;
+    const ownTeamScores = isOffense;
+    scored = appendEvent(
+      clocked,
+      {
+        teamId: ownTeamScores ? match.ownTeamId : RIVAL_TEAM_ID,
+        isOwnTeam: ownTeamScores,
+        playerId: ownTeamScores ? input.playerId : undefined,
+        type: scoringType,
+      },
+      { ...ctx, id: scoreEventId }
+    );
+    chart = { ...chart, scoreEventId };
+  }
   const next = appendEvent(
-    clocked,
+    scored,
     {
       teamId: match.ownTeamId,
       isOwnTeam: true,
@@ -259,6 +271,23 @@ export function recordChartEntry(
     ctx
   );
   return { ok: true, match: next };
+}
+
+const SCORING_PLAY_BY_POINTS: Record<ChartPoints, PlayByPlayEventType> = {
+  1: 'FT_MADE',
+  2: 'FG2_MADE',
+  3: 'FG3_MADE',
+};
+
+/** Removes the events at `index` plus everything linked to it through a chart entry's scoring play. */
+function withoutLinked(match: Match, index: number): Match {
+  const target = match.events[index];
+  const linkedIds = new Set<string>();
+  if (target.chart?.scoreEventId) linkedIds.add(target.chart.scoreEventId);
+  const events = match.events.filter(
+    (event, i) => i !== index && !linkedIds.has(event.id) && event.chart?.scoreEventId !== target.id
+  );
+  return withDerivedScoreboard({ ...match, events });
 }
 
 function buildChartEntry(input: RecordChartEntryInput, isPointsAllowed: boolean, isOffense: boolean): ChartEntry {
@@ -273,10 +302,7 @@ export function undoLastChartEntry(match: Match): MatchResult<UndoChartReason> {
   if (refusal) return { ok: false, reason: refusal };
   const lastIndex = match.events.findLastIndex((event) => event.type === 'CHART');
   if (lastIndex === -1) return { ok: false, reason: 'NO_CHART_ENTRIES' };
-  return {
-    ok: true,
-    match: { ...match, events: match.events.filter((_, index) => index !== lastIndex) },
-  };
+  return { ok: true, match: withoutLinked(match, lastIndex) };
 }
 
 export function substitutePlayer(

@@ -154,8 +154,9 @@ Debajo de la planilla, en la misma página, siguen los parciales por período, e
 
 ### Qué no cambia la planilla
 
-- Las entradas de la planilla no cambian el marcador, las faltas (de jugador ni de equipo), el box score, los tiros, el mapa de tiros ni la analítica de temporada. Anotar **Pase malo** en la planilla no suma una pérdida al box score: si también se quiere la estadística, se registra en modo **Estadística**.
-- El **Deshacer** de Últimas jugadas (modo **Estadística**) deshace solo jugadas estadísticas y nunca una entrada de la planilla. El **Deshacer** de la planilla quita solo entradas de la planilla.
+- **Excepción: los puntos sí van al marcador.** Una entrada de **Puntos recibidos** suma sus puntos al rival y una **Acción ofensiva** que convirtió los suma al equipo propio, del lado que le toca en el tablero (local a la izquierda, visitante a la derecha). Para eso la entrada registra también la jugada de puntos: 1 = tiro libre convertido, 2 = doble convertido, 3 = triple convertido. La del equipo propio queda a nombre del mismo jugador, así los parciales y el box score coinciden con el marcador. No hace falta cargar esos puntos de nuevo en modo **Estadística**; si se cargan, se cuentan dos veces.
+- Fuera de los puntos, las entradas de la planilla no cambian las faltas (de jugador ni de equipo), el box score, los tiros, el mapa de tiros ni la analítica de temporada. Anotar **Pase malo** en la planilla no suma una pérdida al box score: si también se quiere la estadística, se registra en modo **Estadística**.
+- El **Deshacer** de la planilla quita la última entrada y, si sumó puntos, también su jugada de puntos. El **Deshacer** de Últimas jugadas (modo **Estadística**) deshace la última jugada estadística; si esa jugada vino de una entrada de la planilla, se va junto con la entrada. Las demás entradas de la planilla no se tocan.
 - Las entradas viajan como jugadas de tipo `CHART`: se guardan al instante en la tablet, se envían con la misma cola de salida y solo se agregan; deshacer una entrada la marca como eliminada en todas las tablets (ver [Sincronización](#sincronización)).
 
 ### Fuentes
@@ -543,7 +544,7 @@ El rival no tiene jugadores cargados. En la barra de herramientas, **+1**, **+2*
 
 ### Deshacer
 
-**Deshacer** (en Últimas jugadas) elimina la última jugada registrada, sea propia o del rival. Si era un cambio, revierte el quinteto en cancha. El marcador y las faltas se recalculan desde las jugadas, así que deshacer funciona aunque la jugada sea de un período anterior. Los tiempos muertos y los cambios de período no son jugadas y no se deshacen con este botón. Tampoco quita entradas de la planilla táctica, que tiene su propio **Deshacer**.
+**Deshacer** (en Últimas jugadas) elimina la última jugada registrada, sea propia o del rival. Si era un cambio, revierte el quinteto en cancha. El marcador y las faltas se recalculan desde las jugadas, así que deshacer funciona aunque la jugada sea de un período anterior. Los tiempos muertos y los cambios de período no son jugadas y no se deshacen con este botón. Tampoco quita entradas de la planilla táctica, que tiene su propio **Deshacer**, salvo la entrada que sumó esa jugada de puntos: se van juntas.
 
 Con varias tablets en el mismo partido, **Deshacer** quita la última jugada de la lista, que puede haber cargado otra tablet. La jugada no se borra del servidor: queda marcada como eliminada y desaparece también en las demás tablets (ver [Sincronización](#sincronización)).
 

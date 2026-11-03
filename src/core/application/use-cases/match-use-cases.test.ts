@@ -165,12 +165,12 @@ describe('recordChartEntry', () => {
 
   it('records points allowed with 2 points by default and keeps an explicit value', () => {
     const byDefault = expectOk(recordChartEntry(makeMatch(), { category: 'POINTS_ALLOWED', code: 'CUT' }, ctx));
-    assert.deepStrictEqual(byDefault.match.events[0].chart, { category: 'POINTS_ALLOWED', code: 'CUT', points: 2 });
-    assert.strictEqual(byDefault.match.events[0].playerId, undefined);
+    assert.deepStrictEqual(byDefault.match.events.at(-1)?.chart, { category: 'POINTS_ALLOWED', code: 'CUT', points: 2, scoreEventId: 'ev-new-score' });
+    assert.strictEqual(byDefault.match.events.at(-1)?.playerId, undefined);
     const triple = expectOk(
       recordChartEntry(makeMatch(), { category: 'POINTS_ALLOWED', code: 'NO_CLOSEOUT', points: 3 }, ctx)
     );
-    assert.strictEqual(triple.match.events[0].chart?.points, 3);
+    assert.strictEqual(triple.match.events.at(-1)?.chart?.points, 3);
   });
 
   it('rejects a code that does not belong to the category and leaves the match unchanged', () => {
@@ -254,8 +254,8 @@ describe('recordChartEntry offensive result (S11)', () => {
     const { match: next } = expectOk(
       recordChartEntry(makeMatch(), { category: 'OFFENSE', code: 'BAD_SHOT', playerId: 'p1', made: true, points: 3 }, ctx)
     );
-    assert.deepStrictEqual(next.events[0].chart, { category: 'OFFENSE', code: 'BAD_SHOT', made: true, points: 3 });
-    assert.strictEqual(next.homeScore, 0, 'the sheet never changes the scoreboard');
+    assert.deepStrictEqual(next.events.at(-1)?.chart, { category: 'OFFENSE', code: 'BAD_SHOT', made: true, points: 3, scoreEventId: 'ev-new-score' });
+    assert.strictEqual(next.homeScore, 3, 'made offensive points reach the scoreboard (S12)');
   });
 
   it('records a missed offensive action without points', () => {
@@ -290,9 +290,90 @@ describe('recordChartEntry offensive result (S11)', () => {
 
   it('keeps the previous rules for the other categories', () => {
     const allowed = expectOk(recordChartEntry(makeMatch(), { category: 'POINTS_ALLOWED', code: 'CUT' }, ctx));
-    assert.deepStrictEqual(allowed.match.events[0].chart, { category: 'POINTS_ALLOWED', code: 'CUT', points: 2 });
+    assert.deepStrictEqual(allowed.match.events.at(-1)?.chart, { category: 'POINTS_ALLOWED', code: 'CUT', points: 2, scoreEventId: 'ev-new-score' });
     const turnover = expectOk(recordChartEntry(makeMatch(), { category: 'TURNOVER', code: 'BAD_PASS' }, ctx));
     assert.deepStrictEqual(turnover.match.events[0].chart, { category: 'TURNOVER', code: 'BAD_PASS' });
+  });
+});
+
+describe('scoring chart entries update the scoreboard (S12)', () => {
+  // makeMatch: own team plays at HOME, so own points go to homeScore and rival points to awayScore.
+  it('adds points allowed to the rival with the matching scoring play', () => {
+    for (const [points, type] of [[1, 'FT_MADE'], [2, 'FG2_MADE'], [3, 'FG3_MADE']] as const) {
+      const { match: next } = expectOk(
+        recordChartEntry(makeMatch(), { category: 'POINTS_ALLOWED', code: 'CUT', playerId: 'p1', points }, ctx)
+      );
+      assert.strictEqual(next.awayScore, points);
+      assert.strictEqual(next.homeScore, 0);
+      const [play, entry] = next.events;
+      assert.deepStrictEqual(
+        { type: play.type, isOwnTeam: play.isOwnTeam, teamId: play.teamId, playerId: play.playerId, id: play.id },
+        { type, isOwnTeam: false, teamId: 'rival-team', playerId: undefined, id: 'ev-new-score' }
+      );
+      assert.deepStrictEqual(entry.chart, { category: 'POINTS_ALLOWED', code: 'CUT', points, scoreEventId: 'ev-new-score' });
+      assert.strictEqual(entry.playerId, 'p1', 'the responsible defender stays on the chart entry');
+      assert.deepStrictEqual(entry.scoreAtEvent, { home: 0, away: points });
+    }
+  });
+
+  it('adds a made offensive action to the own team for the same player', () => {
+    const { match: next } = expectOk(
+      recordChartEntry(makeMatch(), { category: 'OFFENSE', code: 'BAD_SHOT', playerId: 'p1', made: true, points: 2 }, ctx)
+    );
+    assert.strictEqual(next.homeScore, 2);
+    assert.strictEqual(next.awayScore, 0);
+    const [play, entry] = next.events;
+    assert.deepStrictEqual(
+      { type: play.type, isOwnTeam: play.isOwnTeam, teamId: play.teamId, playerId: play.playerId },
+      { type: 'FG2_MADE', isOwnTeam: true, teamId: 'team-own', playerId: 'p1' }
+    );
+    assert.strictEqual(entry.chart?.scoreEventId, play.id);
+  });
+
+  it('puts the own points on the right when the own team plays away', () => {
+    const { match: next } = expectOk(
+      recordChartEntry(makeMatch({ condition: 'AWAY' }), { category: 'OFFENSE', code: 'LAYUP', made: true, points: 3 }, ctx)
+    );
+    assert.strictEqual(next.awayScore, 3);
+    assert.strictEqual(next.homeScore, 0);
+  });
+
+  it('records no scoring play for missed actions or categories without points', () => {
+    for (const input of [
+      { category: 'OFFENSE', code: 'GOOD_SHOT', made: false },
+      { category: 'TURNOVER', code: 'BAD_PASS' },
+      { category: 'DEFENSE', code: 'STEAL' },
+    ] as const) {
+      const { match: next } = expectOk(recordChartEntry(makeMatch(), input, ctx));
+      assert.strictEqual(next.events.length, 1);
+      assert.strictEqual(next.events[0].chart?.scoreEventId, undefined);
+      assert.deepStrictEqual([next.homeScore, next.awayScore], [0, 0]);
+    }
+  });
+
+  it('undoing the chart entry removes its scoring play and the points', () => {
+    const { match: scored } = expectOk(
+      recordChartEntry(makeMatch(), { category: 'POINTS_ALLOWED', code: 'CUT', points: 3 }, ctx)
+    );
+    const { match: next } = expectOk(undoLastChartEntry(scored));
+    assert.deepStrictEqual(next.events, []);
+    assert.deepStrictEqual([next.homeScore, next.awayScore], [0, 0]);
+  });
+
+  it('undoing the scoring play from the stats pad removes its chart entry too', () => {
+    const { match: scored } = expectOk(
+      recordChartEntry(makeMatch(), { category: 'OFFENSE', code: 'GOOD_SHOT', playerId: 'p1', made: true, points: 2 }, ctx)
+    );
+    const { match: next } = expectOk(undoLastEvent(scored));
+    assert.deepStrictEqual(next.events, []);
+    assert.strictEqual(next.homeScore, 0);
+  });
+
+  it('keeps unlinked chart entries when undoing a regular stat event', () => {
+    const entry = makeEvent({ type: 'CHART', chart: { category: 'TURNOVER', code: 'BAD_PASS' } });
+    const match = makeMatch({ events: [entry, makeEvent({ type: 'FG2_MADE', isOwnTeam: true })], homeScore: 2 });
+    const { match: next } = expectOk(undoLastEvent(match));
+    assert.deepStrictEqual(next.events, [entry]);
   });
 });
 

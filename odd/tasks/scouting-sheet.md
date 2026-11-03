@@ -13,7 +13,7 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
   - Acciones defensivas: Rebote defensivo, Bloqueo de rebote, Ayuda, Contestar tiro, Rotación, Transición defensiva, Presión, Robo, Desvío, Buen foul (positive); 2da oportunidad, Corte, Pick, Mal foul (negative).
 - **S3** — Live entry takes at most two taps: pick player (or "Equipo"), tap code. Points allowed uses a 1/2/3 selector that resets to 2 after each entry. The last chart entry can be undone. Recording is refused when the match is not LIVE (same gate as the stat pad).
 - **S4** — The sheet view shows the grid category × quarter (Q1-Q4 plus any OT that has entries), each entry as player number + symbol colored by tone, per-quarter totals (count of entries; points for Puntos recibidos), per-half and match totals, the quarter partials (existing table), and a per-player summary. Available on the match page (stats) and from the live console.
-- **S5** — Chart entries never change the scoreboard, fouls, box score, shot chart or season analytics, and the stat pad's undo keeps undoing only stat events. Chart entries sync like every play-by-play event (offline-first outbox, append-only).
+- **S5** — (Amended by S12 for scoring entries.) Chart entries never change the scoreboard, fouls, box score, shot chart or season analytics, and the stat pad's undo keeps undoing only stat events. Chart entries sync like every play-by-play event (offline-first outbox, append-only).
 - **S6** — Manual (`docs/MANUAL.md`) documents the Planilla, its codes and the sources it follows.
 
 - **S7** — Guided tour of the live console works in the default Planilla mode (no step points to a hidden element; the Planilla pad and sheet have their own steps).
@@ -22,6 +22,8 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 - **S10** — Browser check of the live console (Planilla mode) and the sheet on tablet and phone widths, with the seeded data.
 
 - **S11** — "Necesito agregar los puntos a las acciones ofensivas y que me permita elegir si es punto o no... Por ejemplo delfino tomo un mal lanzamiento pero si lo convirtio. Que me permita seleccionar si convirtio o no abajo de la accion, en un punto 3 seria". Offensive entries take a third step "3. Resultado" below the action: No convirtió / +1 / +2 / +3; the entry is saved on that tap and stores `made` (and `points` when made). The sheet sums made points per cell for Acciones ofensivas. Scoreboard unchanged (S5).
+
+- **S12** — "En los puntos recibidos y las acciones ofensivas cuando marcan los puntos que se hizo se deben sumar al marcados, a la izquierda o a la derecha segun si es recibido o accion ofensiva... Me explico?" A Puntos recibidos entry with N points also records the rival scoring play (1 = FT_MADE, 2 = FG2_MADE, 3 = FG3_MADE); a made Acción ofensiva with N points also records the own scoring play for the same player (team entries without player). The chart entry links its scoring play (`chart.scoreEventId`); undoing the chart entry removes both, and undoing that scoring play from the stats pad removes the linked chart entry too. Entries without points (missed actions, other categories) change nothing.
 
 ## Tasks
 
@@ -33,6 +35,8 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 - [x] T6 [S8] Seed free-throw trip points. Route: inline, test-first. Commit: 3800736
 - [x] T7 [S9] Club chart catalog: domain, sync kind + migration, RBAC, settings UI. Route: explore, then inline/worker; independent verify (risk items 1, 2). Commit: 217c074, ee77fa2, e0df832
 - [x] T8 [S10] Browser check with Docker + seed. Route: inline. Commit: n/a (evidence L10)
+- [x] T9 [S11] Offensive result step (made + points). Route: inline, test-first. Commit: b80b2b5
+- T10 [S12] Scoring chart entries add to the scoreboard. Route: inline, test-first. Commit: _pending_
 
 ## Log
 
@@ -50,3 +54,4 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 - L12 (evidence): style commit 33e853f checked with headless Chrome at 1917x946 and 390x844. Native review of the catalog range stopped with lens_context_budget_exceeded (candidate too large); the independent verify (L10) stands as the outside view for risk items 1-2. Pre-existing hydration mismatch on MatchCard time noted, out of scope.
 - L13 (user): "Necesito agregar los puntos a las acciones ofensivas y que me permita elegir si es punto o no... Por ejemplo delfino tomo un mal lanzamiento pero si lo convirtio. Que me permita seleccionar si convirtio o no abajo de la accion, en un punto 3 seria"
 - L14 (evidence): T9 unit/use-case tests (RED then GREEN), npm test 546/546, tsc clean. Browser: step 3 renders after picking #9 Delfino + Mal lanzamiento. A mutating browser script hit the rival +2 toolbar button by mistake and its sheet undo removed "#14 Rotación"; repaired (stat undo of the rival basket, entry re-recorded) and verified read-only while another person was using the live console through the tunnel.
+- L15 (user): "En los puntos recibidos y las acciones ofensivas cuando marcan los puntos que se hizo se deben sumar al marcados, a la izquierda o a la derecha segun si es recibido o accion ofensiva... Me explico?"
