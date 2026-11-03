@@ -1,3 +1,4 @@
+import type { ChartCodeRecord } from '@/core/domain/entities/chart.types';
 import type { Division, Player, Team } from '@/core/domain/entities/club.types';
 import type { Match, PlayByPlayEvent } from '@/core/domain/entities/match.types';
 import type { MatchField, MatchFieldVersions } from './match-fields';
@@ -11,7 +12,7 @@ import type { MatchField, MatchFieldVersions } from './match-fields';
  */
 
 /** Entities synced as last-write-wins records (mirrors the server `sync_records.kind`). */
-export const SYNC_RECORD_KINDS = ['division', 'team', 'player', 'match'] as const;
+export const SYNC_RECORD_KINDS = ['division', 'team', 'player', 'match', 'chartCode'] as const;
 export type SyncRecordKind = (typeof SYNC_RECORD_KINDS)[number];
 
 /** Match metadata as synced: events travel only as append-only event items. */
@@ -22,6 +23,7 @@ export interface SyncRecordDataByKind {
   team: Team;
   player: Player;
   match: MatchRecord;
+  chartCode: ChartCodeRecord;
 }
 
 /** The part of the club data that is synced with the server. */
@@ -30,6 +32,8 @@ export interface SyncableClubData {
   teams: Team[];
   players: Player[];
   matches: Match[];
+  /** Club edits of the chart catalog (S9); empty means the built-in catalog. */
+  chartCodes: ChartCodeRecord[];
 }
 
 type ByKind<Extra, MatchExtra = unknown> = {

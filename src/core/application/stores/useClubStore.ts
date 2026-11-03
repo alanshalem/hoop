@@ -11,8 +11,16 @@ import type {
   Quarter,
 } from '@/core/domain/entities/match.types';
 import { withDerivedScoreboard } from '@/core/domain/rules/match-derivations';
+import type { ChartCategory } from '@/core/domain/entities/chart.types';
+import * as chartCatalog from '@/core/application/use-cases/chart-catalog-use-cases';
 import * as club from '@/core/application/use-cases/club-use-cases';
 import * as matchUseCases from '@/core/application/use-cases/match-use-cases';
+import type {
+  ChartCodeEditReason,
+  ChartCodeTextReason,
+  ChartCodeUpdates,
+  NewChartCodeInput,
+} from '@/core/application/use-cases/chart-catalog-use-cases';
 import type {
   ClubData,
   NewDivisionInput,
@@ -38,7 +46,9 @@ import {
   CLUB_STORE_VERSION,
   ClubDataState,
   createInitialClubState,
+  mergePersistedClubState,
   migrateClubState,
+  selectChartCatalog,
 } from './club-state';
 import { CLUB_STORAGE_KEY, gatedLocalStorage } from './persistence-gate';
 
@@ -103,6 +113,25 @@ export interface ClubStoreState extends ClubDataState {
     input: RecordChartEntryInput
   ) => MatchResult<RecordChartReason> | MatchNotFound;
   undoLastChartEntry: (matchId: string) => MatchResult<UndoChartReason> | MatchNotFound;
+
+  // Chart catalog (S9): read it with `selectChartCatalog`
+  /** Adds a custom code to a category; returns its code. */
+  createChartCode: (
+    input: NewChartCodeInput
+  ) => { ok: true; code: string } | { ok: false; reason: ChartCodeTextReason };
+  /** Edits symbol, label or tone of a built-in or custom code. */
+  updateChartCode: (
+    category: ChartCategory,
+    code: string,
+    updates: ChartCodeUpdates
+  ) => ActionResult<ChartCodeEditReason>;
+  /** Archived codes leave the live pad; old entries keep rendering. */
+  setChartCodeArchived: (
+    category: ChartCategory,
+    code: string,
+    archived: boolean
+  ) => ActionResult<'CHART_CODE_NOT_FOUND'>;
+
   substitutePlayer: (
     matchId: string,
     playerOutId: string,
@@ -267,9 +296,37 @@ export const useClubStore = create<ClubStoreState>()(
         undoLastEvent: (matchId) => runMatchUseCase(matchId, matchUseCases.undoLastEvent),
 
         recordChartEntry: (matchId, input) =>
-          runMatchUseCase(matchId, (m) => matchUseCases.recordChartEntry(m, input, eventContext())),
+          runMatchUseCase(matchId, (m) =>
+            matchUseCases.recordChartEntry(m, input, eventContext(), selectChartCatalog(get()))
+          ),
 
         undoLastChartEntry: (matchId) => runMatchUseCase(matchId, matchUseCases.undoLastChartEntry),
+
+        createChartCode: (input) => {
+          const result = chartCatalog.createChartCode(get().chartCodes, input, {
+            id: createId('cc'),
+            clubId: CLUB_PROFILE.id,
+          });
+          if (!result.ok) return result;
+          set({ chartCodes: result.chartCodes });
+          return { ok: true, code: result.code };
+        },
+
+        updateChartCode: (category, code, updates) => {
+          const result = chartCatalog.updateChartCode(get().chartCodes, category, code, updates, {
+            clubId: CLUB_PROFILE.id,
+          });
+          if (result.ok) set({ chartCodes: result.chartCodes });
+          return toActionResult(result);
+        },
+
+        setChartCodeArchived: (category, code, archived) => {
+          const result = chartCatalog.setChartCodeArchived(get().chartCodes, category, code, archived, {
+            clubId: CLUB_PROFILE.id,
+          });
+          if (result.ok) set({ chartCodes: result.chartCodes });
+          return toActionResult(result);
+        },
 
         substitutePlayer: (matchId, playerOutId, playerInId, clockSeconds) =>
           runMatchUseCase(matchId, (m) =>
@@ -329,8 +386,11 @@ export const useClubStore = create<ClubStoreState>()(
         players: state.players,
         matches: state.matches,
         activeMatchId: state.activeMatchId,
+        chartCodes: state.chartCodes,
       }),
       migrate: (persisted, version) => migrateClubState(persisted, version),
+      // New synced fields default without a version bump, so local data is not reseeded (L9).
+      merge: (persisted, current) => mergePersistedClubState(persisted, current),
     }
   )
 );

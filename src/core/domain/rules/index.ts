@@ -1,4 +1,5 @@
 export * from './basketball-rules';
+export * from './chart-catalog';
 export * from './chart-sheet';
 export * from './event-rules';
 export * from './game-clock';

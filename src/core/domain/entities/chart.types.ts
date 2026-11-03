@@ -39,7 +39,8 @@ export const ChartEntrySchema = z.object({
 export type ChartEntry = z.infer<typeof ChartEntrySchema>;
 
 /** POSITIVE is drawn in blue and NEGATIVE in red, like the inks on the paper sheet. */
-export type ChartTone = 'POSITIVE' | 'NEGATIVE';
+export const ChartToneSchema = z.enum(['POSITIVE', 'NEGATIVE']);
+export type ChartTone = z.infer<typeof ChartToneSchema>;
 
 export interface ChartCode {
   code: string;
@@ -47,23 +48,38 @@ export interface ChartCode {
   symbol: string;
   label: string;
   tone: ChartTone;
+  /** Hidden from the live pad and refused for new entries; old entries still render (S9). */
+  archived: boolean;
+  /** Added by the club (code `CUSTOM_<id>`), not part of the built-in catalog. */
+  custom: boolean;
+  /** Position inside its category; built-in codes default to their catalog index. */
+  order: number;
 }
 
-const negative = (code: string, symbol: string, label: string): ChartCode => ({
+type BuiltInCode = Pick<ChartCode, 'code' | 'symbol' | 'label' | 'tone'>;
+
+const negative = (code: string, symbol: string, label: string): BuiltInCode => ({
   code,
   symbol,
   label,
   tone: 'NEGATIVE',
 });
-const positive = (code: string, symbol: string, label: string): ChartCode => ({
+const positive = (code: string, symbol: string, label: string): BuiltInCode => ({
   code,
   symbol,
   label,
   tone: 'POSITIVE',
 });
 
-export const CHART_CATALOG: Record<ChartCategory, readonly ChartCode[]> = {
-  TURNOVER: [
+const builtIn = (codes: BuiltInCode[]): readonly ChartCode[] =>
+  codes.map((code, order) => ({ ...code, archived: false, custom: false, order }));
+
+/** A club's effective catalog: built-in codes with its overrides, plus its custom codes. */
+export type ChartCatalog = Record<ChartCategory, readonly ChartCode[]>;
+
+/** Built-in defaults: the catalog of a club that has not edited it. */
+export const CHART_CATALOG: ChartCatalog = {
+  TURNOVER: builtIn([
     negative('BAD_PASS', 'P', 'Pase malo'),
     negative('TRAVELLING', 'C', 'Caminos'),
     negative('DOUBLE_DRIBBLE', 'DD', 'Doble dribling'),
@@ -73,8 +89,8 @@ export const CHART_CATALOG: Record<ChartCategory, readonly ChartCode[]> = {
     negative('TIME_VIOLATION', 'T', 'Violación de tiempo'),
     negative('OUT_OF_BOUNDS', 'AF', 'Pelota afuera'),
     negative('OTHER', '?', 'Otra'),
-  ],
-  POINTS_ALLOWED: [
+  ]),
+  POINTS_ALLOWED: builtIn([
     negative('CUT', 'CO', 'Corte'),
     negative('ONE_ON_ONE', '1x1', '1x1'),
     negative('NO_DEF_REBOUND', 'RD', 'Sin rebote defensivo'),
@@ -86,14 +102,14 @@ export const CHART_CATALOG: Record<ChartCategory, readonly ChartCode[]> = {
     negative('BAD_SHOT_TRANSITION', 'TM', 'Transición por mal tiro'),
     negative('PICK', 'PK', 'Pick'),
     negative('OPPONENT_MERIT', 'MR', 'Mérito rival'),
-  ],
-  OFFENSE: [
+  ]),
+  OFFENSE: builtIn([
     positive('GOOD_SHOT', 'A', 'Buen lanzamiento'),
     negative('BAD_SHOT', 'R', 'Mal lanzamiento'),
     positive('LAYUP', 'B', 'Bandeja'),
     negative('FORCED_SHOT', 'F', 'Forzado permitido'),
-  ],
-  DEFENSE: [
+  ]),
+  DEFENSE: builtIn([
     positive('DEF_REBOUND', 'RD', 'Rebote defensivo'),
     positive('BOX_OUT', 'BR', 'Bloqueo de rebote'),
     positive('HELP', 'AY', 'Ayuda'),
@@ -108,9 +124,65 @@ export const CHART_CATALOG: Record<ChartCategory, readonly ChartCode[]> = {
     negative('CUT', 'CO', 'Corte'),
     negative('PICK', 'PK', 'Pick'),
     negative('BAD_FOUL', 'MF', 'Mal foul'),
-  ],
+  ]),
 };
 
-export function findChartCode(category: ChartCategory, code: string): ChartCode | undefined {
-  return CHART_CATALOG[category].find((entry) => entry.code === code);
+/** Finds a code inside its own category, archived ones included (old entries keep rendering). */
+export function findChartCode(
+  category: ChartCategory,
+  code: string,
+  catalog: ChartCatalog = CHART_CATALOG
+): ChartCode | undefined {
+  return catalog[category].find((entry) => entry.code === code);
 }
+
+// -----------------------------------------------------------------------------
+// CLUB CATALOG RECORDS (S9)
+// -----------------------------------------------------------------------------
+
+export const CHART_SYMBOL_MAX_LENGTH = 3;
+export const CHART_LABEL_MAX_LENGTH = 40;
+export const CUSTOM_CHART_CODE_PREFIX = 'CUSTOM_';
+
+export const ChartSymbolSchema = z.string().trim().min(1).max(CHART_SYMBOL_MAX_LENGTH);
+export const ChartLabelSchema = z.string().trim().min(1).max(CHART_LABEL_MAX_LENGTH);
+
+const CUSTOM_CODE_PATTERN = /^CUSTOM_[A-Za-z0-9_-]+$/;
+
+export function customChartCode(id: string): string {
+  return `${CUSTOM_CHART_CODE_PREFIX}${id}`;
+}
+
+export function isBuiltInChartCode(category: ChartCategory, code: string): boolean {
+  return CHART_CATALOG[category].some((entry) => entry.code === code);
+}
+
+/** One record per club, category and code: the same code may live in several categories. */
+export function chartCodeRecordId(clubId: string, category: ChartCategory, code: string): string {
+  return `${clubId}:${category}:${code}`;
+}
+
+/**
+ * A club's version of one code: an override of a built-in code (same category
+ * and code) or a custom code. Records are archived, never deleted.
+ */
+export const ChartCodeRecordSchema = z
+  .object({
+    id: z.string().min(1, 'Chart code record ID is required'),
+    clubId: z.string().min(1, 'Club ID is required'),
+    category: ChartCategorySchema,
+    code: z.string().min(1, 'Chart code is required'),
+    symbol: ChartSymbolSchema,
+    label: ChartLabelSchema,
+    tone: ChartToneSchema,
+    archived: z.boolean(),
+    order: z.number().int().nonnegative(),
+  })
+  .refine((record) => record.id === chartCodeRecordId(record.clubId, record.category, record.code), {
+    message: 'Chart code record id must be <clubId>:<category>:<code>',
+  })
+  .refine(
+    (record) => isBuiltInChartCode(record.category, record.code) || CUSTOM_CODE_PATTERN.test(record.code),
+    { message: 'Chart code must be built-in in its category or CUSTOM_<id>' }
+  );
+export type ChartCodeRecord = z.infer<typeof ChartCodeRecordSchema>;

@@ -6,8 +6,10 @@ import type {
 } from '@/core/domain/entities/match.types';
 import type { CourtCoordinates } from '@/core/domain/value-objects/coordinates';
 import {
+  CHART_CATALOG,
   DEFAULT_CHART_POINTS,
   findChartCode,
+  type ChartCatalog,
   type ChartCategory,
   type ChartEntry,
   type ChartPoints,
@@ -218,14 +220,17 @@ export function undoLastEvent(match: Match): MatchResult<UndoReason> {
   };
 }
 
+/** Only active codes of the club's catalog (the built-in one by default) can be recorded (S9). */
 export function recordChartEntry(
   match: Match,
   input: RecordChartEntryInput,
-  ctx: UseCaseContext
+  ctx: UseCaseContext,
+  catalog: ChartCatalog = CHART_CATALOG
 ): MatchResult<RecordChartReason> {
   const refusal = notLiveReason(match);
   if (refusal) return { ok: false, reason: refusal };
-  if (!findChartCode(input.category, input.code)) return { ok: false, reason: 'INVALID_CHART_CODE' };
+  const chartCode = findChartCode(input.category, input.code, catalog);
+  if (!chartCode || chartCode.archived) return { ok: false, reason: 'INVALID_CHART_CODE' };
   const isPointsAllowed = input.category === 'POINTS_ALLOWED';
   if (!isPointsAllowed && input.points !== undefined) return { ok: false, reason: 'INVALID_CHART_CODE' };
 

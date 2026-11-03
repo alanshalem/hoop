@@ -30,6 +30,7 @@ const REQUIRED_PERMISSIONS: Record<SyncEntityKind, Record<WriteOperation, readon
     update: ['MANAGE_MATCHES', 'MANAGE_LINEUP', 'RECORD_LIVE'],
     delete: ['MANAGE_MATCHES'],
   },
+  chartCode: ALL_OPERATIONS(['MANAGE_CHART_CATALOG']),
   event: ALL_OPERATIONS(['RECORD_LIVE']),
 };
 

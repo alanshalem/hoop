@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { diffClubState } from './club-diff';
 import type { SyncableClubData } from './sync-types';
-import { makeDivision, makeEvent, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
+import { makeChartCode, makeDivision, makeEvent, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
 
 function club(overrides: Partial<SyncableClubData> = {}): SyncableClubData {
   return {
@@ -10,6 +10,7 @@ function club(overrides: Partial<SyncableClubData> = {}): SyncableClubData {
     teams: [makeTeam()],
     players: [makePlayer({ id: 'p1' }), makePlayer({ id: 'p2', dorsal: 8 })],
     matches: [makeMatch()],
+    chartCodes: [],
     ...overrides,
   };
 }
@@ -50,6 +51,16 @@ describe('diffClubState (S10.7)', () => {
         ['team', 'team-own', false],
       ]
     );
+  });
+
+  it('sends club chart codes as chartCode records (S9)', () => {
+    const prev = club();
+    const archived = makeChartCode({ archived: true });
+    const diff = diffClubState(prev, { ...prev, chartCodes: [archived] });
+    assert.deepStrictEqual(diff, {
+      records: [{ kind: 'chartCode', id: archived.id, data: archived, deleted: false }],
+      events: [],
+    });
   });
 
   it('sends match metadata without events and reports new and removed events', () => {

@@ -17,7 +17,13 @@ export function diffClubState(prev: SyncableClubData, next: SyncableClubData): C
   records.push(
     ...collectionChanges(prev.divisions, next.divisions, (data, deleted) => ({ kind: 'division', id: data.id, data, deleted })),
     ...collectionChanges(prev.teams, next.teams, (data, deleted) => ({ kind: 'team', id: data.id, data, deleted })),
-    ...collectionChanges(prev.players, next.players, (data, deleted) => ({ kind: 'player', id: data.id, data, deleted }))
+    ...collectionChanges(prev.players, next.players, (data, deleted) => ({ kind: 'player', id: data.id, data, deleted })),
+    ...collectionChanges(prev.chartCodes, next.chartCodes, (data, deleted) => ({
+      kind: 'chartCode',
+      id: data.id,
+      data,
+      deleted,
+    }))
   );
 
   if (prev.matches !== next.matches) {

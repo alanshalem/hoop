@@ -16,6 +16,8 @@ import {
   undoLastChartEntry,
 } from './match-use-cases';
 import type { Match } from '@/core/domain/entities/match.types';
+import { chartCodeRecordId, type ChartCodeRecord } from '@/core/domain/entities/chart.types';
+import { resolveChartCatalog } from '@/core/domain/rules/chart-catalog';
 import { makeEvent, makeMatch } from '@/core/testing/fixtures';
 
 const ctx = { id: 'ev-new', now: '2026-10-30T21:00:00.000Z' };
@@ -185,6 +187,53 @@ describe('recordChartEntry', () => {
       recordChartEntry(makeMatch(), { category: 'TURNOVER', code: 'BAD_PASS', points: 2 }, ctx),
       { ok: false, reason: 'INVALID_CHART_CODE' }
     );
+  });
+
+  describe('with the club catalog (S9)', () => {
+    const chartCode = (code: string, overrides: Partial<ChartCodeRecord> = {}): ChartCodeRecord => ({
+      id: chartCodeRecordId('club-1', 'TURNOVER', code),
+      clubId: 'club-1',
+      category: 'TURNOVER',
+      code,
+      symbol: 'Z',
+      label: 'Zona',
+      tone: 'NEGATIVE',
+      archived: false,
+      order: 9,
+      ...overrides,
+    });
+    const catalog = resolveChartCatalog([
+      chartCode('CUSTOM_zone'),
+      chartCode('CUSTOM_old', { archived: true, order: 10 }),
+      chartCode('BAD_PASS', { symbol: 'P', label: 'Pase malo', archived: true, order: 0 }),
+    ]);
+
+    it('records an active custom code of the club', () => {
+      const { match } = expectOk(recordChartEntry(makeMatch(), { category: 'TURNOVER', code: 'CUSTOM_zone' }, ctx, catalog));
+      assert.deepStrictEqual(match.events[0].chart, { category: 'TURNOVER', code: 'CUSTOM_zone' });
+    });
+
+    it('refuses archived codes, built-in or custom, and leaves the match unchanged', () => {
+      const match = makeMatch();
+      for (const code of ['BAD_PASS', 'CUSTOM_old']) {
+        assert.deepStrictEqual(recordChartEntry(match, { category: 'TURNOVER', code }, ctx, catalog), {
+          ok: false,
+          reason: 'INVALID_CHART_CODE',
+        });
+      }
+      assert.strictEqual(match.events.length, 0);
+    });
+
+    it('refuses a custom code unknown to the given catalog, and custom codes with the built-in default', () => {
+      assert.deepStrictEqual(
+        recordChartEntry(makeMatch(), { category: 'TURNOVER', code: 'CUSTOM_missing' }, ctx, catalog),
+        { ok: false, reason: 'INVALID_CHART_CODE' }
+      );
+      assert.deepStrictEqual(recordChartEntry(makeMatch(), { category: 'TURNOVER', code: 'CUSTOM_zone' }, ctx), {
+        ok: false,
+        reason: 'INVALID_CHART_CODE',
+      });
+    });
   });
 
   it('refuses when the match is not live or at halftime', () => {

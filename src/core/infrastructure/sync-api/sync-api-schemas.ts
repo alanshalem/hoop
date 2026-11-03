@@ -1,9 +1,16 @@
 import { z } from 'zod';
+import { ChartCodeRecordSchema } from '@/core/domain/entities/chart.types';
 import { DivisionSchema, PlayerSchema, TeamSchema, UserRoleSchema } from '@/core/domain/entities/club.types';
 import { MatchSchema, PlayByPlayEventSchema } from '@/core/domain/entities/match.types';
 import type { AuthUser } from '@/core/application/auth/auth-session';
 import { pickFieldVersions } from '@/core/application/sync/match-fields';
-import type { PullPage, PushResult, SyncEvent, SyncRecord } from '@/core/application/sync/sync-types';
+import {
+  SYNC_RECORD_KINDS,
+  type PullPage,
+  type PushResult,
+  type SyncEvent,
+  type SyncRecord,
+} from '@/core/application/sync/sync-types';
 
 /**
  * =============================================================================
@@ -36,7 +43,7 @@ export const PushResultSchema = z.object({
 const PullEnvelopeSchema = z.object({
   records: z.array(
     z.object({
-      kind: z.enum(['division', 'team', 'player', 'match']),
+      kind: z.enum(SYNC_RECORD_KINDS),
       id: z.string().min(1),
       data: z.unknown(),
       updatedAt: z.iso.datetime({ offset: true }),
@@ -75,6 +82,10 @@ function parseRecord({ kind, id, data, updatedAt, deleted, fieldVersions }: Pull
     }
     case 'player': {
       const parsed = PlayerSchema.safeParse(data);
+      return parsed.success ? { ...base, kind, data: parsed.data } : null;
+    }
+    case 'chartCode': {
+      const parsed = ChartCodeRecordSchema.safeParse(data);
       return parsed.success ? { ...base, kind, data: parsed.data } : null;
     }
     case 'match': {

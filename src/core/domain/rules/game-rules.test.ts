@@ -187,6 +187,7 @@ describe('Permissions', () => {
       'MANAGE_MATCHES',
       'MANAGE_LINEUP',
       'RECORD_LIVE',
+      'MANAGE_CHART_CATALOG',
     ] as const) {
       assert.strictEqual(can('ADMIN', p), true, p);
     }
@@ -198,6 +199,7 @@ describe('Permissions', () => {
     assert.strictEqual(can('HEAD_COACH', 'MANAGE_MATCHES'), true);
     assert.strictEqual(can('HEAD_COACH', 'MANAGE_LINEUP'), true);
     assert.strictEqual(can('HEAD_COACH', 'RECORD_LIVE'), true);
+    assert.strictEqual(can('HEAD_COACH', 'MANAGE_CHART_CATALOG'), true);
   });
 
   it('ASSISTANT_STATISTICIAN can only record live', () => {
@@ -206,6 +208,7 @@ describe('Permissions', () => {
     assert.strictEqual(can('ASSISTANT_STATISTICIAN', 'MANAGE_LINEUP'), false);
     assert.strictEqual(can('ASSISTANT_STATISTICIAN', 'MANAGE_DIVISIONS'), false);
     assert.strictEqual(can('ASSISTANT_STATISTICIAN', 'MANAGE_MATCHES'), false);
+    assert.strictEqual(can('ASSISTANT_STATISTICIAN', 'MANAGE_CHART_CATALOG'), false);
   });
 
   it('labels roles in Spanish', () => {
