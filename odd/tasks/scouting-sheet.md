@@ -29,8 +29,8 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 - [x] T4 [S6] Manual + seed chart entries for finished/live matches. Route: inline. Commit: 97ef965
 - [x] T5 [S7] Tour steps for Planilla mode. Route: inline. Commit: 256bd1c
 - [x] T6 [S8] Seed free-throw trip points. Route: inline, test-first. Commit: 3800736
-- T7 [S9] Club chart catalog: domain, sync kind + migration, RBAC, settings UI. Route: explore, then inline/worker; independent verify (risk items 1, 2). Commit: _pending_
-- T8 [S10] Browser check with Docker + seed. Route: inline. Commit: n/a
+- [x] T7 [S9] Club chart catalog: domain, sync kind + migration, RBAC, settings UI. Route: explore, then inline/worker; independent verify (risk items 1, 2). Commit: 217c074, ee77fa2, e0df832
+- [x] T8 [S10] Browser check with Docker + seed. Route: inline. Commit: n/a (evidence L10)
 
 ## Log
 
@@ -43,3 +43,4 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 - L7 (user): "Pendiente - Probarla en pantalla ... - El tour guiado de la consola apunta a partes que ahora, en modo Planilla, están ocultas, así que puede fallar. - En los datos de ejemplo, una visita a la línea sin libres convertidos igual cuenta 2 puntos recibidos. No afecta partidos reales. - Por ahora el catálogo de códigos es fijo. Que cada club cargue los suyos quedó para más adelante. Hace esto..."
 - L8 (decision): catalog per club, editable by ADMIN and HEAD_COACH, codes archived never deleted, built-in codes editable, custom codes allowed.
 - L9 (design, T7): sync record kind `chartCode` (no hyphen). Record `ChartCodeRecord { id: "<clubId>:<category>:<code>", clubId, category, code, symbol (1-3 chars), label (1-40 chars), tone, archived, order }`. No records = built-in catalog (seed adds none). Effective catalog = built-in codes overridden by records with the same category+code, plus custom codes (code `CUSTOM_<id>`), ordered by `order`. Archived codes stay resolvable for rendering old entries but are hidden from the live pad and refused by `recordChartEntry`. New permission `MANAGE_CHART_CATALOG` (ADMIN, HEAD_COACH), enforced on push for kind `chartCode`. Store keeps `chartCodes` with default `[]` on rehydrate (no store version bump, so local data is not reseeded). Migration generated with `npm run db:generate` (additive enum value).
+- L10 (evidence): Independent verify of 217c074 passed both risk items (additive enum migration, store merge without reseed; MANAGE_CHART_CATALOG enforced on push, 401/403, malformed records rejected). Advisory fixed in e0df832: chartCode deletes refused for every role. Browser check (headless Chrome, seeded DB, head coach): live console Planilla mode at 1180x820 and 390x844, Ver planilla tab, stats page sheet, /planilla screen; end-to-end record #29 Pase malo -> persisted after reload -> Deshacer restored the previous list. Fixed list bullets on sheet chips. npm test, tsc, test:db green.
