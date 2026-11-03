@@ -58,10 +58,6 @@ export const ChartSheetTable: React.FC<ChartSheetTableProps> = ({
   const playersById = new Map(players.map((p) => [p.id, p]));
   const hasEntries = sheet.rows.some((row) => row.total.count > 0);
 
-  if (!hasEntries) {
-    return <p className={clsx(styles.empty, className)}>Todavía no hay entradas en la planilla.</p>;
-  }
-
   const renderCell = (category: ChartCategory, cell: ChartSheetCell) => {
     const codeCounts = category === 'OFFENSE' ? formatCodeCounts(category, cell.codeCounts, catalog) : '';
     return (
@@ -94,6 +90,11 @@ export const ChartSheetTable: React.FC<ChartSheetTableProps> = ({
 
   return (
     <div className={clsx(styles.sheet, className)}>
+      {!hasEntries && (
+        <p className={styles.empty}>
+          Todavía no hay entradas en la planilla. Cada entrada que cargues aparece en su categoría y cuarto.
+        </p>
+      )}
       <div className={clsx(styles.tableWrapper, 'no-scrollbar')}>
         <table className={styles.grid}>
           <caption className="visually-hidden">Planilla táctica por categoría y período</caption>

@@ -182,8 +182,8 @@ export const ChartPad: React.FC<ChartPadProps> = ({
           )}
 
           <div className={styles.step}>
-            <h3 className={styles.stepTitle}>
-              2. {playerKey === null ? 'Elige un jugador o Equipo' : 'Acción'}
+            <h3 className={clsx(styles.stepTitle, playerKey === null && styles.stepTitleWaiting)}>
+              {playerKey === null ? '2. Acción: primero elige un jugador o Equipo' : '2. Acción'}
             </h3>
             <div className={styles.codeGrid}>
               {activeChartCodes(catalog, category).map((entry) => (

@@ -91,10 +91,20 @@
 }
 
 .playerChip:disabled,
-.codeBtn:disabled,
 .pointBtn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* Codes stay readable while waiting for a player: only the border fades. */
+.codeBtn:disabled {
+  border-style: dashed;
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.stepTitleWaiting {
+  color: var(--color-warning);
 }
 
 .playerChipBench {
@@ -134,9 +144,13 @@
 }
 
 .benchRow {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
   gap: var(--space-1-5);
+}
+
+.playerChipBench {
+  justify-content: flex-start;
 }
 
 .pointsRow {

@@ -224,11 +224,18 @@
 
   .sheetBody {
     display: grid;
-    grid-template-columns: minmax(360px, 520px) minmax(0, 1fr);
+    grid-template-columns: minmax(380px, 560px) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
   }
 
   .sheetView {
     border-left: 1px solid var(--border-subtle);
+  }
+}
+
+/* Wide screens: give the charting pad more room (three code columns, roomier chips). */
+@media (min-width: 1400px) {
+  .sheetBody {
+    grid-template-columns: minmax(480px, 680px) minmax(0, 1fr);
   }
 }
