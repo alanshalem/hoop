@@ -25,6 +25,9 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 
 - **S12** — "En los puntos recibidos y las acciones ofensivas cuando marcan los puntos que se hizo se deben sumar al marcados, a la izquierda o a la derecha segun si es recibido o accion ofensiva... Me explico?" A Puntos recibidos entry with N points also records the rival scoring play (1 = FT_MADE, 2 = FG2_MADE, 3 = FG3_MADE); a made Acción ofensiva with N points also records the own scoring play for the same player (team entries without player). The chart entry links its scoring play (`chart.scoreEventId`); undoing the chart entry removes both, and undoing that scoring play from the stats pad removes the linked chart entry too. Entries without points (missed actions, other categories) change nothing.
 
+- **S13** — (L16) On tablet and phone the navigation can be hidden and shown again (tablet rail with a hide button and a floating Menú button; phone bottom bar toggled from the top bar), remembered per device, so wide content (sheet, box score) gets the whole screen.
+- **S14** — (L17) Rival rosters per division: load rival teams and their players; a match can be linked to its rival team; Puntos recibidos (and Acciones ofensivas) can optionally record the rival player involved; Últimas entradas show jersey and name of the own player and, when recorded, the rival player. Seed: a rival roster for Primera División (the live match rival).
+
 ## Tasks
 
 - [x] T1 [S1,S2,S3,S5] Domain + use-cases: `CHART` event type with `chart: { category, code, points? }`, catalog, sheet aggregation, `recordChartEntry` / `undoLastChartEntry`, stat undo ignores chart events. Route: inline, test-first. Commit: 56c59cb
@@ -37,6 +40,8 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 - [x] T8 [S10] Browser check with Docker + seed. Route: inline. Commit: n/a (evidence L10)
 - [x] T9 [S11] Offensive result step (made + points). Route: inline, test-first. Commit: b80b2b5
 - [x] T10 [S12] Scoring chart entries add to the scoreboard. Route: inline, test-first. Commit: ce8d85a
+- [x] T11 [S13] Collapsible navigation. Route: inline, test-first. Commit: _pending_
+- T12 [S14] Rival rosters, rival player on chart entries, richer recent entries, seed roster. Route: worker. Commit: _pending_
 
 ## Log
 
@@ -55,3 +60,5 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 - L13 (user): "Necesito agregar los puntos a las acciones ofensivas y que me permita elegir si es punto o no... Por ejemplo delfino tomo un mal lanzamiento pero si lo convirtio. Que me permita seleccionar si convirtio o no abajo de la accion, en un punto 3 seria"
 - L14 (evidence): T9 unit/use-case tests (RED then GREEN), npm test 546/546, tsc clean. Browser: step 3 renders after picking #9 Delfino + Mal lanzamiento. A mutating browser script hit the rival +2 toolbar button by mistake and its sheet undo removed "#14 Rotación"; repaired (stat undo of the rival basket, entry re-recorded) and verified read-only while another person was using the live console through the tunnel.
 - L15 (user): "En los puntos recibidos y las acciones ofensivas cuando marcan los puntos que se hizo se deben sumar al marcados, a la izquierda o a la derecha segun si es recibido o accion ofensiva... Me explico?"
+- L16 (user): "Por otro lado, en la tablet o en el celular el menu se debe poder cerrar y quedar oculto o abrirse tambien... Para que por ejemplo la planilla box score se vea completa... Me explico?"
+- L17 (user): "Por ultimo, tambien me gustaria poder cargar el plantel de otros equipos y divisiones contra los que juguemos. Para que por ejemplo, si marco un punto recibido, pueda marcar quien lo hizo del otro equipo... [Image#5] se debe aprovechar mejor cada entrada de la parte de ultimas entradas, ademas de poner el numero del jugador podriamos poner el nombre... si es una accion ofensiva y se cargo quien lo hizo del otro equipo se puede mostrar eso tambien, sino se cargo quien lo hizo no se muestra... Cargame un plantel de ejemplo para probar por ejemplo con PRIMERA DIVISION..."

@@ -8,6 +8,9 @@ import {
   ClipboardList,
   LayoutDashboard,
   LifeBuoy,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Radio,
   Shield,
   Users,
@@ -21,6 +24,7 @@ import { CLUB_BRAND } from '@/presentation/brand';
 import { usePageEnter, useStaggerReveal } from '@/presentation/motion/useMotion';
 import { useNavIndicator } from '@/presentation/motion/useNavIndicator';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { useNavCollapsed } from './useNavCollapsed';
 import styles from './TabletAppShell.module.css';
 
 export interface TabletAppShellProps {
@@ -83,6 +87,7 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
   const isLiveActive = isLivePath(pathname);
   const activeHref = RAIL_ITEMS.find((item) => isNavItemActive(pathname, item.href))?.href ?? null;
 
+  const { collapsed: navCollapsed, setNavCollapsed } = useNavCollapsed();
   const mainRef = useRef<HTMLElement | null>(null);
   const navRef = useRef<HTMLElement | null>(null);
   const indicatorRef = useRef<HTMLSpanElement | null>(null);
@@ -108,10 +113,19 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
   };
 
   return (
-    <div className={styles.shellContainer}>
-      {/* Tablet navigation rail (left side) */}
+    <div className={clsx(styles.shellContainer, navCollapsed && styles.navCollapsed)}>
+      {/* Tablet navigation rail (left side); it can be hidden so wide tables get the full width. */}
       <aside className={styles.navRail}>
         <div className={styles.railTop}>
+          <button
+            type="button"
+            className={styles.railToggle}
+            onClick={() => setNavCollapsed(true)}
+            aria-label="Ocultar menú"
+            title="Ocultar menú"
+          >
+            <PanelLeftClose size={ICON_SIZE.md} aria-hidden="true" />
+          </button>
           <Link
             href="/"
             className={styles.brandSection}
@@ -167,6 +181,15 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
         </Link>
         <div className={styles.mobileTopActions}>
           <SyncStatusIndicator compact />
+          <button
+            type="button"
+            className={clsx(styles.mobileTopLink, !navCollapsed && styles.mobileTopLinkActive)}
+            onClick={() => setNavCollapsed(!navCollapsed)}
+            aria-label={navCollapsed ? 'Mostrar menú' : 'Ocultar menú'}
+            aria-pressed={!navCollapsed}
+          >
+            <Menu size={ICON_SIZE.lg} aria-hidden="true" />
+          </button>
           {TOP_BAR_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = activeHref === item.href;
@@ -189,6 +212,19 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
       <main ref={mainRef} className={styles.mainContent}>
         {children}
       </main>
+
+      {/* Tablet: brings the hidden rail back. */}
+      {navCollapsed && (
+        <button
+          type="button"
+          className={styles.floatingNavToggle}
+          onClick={() => setNavCollapsed(false)}
+          aria-label="Mostrar menú"
+        >
+          <PanelLeftOpen size={ICON_SIZE.md} aria-hidden="true" />
+          <span>Menú</span>
+        </button>
+      )}
 
       {/* Mobile bottom navigation (thumb zone) */}
       <nav className={styles.bottomBar} aria-label="Navegación móvil inferior">

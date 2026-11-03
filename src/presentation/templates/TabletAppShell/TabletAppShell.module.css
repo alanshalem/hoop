@@ -397,3 +397,90 @@
     padding-bottom: 0;
   }
 }
+
+/* -----------------------------------------------------------------------------
+   COLLAPSIBLE NAVIGATION: hide the rail (tablet) or the bottom bar (phone) so
+   wide content such as the sheet or the box score gets the whole screen.
+   ----------------------------------------------------------------------------- */
+.railTop {
+  position: relative;
+}
+
+.railToggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-2);
+  color: var(--text-secondary);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.railToggle:hover {
+  color: var(--text-primary);
+}
+
+.floatingNavToggle {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .navCollapsed .navRail {
+    display: none;
+  }
+
+  .floatingNavToggle {
+    position: fixed;
+    right: var(--space-3);
+    bottom: var(--space-3);
+    z-index: var(--z-sticky);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--touch-min);
+    padding: 0 var(--space-4);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-full);
+    background-color: color-mix(in srgb, var(--bg-surface-1) 92%, transparent);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 14px rgb(0 0 0 / 0.35);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-display);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+}
+
+@media (max-width: 767px) {
+  .navCollapsed .bottomBar {
+    display: none;
+  }
+
+  .navCollapsed .mainContent {
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+  }
+}
+
+/* Keep the brand text clear of the hide button. */
+.navRail .brandSection {
+  padding-right: calc(var(--touch-min) + var(--space-2));
+}
+
+/* Narrow phones: the crest alone identifies the app, so the top bar keeps every action visible. */
+@media (max-width: 419px) {
+  .mobileBrandTitle {
+    display: none;
+  }
+}
