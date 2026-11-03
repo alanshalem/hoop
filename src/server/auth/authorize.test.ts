@@ -23,7 +23,7 @@ const EXPECTED: Record<UserRole, Record<SyncEntityKind, Record<WriteOperation, b
     team: { create: true, update: true, delete: true },
     player: { create: true, update: true, delete: true },
     match: { create: true, update: true, delete: true },
-    chartCode: { create: true, update: true, delete: true },
+    chartCode: { create: true, update: true, delete: false },
     event: { create: true, update: true, delete: true },
   },
   HEAD_COACH: {
@@ -31,7 +31,7 @@ const EXPECTED: Record<UserRole, Record<SyncEntityKind, Record<WriteOperation, b
     team: { create: false, update: false, delete: false },
     player: { create: true, update: true, delete: true },
     match: { create: true, update: true, delete: true },
-    chartCode: { create: true, update: true, delete: true },
+    chartCode: { create: true, update: true, delete: false },
     event: { create: true, update: true, delete: true },
   },
   ASSISTANT_STATISTICIAN: {
@@ -50,7 +50,7 @@ describe('server RBAC (authorize)', () => {
       assert.deepStrictEqual(requiredPermissions('division', operation), ['MANAGE_DIVISIONS']);
       assert.deepStrictEqual(requiredPermissions('team', operation), ['MANAGE_DIVISIONS']);
       assert.deepStrictEqual(requiredPermissions('player', operation), ['MANAGE_PLAYERS']);
-      assert.deepStrictEqual(requiredPermissions('chartCode', operation), ['MANAGE_CHART_CATALOG']);
+      if (operation !== 'delete') assert.deepStrictEqual(requiredPermissions('chartCode', operation), ['MANAGE_CHART_CATALOG']);
       assert.deepStrictEqual(requiredPermissions('event', operation), ['RECORD_LIVE']);
     }
     assert.deepStrictEqual(requiredPermissions('match', 'create'), ['MANAGE_MATCHES']);
@@ -91,5 +91,17 @@ describe('server RBAC (authorize)', () => {
       status: 403,
     });
     assert.deepStrictEqual(authorizeWrite({ role: 'HEAD_COACH' }, 'chartCode', 'update'), { allowed: true });
+  });
+});
+
+describe('chart codes are archived, never deleted (S9)', () => {
+  it('refuses a chartCode delete for every role and without a session', () => {
+    assert.deepStrictEqual(requiredPermissions('chartCode', 'delete'), []);
+    for (const role of ['ADMIN', 'HEAD_COACH', 'ASSISTANT_STATISTICIAN'] as const) {
+      assert.deepStrictEqual(authorizeWrite({ role }, 'chartCode', 'delete'), { allowed: false, status: 403 });
+    }
+    for (const op of ['create', 'update', 'delete'] as const) {
+      assert.deepStrictEqual(authorizeWrite(null, 'chartCode', op), { allowed: false, status: 401 });
+    }
   });
 });

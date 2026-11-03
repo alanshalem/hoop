@@ -30,7 +30,8 @@ const REQUIRED_PERMISSIONS: Record<SyncEntityKind, Record<WriteOperation, readon
     update: ['MANAGE_MATCHES', 'MANAGE_LINEUP', 'RECORD_LIVE'],
     delete: ['MANAGE_MATCHES'],
   },
-  chartCode: ALL_OPERATIONS(['MANAGE_CHART_CATALOG']),
+  // Chart codes are archived, never deleted: old charted entries keep rendering them (S9).
+  chartCode: { create: ['MANAGE_CHART_CATALOG'], update: ['MANAGE_CHART_CATALOG'], delete: [] },
   event: ALL_OPERATIONS(['RECORD_LIVE']),
 };
 
