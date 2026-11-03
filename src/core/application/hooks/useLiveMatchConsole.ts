@@ -10,7 +10,7 @@ import {
   isLastTwoMinutesOfFourthQuarter,
 } from '@/core/domain/rules/timeouts';
 import { useClubStore } from '@/core/application/stores/useClubStore';
-import type { TeamSide } from '@/core/application/use-cases/match-use-cases';
+import type { RecordChartEntryInput, TeamSide } from '@/core/application/use-cases/match-use-cases';
 import { useGameClock, type GameClock } from './useGameClock';
 import { getPeriodEndAction, getSelectableQuarters, type PeriodEndAction } from './live-console-rules';
 
@@ -79,6 +79,8 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
   const role = useClubStore((state) => state.currentUser.role);
   const recordEvent = useClubStore((state) => state.recordEvent);
   const undoLastEvent = useClubStore((state) => state.undoLastEvent);
+  const recordChartEntryInStore = useClubStore((state) => state.recordChartEntry);
+  const undoLastChartEntryInStore = useClubStore((state) => state.undoLastChartEntry);
   const substitutePlayer = useClubStore((state) => state.substitutePlayer);
   const requestTimeout = useClubStore((state) => state.requestTimeout);
   const changeQuarterInStore = useClubStore((state) => state.changeQuarter);
@@ -135,6 +137,11 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
 
   const undo = () => undoLastEvent(matchId);
 
+  const recordChartEntry = (input: Omit<RecordChartEntryInput, 'clockSeconds'>) =>
+    recordChartEntryInStore(matchId, { ...input, clockSeconds: clock.read() });
+
+  const undoChartEntry = () => undoLastChartEntryInStore(matchId);
+
   const substitute = (playerOutId: string, playerInId: string) =>
     substitutePlayer(matchId, playerOutId, playerInId, clock.read());
 
@@ -180,6 +187,8 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
     recordPlayerEvent,
     recordRivalEvent,
     undo,
+    recordChartEntry,
+    undoChartEntry,
     substitute,
     callTimeout,
     changeQuarter,

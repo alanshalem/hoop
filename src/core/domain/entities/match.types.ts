@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { CourtCoordinatesSchema } from '../value-objects/coordinates';
+import { ChartEntrySchema } from './chart.types';
 
 /**
  * =============================================================================
@@ -56,6 +57,7 @@ export const PlayByPlayEventTypeSchema = z.enum([
   'FOUL_TECHNICAL',      // Falta Técnica
   'FOUL_UNSPORTSMANLIKE',// Falta Antideportiva
   'SUBSTITUTION',        // Sustitución / Cambio de Jugador
+  'CHART',               // Entrada de la planilla táctica (no cambia estadísticas)
 ]);
 export type PlayByPlayEventType = z.infer<typeof PlayByPlayEventTypeSchema>;
 
@@ -79,6 +81,7 @@ export const PLAY_BY_PLAY_EVENT_LABELS: Record<PlayByPlayEventType, string> = {
   FOUL_TECHNICAL: 'Falta técnica',
   FOUL_UNSPORTSMANLIKE: 'Falta antideportiva',
   SUBSTITUTION: 'Cambio',
+  CHART: 'Planilla',
 };
 
 // -----------------------------------------------------------------------------
@@ -129,6 +132,10 @@ export const PlayByPlayEventSchema = z.object({
   coordinates: CourtCoordinatesSchema.optional(),
   type: PlayByPlayEventTypeSchema,
   substitution: SubstitutionDetailSchema.optional(),
+  /**
+   * Tactical charting entry (only on CHART events).
+   */
+  chart: ChartEntrySchema.optional(),
   scoreAtEvent: ScoreSnapshotSchema,
   timestamp: z.string().datetime().or(z.date()),
 });

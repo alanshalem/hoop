@@ -20,12 +20,15 @@ import type {
 import type {
   CreateMatchInput,
   MatchResult,
+  RecordChartEntryInput,
+  RecordChartReason,
   RecordEventInput,
   RecordEventReason,
   RequestTimeoutResult,
   StartMatchResult,
   SubstitutionReason,
   TeamSide,
+  UndoChartReason,
   UndoReason,
 } from '@/core/application/use-cases/match-use-cases';
 import { CLUB_PROFILE } from '@/core/infrastructure/mocks/seed-data';
@@ -95,6 +98,11 @@ export interface ClubStoreState extends ClubDataState {
     input: RecordEventInput
   ) => MatchResult<RecordEventReason> | MatchNotFound;
   undoLastEvent: (matchId: string) => MatchResult<UndoReason> | MatchNotFound;
+  recordChartEntry: (
+    matchId: string,
+    input: RecordChartEntryInput
+  ) => MatchResult<RecordChartReason> | MatchNotFound;
+  undoLastChartEntry: (matchId: string) => MatchResult<UndoChartReason> | MatchNotFound;
   substitutePlayer: (
     matchId: string,
     playerOutId: string,
@@ -257,6 +265,11 @@ export const useClubStore = create<ClubStoreState>()(
           runMatchUseCase(matchId, (m) => matchUseCases.recordEvent(m, input, eventContext())),
 
         undoLastEvent: (matchId) => runMatchUseCase(matchId, matchUseCases.undoLastEvent),
+
+        recordChartEntry: (matchId, input) =>
+          runMatchUseCase(matchId, (m) => matchUseCases.recordChartEntry(m, input, eventContext())),
+
+        undoLastChartEntry: (matchId) => runMatchUseCase(matchId, matchUseCases.undoLastChartEntry),
 
         substitutePlayer: (matchId, playerOutId, playerInId, clockSeconds) =>
           runMatchUseCase(matchId, (m) =>

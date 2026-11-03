@@ -5,6 +5,13 @@ import type {
   Quarter,
 } from '@/core/domain/entities/match.types';
 import type { CourtCoordinates } from '@/core/domain/value-objects/coordinates';
+import {
+  DEFAULT_CHART_POINTS,
+  findChartCode,
+  type ChartCategory,
+  type ChartEntry,
+  type ChartPoints,
+} from '@/core/domain/entities/chart.types';
 import { getPlayerFoulsFromEvents } from '@/core/domain/rules/basketball-rules';
 import { RIVAL_TEAM_ID } from '@/core/domain/rules/event-rules';
 import {
@@ -56,6 +63,19 @@ export interface RecordEventInput {
 /** HALFTIME: the interval after Q2 (FIBA) accepts no plays and no timeouts. */
 export type RecordEventReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'INVALID_EVENT';
 export type UndoReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'NO_EVENTS';
+
+export interface RecordChartEntryInput {
+  category: ChartCategory;
+  code: string;
+  /** Own player involved; omitted for team-level entries. */
+  playerId?: string;
+  /** Only for POINTS_ALLOWED (defaults to 2). */
+  points?: ChartPoints;
+  clockSeconds?: number;
+}
+
+export type RecordChartReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'INVALID_CHART_CODE';
+export type UndoChartReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'NO_CHART_ENTRIES';
 export type SubstitutionReason =
   | 'MATCH_NOT_LIVE'
   | 'HALFTIME'
@@ -175,11 +195,13 @@ export function recordEvent(
   return { ok: true, match: next };
 }
 
+/** Undoes the last stat event; tactical chart entries have their own undo. */
 export function undoLastEvent(match: Match): MatchResult<UndoReason> {
   const refusal = notLiveReason(match);
   if (refusal) return { ok: false, reason: refusal };
-  const last = match.events.at(-1);
-  if (!last) return { ok: false, reason: 'NO_EVENTS' };
+  const lastIndex = match.events.findLastIndex((event) => event.type !== 'CHART');
+  if (lastIndex === -1) return { ok: false, reason: 'NO_EVENTS' };
+  const last = match.events[lastIndex];
 
   const sub = last.isOwnTeam ? last.substitution : undefined;
   const activeLineupOwn = sub
@@ -191,8 +213,49 @@ export function undoLastEvent(match: Match): MatchResult<UndoReason> {
     match: withDerivedScoreboard({
       ...match,
       activeLineupOwn,
-      events: match.events.slice(0, -1),
+      events: match.events.filter((_, index) => index !== lastIndex),
     }),
+  };
+}
+
+export function recordChartEntry(
+  match: Match,
+  input: RecordChartEntryInput,
+  ctx: UseCaseContext
+): MatchResult<RecordChartReason> {
+  const refusal = notLiveReason(match);
+  if (refusal) return { ok: false, reason: refusal };
+  if (!findChartCode(input.category, input.code)) return { ok: false, reason: 'INVALID_CHART_CODE' };
+  const isPointsAllowed = input.category === 'POINTS_ALLOWED';
+  if (!isPointsAllowed && input.points !== undefined) return { ok: false, reason: 'INVALID_CHART_CODE' };
+
+  const clocked =
+    input.clockSeconds === undefined ? match : setClock(match, input.clockSeconds);
+  const chart: ChartEntry = isPointsAllowed
+    ? { category: input.category, code: input.code, points: input.points ?? DEFAULT_CHART_POINTS }
+    : { category: input.category, code: input.code };
+  const next = appendEvent(
+    clocked,
+    {
+      teamId: match.ownTeamId,
+      isOwnTeam: true,
+      playerId: input.playerId,
+      type: 'CHART',
+      chart,
+    },
+    ctx
+  );
+  return { ok: true, match: next };
+}
+
+export function undoLastChartEntry(match: Match): MatchResult<UndoChartReason> {
+  const refusal = notLiveReason(match);
+  if (refusal) return { ok: false, reason: refusal };
+  const lastIndex = match.events.findLastIndex((event) => event.type === 'CHART');
+  if (lastIndex === -1) return { ok: false, reason: 'NO_CHART_ENTRIES' };
+  return {
+    ok: true,
+    match: { ...match, events: match.events.filter((_, index) => index !== lastIndex) },
   };
 }
 

@@ -12,6 +12,8 @@ import {
   startThirdQuarter,
   substitutePlayer,
   undoLastEvent,
+  recordChartEntry,
+  undoLastChartEntry,
 } from './match-use-cases';
 import type { Match } from '@/core/domain/entities/match.types';
 import { makeEvent, makeMatch } from '@/core/testing/fixtures';
@@ -113,6 +115,113 @@ describe('undoLastEvent', () => {
   it('reports MATCH_NOT_LIVE for finished matches', () => {
     const match = makeMatch({ status: 'FINISHED', events: [makeEvent()] });
     assert.deepStrictEqual(undoLastEvent(match), { ok: false, reason: 'MATCH_NOT_LIVE' });
+  });
+
+  it('skips chart entries and removes the last stat event', () => {
+    const chartEntry = makeEvent({ type: 'CHART', chart: { category: 'TURNOVER', code: 'BAD_PASS' } });
+    const match = makeMatch({
+      events: [makeEvent({ type: 'FG2_MADE', isOwnTeam: true }), chartEntry],
+      homeScore: 2,
+    });
+    const { match: next } = expectOk(undoLastEvent(match));
+    assert.deepStrictEqual(next.events, [chartEntry]);
+    assert.strictEqual(next.homeScore, 0);
+  });
+
+  it('reports NO_EVENTS when only chart entries exist', () => {
+    const match = makeMatch({
+      events: [makeEvent({ type: 'CHART', chart: { category: 'TURNOVER', code: 'BAD_PASS' } })],
+    });
+    assert.deepStrictEqual(undoLastEvent(match), { ok: false, reason: 'NO_EVENTS' });
+  });
+});
+
+describe('recordChartEntry', () => {
+  it('appends a CHART event stamped with quarter and clock that leaves the score untouched', () => {
+    const match = makeMatch({ currentQuarter: 'Q3', quarterTimeRemainingSeconds: 300, homeScore: 0 });
+    const { match: next } = expectOk(
+      recordChartEntry(match, { category: 'TURNOVER', code: 'BAD_PASS', playerId: 'p1', clockSeconds: 245 }, ctx)
+    );
+    assert.strictEqual(next.events.length, 1);
+    assert.deepStrictEqual(next.events[0], {
+      id: 'ev-new',
+      matchId: 'm-test',
+      quarter: 'Q3',
+      quarterTimeRemainingSeconds: 245,
+      gameClockFormatted: '04:05',
+      teamId: 'team-own',
+      isOwnTeam: true,
+      playerId: 'p1',
+      type: 'CHART',
+      chart: { category: 'TURNOVER', code: 'BAD_PASS' },
+      scoreAtEvent: { home: 0, away: 0 },
+      timestamp: ctx.now,
+    });
+    assert.strictEqual(next.homeScore, 0);
+    assert.strictEqual(next.awayScore, 0);
+  });
+
+  it('records points allowed with 2 points by default and keeps an explicit value', () => {
+    const byDefault = expectOk(recordChartEntry(makeMatch(), { category: 'POINTS_ALLOWED', code: 'CUT' }, ctx));
+    assert.deepStrictEqual(byDefault.match.events[0].chart, { category: 'POINTS_ALLOWED', code: 'CUT', points: 2 });
+    assert.strictEqual(byDefault.match.events[0].playerId, undefined);
+    const triple = expectOk(
+      recordChartEntry(makeMatch(), { category: 'POINTS_ALLOWED', code: 'NO_CLOSEOUT', points: 3 }, ctx)
+    );
+    assert.strictEqual(triple.match.events[0].chart?.points, 3);
+  });
+
+  it('rejects a code that does not belong to the category and leaves the match unchanged', () => {
+    const match = makeMatch();
+    assert.deepStrictEqual(recordChartEntry(match, { category: 'TURNOVER', code: 'GOOD_SHOT' }, ctx), {
+      ok: false,
+      reason: 'INVALID_CHART_CODE',
+    });
+    assert.strictEqual(match.events.length, 0);
+  });
+
+  it('rejects points outside the points-allowed category', () => {
+    assert.deepStrictEqual(
+      recordChartEntry(makeMatch(), { category: 'TURNOVER', code: 'BAD_PASS', points: 2 }, ctx),
+      { ok: false, reason: 'INVALID_CHART_CODE' }
+    );
+  });
+
+  it('refuses when the match is not live or at halftime', () => {
+    const input = { category: 'DEFENSE', code: 'STEAL' } as const;
+    assert.deepStrictEqual(recordChartEntry(makeMatch({ status: 'FINISHED' }), input, ctx), {
+      ok: false,
+      reason: 'MATCH_NOT_LIVE',
+    });
+    assert.deepStrictEqual(recordChartEntry(makeMatch({ status: 'HALFTIME' }), input, ctx), {
+      ok: false,
+      reason: 'HALFTIME',
+    });
+  });
+});
+
+describe('undoLastChartEntry', () => {
+  it('removes only the last chart entry and keeps later stat events', () => {
+    const first = makeEvent({ type: 'CHART', chart: { category: 'TURNOVER', code: 'BAD_PASS' } });
+    const second = makeEvent({ type: 'CHART', chart: { category: 'DEFENSE', code: 'STEAL' } });
+    const stat = makeEvent({ type: 'FG2_MADE', isOwnTeam: true });
+    const match = makeMatch({ events: [first, second, stat], homeScore: 2 });
+    const { match: next } = expectOk(undoLastChartEntry(match));
+    assert.deepStrictEqual(next.events, [first, stat]);
+    assert.strictEqual(next.homeScore, 2);
+  });
+
+  it('reports NO_CHART_ENTRIES when there is nothing to undo', () => {
+    const match = makeMatch({ events: [makeEvent({ type: 'FG2_MADE' })] });
+    assert.deepStrictEqual(undoLastChartEntry(match), { ok: false, reason: 'NO_CHART_ENTRIES' });
+  });
+
+  it('reports MATCH_NOT_LIVE for finished matches', () => {
+    const match = makeMatch({
+      status: 'FINISHED',
+      events: [makeEvent({ type: 'CHART', chart: { category: 'TURNOVER', code: 'BAD_PASS' } })],
+    });
+    assert.deepStrictEqual(undoLastChartEntry(match), { ok: false, reason: 'MATCH_NOT_LIVE' });
   });
 });
 
