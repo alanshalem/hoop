@@ -36,7 +36,7 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 - [x] T7 [S9] Club chart catalog: domain, sync kind + migration, RBAC, settings UI. Route: explore, then inline/worker; independent verify (risk items 1, 2). Commit: 217c074, ee77fa2, e0df832
 - [x] T8 [S10] Browser check with Docker + seed. Route: inline. Commit: n/a (evidence L10)
 - [x] T9 [S11] Offensive result step (made + points). Route: inline, test-first. Commit: b80b2b5
-- T10 [S12] Scoring chart entries add to the scoreboard. Route: inline, test-first. Commit: _pending_
+- [x] T10 [S12] Scoring chart entries add to the scoreboard. Route: inline, test-first. Commit: ce8d85a
 
 ## Log
 
