@@ -62,6 +62,8 @@ Son dos toques por entrada: jugador y código. Después de cada entrada la selec
 
 Cada código tiene un símbolo corto (el que se escribe junto al dorsal en la grilla), una etiqueta y un tono: azul para las acciones positivas y rojo para las negativas, como las tintas de la planilla de papel. Algunos símbolos se repiten en categorías distintas (por ejemplo `RD`, `FI`, `CO` y `PK`); la fila de la grilla y el color los distinguen. El id es el valor que se guarda en cada entrada.
 
+Las tablas siguientes son los códigos de fábrica. Cada club los puede renombrar, completar con códigos propios y archivar (ver [Catálogo del club](#catálogo-del-club)).
+
 **Pérdidas.** Cómo se perdió la pelota (todas negativas). Los tipos siguen los de pérdida del FIBA Statisticians' Manual 2024 (Anexo B). **Violación de tiempo** agrupa 3, 5, 8 y 24 segundos.
 
 | Símbolo | Acción              | Tono            | Id                 |
@@ -120,6 +122,21 @@ Cada código tiene un símbolo corto (el que se escribe junto al dorsal en la gr
 | `PK`    | Pick                 | Rojo (negativa) | `PICK`          |
 | `MF`    | Mal foul             | Rojo (negativa) | `BAD_FOUL`      |
 
+### Catálogo del club
+
+Cada club tiene su propio catálogo de códigos. Mientras nadie lo edite, es el de las tablas anteriores. Se edita en la pantalla [Códigos de la planilla](#códigos-de-la-planilla-planilla) (**Planilla** en el menú, `/planilla`).
+
+| Acción    | Qué pasa                                                                                                                                                                                                                                                                            |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Renombrar | Cambia el símbolo (1 a 3 caracteres), el nombre (1 a 40 caracteres) o el tono (azul o rojo) de cualquier código, de fábrica o propio. El id no cambia: las entradas ya cargadas se ven con el símbolo, el nombre y el color nuevos, y el resumen por jugador cuenta el tono nuevo. |
+| Agregar   | Suma un código propio a una categoría, al final de su lista, marcado **Propio**. Se guarda con un id `CUSTOM_<id>`.                                                                                                                                                               |
+| Archivar  | El código deja de aparecer en el panel de carga en vivo y ya no se puede cargar. Las entradas ya cargadas lo siguen mostrando en la grilla. **Restaurar** lo devuelve al panel. Las referencias de la planilla listan solo los códigos activos.                                   |
+| Borrar    | No existe. Los códigos nunca se borran, solo se archivan, para que ninguna entrada vieja quede sin su código.                                                                                                                                                                      |
+
+**Quién lo edita.** El administrador y los entrenadores principales (permiso `MANAGE_CHART_CATALOG`). El servidor rechaza los cambios del catálogo que llegan de cualquier otro rol. El asistente planillero ve la lista en modo lectura.
+
+**Sincronización.** Cada código editado o agregado viaja como un registro de tipo `chartCode`, con la misma cola de salida que las divisiones y los jugadores: funciona sin conexión y llega a todas las tablets. Al cargar una entrada en vivo, la consola la valida contra los códigos activos del club.
+
 ### Leer la planilla táctica
 
 **Dónde está.** En la página del partido (`/matches/[id]/stats`), sección **Planilla**, la primera debajo del resultado. Desde la consola, el botón **Planilla** de la barra de herramientas abre esa página. Dentro de la consola, en modo **Planilla**, la grilla se ve junto al panel de carga (o en la pestaña **Ver planilla** en pantallas angostas), sin el resumen por jugador ni las referencias.
@@ -130,7 +147,7 @@ Cada código tiene un símbolo corto (el que se escribe junto al dorsal en la gr
 | Totales por período | Debajo de las entradas de cada celda: la cantidad de entradas; en **Puntos recibidos**, además, los puntos recibidos (por ejemplo `7 pts`). En **Acciones ofensivas**, también el conteo por código, por ejemplo `A=1 F=4`. Una celda sin entradas muestra `-`.                                                                   |
 | Mitades y total     | Columnas **1.ª mitad** (1C y 2C), **2.ª mitad** (3C, 4C y suplementarios) y **Total** del partido, con la cantidad de entradas y, en **Puntos recibidos**, los puntos.                                                                                                                                                            |
 | Resumen por jugador | Una fila por jugador con entradas y una de **Equipo**: cantidad de **Pérdidas**, **Puntos recibidos** (con los puntos), **Ofensivas**, **Defensivas** y el total de acciones positivas (`+`) y negativas (`−`).                                                                                                                   |
-| Referencias         | Todos los códigos de cada categoría con su símbolo y su color.                                                                                                                                                                                                                                                                    |
+| Referencias         | Los códigos activos del catálogo del club en cada categoría, con su símbolo y su color. Los archivados no figuran, pero sus entradas viejas siguen en la grilla.                                                                                                                                                                  |
 
 Debajo de la planilla, en la misma página, siguen los parciales por período, el box score y el mapa de tiros.
 
@@ -196,15 +213,16 @@ Hay tres roles. Cada usuario tiene uno, asignado en el servidor. Cada pantalla o
 
 ### Matriz de permisos
 
-| Permiso            | Qué habilita                                                                           | Administrador | Entrenador principal | Asistente planillero |
-| ------------------ | -------------------------------------------------------------------------------------- | :-----------: | :------------------: | :------------------: |
-| `MANAGE_DIVISIONS` | Crear, editar y eliminar divisiones; asignar entrenador                                |      Sí       |          No          |          No          |
-| `MANAGE_PLAYERS`   | Crear, editar y eliminar jugadores; convocar juveniles a Primera                       |      Sí       |          Sí          |          No          |
-| `MANAGE_MATCHES`   | Crear, editar y eliminar partidos programados                                          |      Sí       |          Sí          |          No          |
-| `MANAGE_LINEUP`    | Armar convocatoria y quinteto; iniciar el partido                                      |      Sí       |          Sí          |          No          |
-| `RECORD_LIVE`      | Usar la consola en vivo: reloj, períodos, jugadas, cambios, tiempos muertos, finalizar |      Sí       |          Sí          |          Sí          |
+| Permiso                | Qué habilita                                                                           | Administrador | Entrenador principal | Asistente planillero |
+| ---------------------- | -------------------------------------------------------------------------------------- | :-----------: | :------------------: | :------------------: |
+| `MANAGE_DIVISIONS`     | Crear, editar y eliminar divisiones; asignar entrenador                                |      Sí       |          No          |          No          |
+| `MANAGE_PLAYERS`       | Crear, editar y eliminar jugadores; convocar juveniles a Primera                       |      Sí       |          Sí          |          No          |
+| `MANAGE_MATCHES`       | Crear, editar y eliminar partidos programados                                          |      Sí       |          Sí          |          No          |
+| `MANAGE_LINEUP`        | Armar convocatoria y quinteto; iniciar el partido                                      |      Sí       |          Sí          |          No          |
+| `RECORD_LIVE`          | Usar la consola en vivo: reloj, períodos, jugadas, cambios, tiempos muertos, finalizar |      Sí       |          Sí          |          Sí          |
+| `MANAGE_CHART_CATALOG` | Editar el catálogo de códigos de la planilla: renombrar, agregar, archivar y restaurar |      Sí       |          Sí          |          No          |
 
-Lo que cualquier rol puede ver: dashboard, listado de divisiones y su plantel ("Ver plantel"), jugadores, calendario, convocatorias (en modo lectura) y planillas estadísticas. Sin `RECORD_LIVE` la consola se abre en modo lectura con un aviso.
+Lo que cualquier rol puede ver: dashboard, listado de divisiones y su plantel ("Ver plantel"), jugadores, calendario, convocatorias (en modo lectura), planillas estadísticas y los códigos de la planilla (en modo lectura). Sin `RECORD_LIVE` la consola se abre en modo lectura con un aviso.
 
 ### Cuentas de demostración
 
@@ -228,13 +246,13 @@ Para usar otro rol hay que cerrar sesión y entrar con otra cuenta. Si el rol de
 
 ### Navegación general
 
-| Elemento                   | Dónde                  | Función                                                                                                                                                                                                                                                     |
-| -------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Riel lateral (tablet)      | Izquierda              | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, botón **Partido en vivo** y, al pie, el menú de usuario: nombre, rol, botón de tema claro/oscuro, [estado de sincronización](#estado-de-sincronización) y **Cerrar sesión**. |
-| Barra superior (teléfono)  | Arriba                 | Escudo y marca (vuelve al inicio) y el estado de sincronización compacto.                                                                                                                                                                                   |
-| Barra inferior (teléfono)  | Abajo                  | Inicio, Equipos, botón central de partido en vivo (icono `Radio`), Plantel y Fechas.                                                                                                                                                                        |
-| Menú de usuario (teléfono) | Cabecera del Dashboard | Nombre, rol, estado de sincronización y **Cerrar sesión**.                                                                                                                                                                                                  |
-| Diálogos                   | Sobre la pantalla      | Modales propios: avisos (`notify`, botón "Entendido") y confirmaciones (`confirm`, botones "Cancelar" y la acción). Se muestran de a uno, en cola.                                                                                                          |
+| Elemento                   | Dónde                  | Función                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Riel lateral (tablet)      | Izquierda              | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, Planilla ([códigos de la planilla](#códigos-de-la-planilla-planilla)), Ayuda, botón **Partido en vivo** y, al pie, el menú de usuario: nombre, rol, botón de tema claro/oscuro, [estado de sincronización](#estado-de-sincronización) y **Cerrar sesión**. |
+| Barra superior (teléfono)  | Arriba                 | Escudo y marca (vuelve al inicio), el estado de sincronización compacto y los iconos de Planilla (`ClipboardList`, códigos de la planilla) y Ayuda (`LifeBuoy`).                                                                                                                                                                          |
+| Barra inferior (teléfono)  | Abajo                  | Inicio, Equipos, botón central de partido en vivo (icono `Radio`), Plantel y Fechas.                                                                                                                                                                                                                                                      |
+| Menú de usuario (teléfono) | Cabecera del Dashboard | Nombre, rol, estado de sincronización y **Cerrar sesión**.                                                                                                                                                                                                                                                                                |
+| Diálogos                   | Sobre la pantalla      | Modales propios: avisos (`notify`, botón "Entendido") y confirmaciones (`confirm`, botones "Cancelar" y la acción). Se muestran de a uno, en cola.                                                                                                                                                                                        |
 
 ### Inicio de sesión (`/login`)
 
@@ -269,8 +287,8 @@ Este manual, dentro de la aplicación. Se abre desde **Ayuda** en el menú later
 
 La primera vez que inicias sesión, Hoop muestra un recorrido de bienvenida: la pantalla se oscurece, se resalta un elemento por vez y una tarjeta con una flecha explica para qué sirve, muchas veces con un ejemplo concreto (por ejemplo, "toca #7 Campagna y después +2").
 
-- **Bienvenida**: presenta el menú (Dashboard, Divisiones, Jugadores, Partidos, Modo partido en vivo), el estado de sincronización, tu menú de usuario y la Ayuda. Cuando la terminas o la saltas, el recorrido de la pantalla en la que estás no empieza enseguida: aparece la próxima vez que abras esa pantalla.
-- **Recorridos por pantalla**: la primera vez que abres Dashboard, Divisiones, Jugadores, Partidos, Quinteto y convocatoria, Consola en vivo, Planilla o Ayuda, se muestra un recorrido corto de esa pantalla.
+- **Bienvenida**: presenta el menú (Dashboard, Divisiones, Jugadores, Partidos, Modo partido en vivo, Códigos de la planilla), el estado de sincronización, tu menú de usuario y la Ayuda. Cuando la terminas o la saltas, el recorrido de la pantalla en la que estás no empieza enseguida: aparece la próxima vez que abras esa pantalla.
+- **Recorridos por pantalla**: la primera vez que abres Dashboard, Divisiones, Jugadores, Partidos, Quinteto y convocatoria, Consola en vivo, Planilla, Códigos de la planilla o Ayuda, se muestra un recorrido corto de esa pantalla.
 - **Según tu rol**: los pasos de acciones que tu rol no puede realizar (por ejemplo, crear divisiones) no se muestran.
 - **Controles**: Siguiente, Atrás y Saltar tutorial (Finalizar en el último paso). Con teclado: Enter o flecha derecha avanza, flecha izquierda retrocede y Escape salta el tutorial. Tocar la zona oscura no cierra el recorrido y el elemento resaltado no se puede tocar mientras dura.
 - **Consola en vivo**: el recorrido nunca empieza solo con el reloj de juego en marcha; espera a que lo pauses.
@@ -390,6 +408,21 @@ Atajo del botón **Partido en vivo**. Si hay un partido en juego, redirige a su 
 | Mapa de tiros         | Filtros **Período** (Todos o un período) y **Jugador** (Todo el equipo o cada lanzador). Efectividad de dobles, triples y total de campo para el filtro elegido. Una nota indica cuántos tiros se cargaron desde el pad y no tienen ubicación en el mapa.                                    |
 
 Un partido programado muestra "El partido todavía no comenzó".
+
+### Códigos de la planilla (`/planilla`)
+
+El catálogo de códigos de la planilla táctica del club (ver [Catálogo del club](#catálogo-del-club)). Se abre desde **Planilla** en el riel lateral o desde el icono `ClipboardList` de la barra superior en el teléfono.
+
+Hay una sección por categoría (**Pérdidas**, **Puntos recibidos**, **Acciones ofensivas** y **Acciones defensivas**) con la cantidad de códigos activos y archivados. Cada código se lista en el orden del panel de carga en vivo, con su símbolo en su color (azul positiva, rojo negativa), su nombre y su tono. **Propio** marca los códigos que agregó el club y **Archivado** los que ya no se cargan.
+
+| Control                      | Qué hace                                                                                                               | Permiso                |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| **Nuevo código**             | Abre el formulario para agregar un código propio a la categoría.                                                       | `MANAGE_CHART_CATALOG` |
+| Lápiz (`Pencil`)             | Edita el símbolo, el nombre o el tono del código. Las entradas ya cargadas se ven con el cambio.                        | `MANAGE_CHART_CATALOG` |
+| Archivar (`Archive`)         | Pide confirmación y archiva el código: sale del panel de carga en vivo y las entradas ya cargadas lo siguen mostrando. | `MANAGE_CHART_CATALOG` |
+| Restaurar (`ArchiveRestore`) | Devuelve un código archivado al panel de carga en vivo.                                                                | `MANAGE_CHART_CATALOG` |
+
+Campos del formulario: **Símbolo** (1 a 3 caracteres), **Tono** (Azul (positiva) o Rojo (negativa)) y **Nombre** (1 a 40 caracteres). Un código nuevo empieza en rojo en **Pérdidas** y **Puntos recibidos** y en azul en las otras dos categorías. Sin el permiso `MANAGE_CHART_CATALOG` la pantalla muestra la lista en modo lectura con el aviso "Solo el administrador y los entrenadores principales pueden editar los códigos."
 
 ---
 
@@ -525,6 +558,13 @@ Con varias tablets en el mismo partido, **Deshacer** quita la última jugada de 
 2. Revisar la sección **Planilla** (ver [Leer la planilla táctica](#leer-la-planilla-táctica)), los parciales por período y el box score.
 3. En **Mapa de tiros**, combinar los filtros de período y jugador. Los indicadores de dobles, triples y total de campo se actualizan con el filtro.
 
+### Editar los códigos de la planilla
+
+1. Abrir **Planilla** en el menú (pantalla [Códigos de la planilla](#códigos-de-la-planilla-planilla)). Hace falta el permiso `MANAGE_CHART_CATALOG`.
+2. Para renombrar, tocar el lápiz del código, cambiar el símbolo, el nombre o el tono y pulsar **Guardar cambios**.
+3. Para agregar, pulsar **Nuevo código** en la categoría, completar el formulario y pulsar **Agregar código**. El código aparece al final de la categoría en el panel de carga en vivo.
+4. Para dejar de usar un código, tocar **Archivar** y confirmar. Las entradas ya cargadas lo siguen mostrando; **Restaurar** lo devuelve al panel.
+
 ---
 
 ## 7. Reglas FIBA aplicadas
@@ -549,19 +589,19 @@ Fuente única de verdad: el marcador, las faltas de equipo, los parciales y el b
 
 ### Dónde se guardan
 
-| Dato                                                                                                                                   | Ubicación                                                                                                         |
-| -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Divisiones, equipos, jugadores, partidos y jugadas (copia del servidor)                                                                | PostgreSQL: tablas `sync_records` y `match_events` (ver [Servidor y base de datos](#9-servidor-y-base-de-datos)). |
-| Usuarios y sesiones                                                                                                                    | PostgreSQL: tablas `users` (contraseñas con hash scrypt) y `sessions` (solo el hash del token).                   |
-| Copia local del club: divisiones, equipos, jugadores, partidos y jugadas, usuario actual, división y partido activos                   | `localStorage`, clave `hoop-club-storage` (Zustand con el middleware `persist`).                                  |
-| Cola de cambios pendientes (outbox), usuario dueño de esa cola, cursor de sincronización, versiones y hora de la última sincronización | `localStorage`, clave `hoop-sync-storage`.                                                                        |
-| Perfil del último usuario (id, correo, nombre, rol)                                                                                    | `localStorage`, clave `hoop-auth-storage`. Nunca la contraseña ni el token.                                       |
-| Sesión                                                                                                                                 | Cookie `hoop_session` (httpOnly: el JavaScript de la página no puede leerla), 30 días.                            |
-| Tema claro u oscuro                                                                                                                    | `localStorage`, clave `hoop-theme`.                                                                               |
-| Tutoriales vistos o saltados, por usuario                                                                                              | `localStorage`, clave `hoop-tour-storage`.                                                                        |
-| Pestaña principal cuando el navegador no tiene Web Locks (http en la red local)                                                        | `localStorage`, clave `hoop-sync-leader-lease` (id de la pestaña y vencimiento).                                  |
-| Cambios de una pestaña secundaria que la principal todavía no confirmó                                                                 | `localStorage`, una clave por pestaña: `hoop-sync-handoff:<id de pestaña>`.                                       |
-| Cola de diálogos, estado del reloj en marcha, estado de la sincronización en curso                                                     | Memoria (no se guarda).                                                                                           |
+| Dato                                                                                                                                         | Ubicación                                                                                                         |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Divisiones, equipos, jugadores, partidos, jugadas y códigos de la planilla del club (copia del servidor)                                     | PostgreSQL: tablas `sync_records` y `match_events` (ver [Servidor y base de datos](#9-servidor-y-base-de-datos)). |
+| Usuarios y sesiones                                                                                                                          | PostgreSQL: tablas `users` (contraseñas con hash scrypt) y `sessions` (solo el hash del token).                   |
+| Copia local del club: divisiones, equipos, jugadores, partidos y jugadas, códigos de la planilla, usuario actual, división y partido activos | `localStorage`, clave `hoop-club-storage` (Zustand con el middleware `persist`).                                  |
+| Cola de cambios pendientes (outbox), usuario dueño de esa cola, cursor de sincronización, versiones y hora de la última sincronización       | `localStorage`, clave `hoop-sync-storage`.                                                                        |
+| Perfil del último usuario (id, correo, nombre, rol)                                                                                          | `localStorage`, clave `hoop-auth-storage`. Nunca la contraseña ni el token.                                       |
+| Sesión                                                                                                                                       | Cookie `hoop_session` (httpOnly: el JavaScript de la página no puede leerla), 30 días.                            |
+| Tema claro u oscuro                                                                                                                          | `localStorage`, clave `hoop-theme`.                                                                               |
+| Tutoriales vistos o saltados, por usuario                                                                                                    | `localStorage`, clave `hoop-tour-storage`.                                                                        |
+| Pestaña principal cuando el navegador no tiene Web Locks (http en la red local)                                                              | `localStorage`, clave `hoop-sync-leader-lease` (id de la pestaña y vencimiento).                                  |
+| Cambios de una pestaña secundaria que la principal todavía no confirmó                                                                       | `localStorage`, una clave por pestaña: `hoop-sync-handoff:<id de pestaña>`.                                       |
+| Cola de diálogos, estado del reloj en marcha, estado de la sincronización en curso                                                           | Memoria (no se guarda).                                                                                           |
 
 El reloj de juego se guarda en el partido al pausar, al corregirlo, al llegar a 00:00, con cada jugada, cambio, tiempo muerto o finalización, al ocultarse la página y al salir de la consola.
 
@@ -575,16 +615,17 @@ La cola de sincronización (`SYNC_STORE_VERSION`, en `useSyncStore.ts`) y el per
 
 Se generan en `src/core/infrastructure/mocks/seed-data.ts`, de forma determinística. Las fechas se calculan a partir del momento de la primera carga.
 
-| Elemento             | Contenido                                                                                                                                                                                 |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Club                 | Club Atlético Monte Grande (`club-camg`), temporada 2025/2026.                                                                                                                            |
-| Usuarios             | 5, con correos `@camg.com.ar`: Federico Balbi, Sergio Hernández y Julio Lamas (entrenadores principales), Mariano Ginóbili (asistente planillero) y Alejandro Montecchia (administrador). |
-| Divisiones y equipos | Primera División, Sub-19 (U19) y Sub-17 (U17), cada una con su equipo `Club Atlético Monte Grande - <división>` y su entrenador.                                                          |
-| Jugadores            | 17: 12 de Primera (uno lesionado, con parte médico), 3 de Sub-19 y 2 de Sub-17.                                                                                                           |
-| Partidos finalizados | 3, con jugada a jugada completa: contra Peñarol de Mar del Plata (local), Quimsa (visitante) y Ferro Carril Oeste (local), hace 20, 13 y 6 días.                                          |
-| Partido en vivo      | Contra Obras Sanitarias, hoy, en el Estadio CAMG: 2.º cuarto con 07:08 en el reloj y el rival en bonus.                                                                                   |
-| Planilla táctica     | Los partidos finalizados y el partido en vivo traen entradas de la planilla en cada cuarto jugado (entre 6 y 14 por cuarto completo, de las cuatro categorías), atadas a jugadas del partido. |
-| Partido programado   | Contra Boca Juniors como visitante, dentro de 7 días, con convocatoria precargada.                                                                                                        |
+| Elemento                | Contenido                                                                                                                                                                                     |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Club                    | Club Atlético Monte Grande (`club-camg`), temporada 2025/2026.                                                                                                                                |
+| Usuarios                | 5, con correos `@camg.com.ar`: Federico Balbi, Sergio Hernández y Julio Lamas (entrenadores principales), Mariano Ginóbili (asistente planillero) y Alejandro Montecchia (administrador).     |
+| Divisiones y equipos    | Primera División, Sub-19 (U19) y Sub-17 (U17), cada una con su equipo `Club Atlético Monte Grande - <división>` y su entrenador.                                                              |
+| Jugadores               | 17: 12 de Primera (uno lesionado, con parte médico), 3 de Sub-19 y 2 de Sub-17.                                                                                                               |
+| Partidos finalizados    | 3, con jugada a jugada completa: contra Peñarol de Mar del Plata (local), Quimsa (visitante) y Ferro Carril Oeste (local), hace 20, 13 y 6 días.                                              |
+| Partido en vivo         | Contra Obras Sanitarias, hoy, en el Estadio CAMG: 2.º cuarto con 07:08 en el reloj y el rival en bonus.                                                                                       |
+| Planilla táctica        | Los partidos finalizados y el partido en vivo traen entradas de la planilla en cada cuarto jugado (entre 6 y 14 por cuarto completo, de las cuatro categorías), atadas a jugadas del partido. |
+| Catálogo de la planilla | Sin cambios: los códigos de fábrica, sin códigos propios ni archivados.                                                                                                                       |
+| Partido programado      | Contra Boca Juniors como visitante, dentro de 7 días, con convocatoria precargada.                                                                                                            |
 
 Los mismos datos cargan el servidor con `npm run db:seed`. El navegador los usa solo hasta el primer ingreso: en la primera sincronización de una tablet, la copia del servidor reemplaza los datos locales de demostración (nunca se envían al servidor). Los cambios que alguien haya hecho antes de esa primera sincronización no se pierden: se vuelven a aplicar sobre la copia del servidor y se envían.
 
@@ -608,7 +649,7 @@ Cómo funciona para quien usa la aplicación:
 | Cambios antes de la primera sincronización (tablet nueva o sin conexión desde el primer ingreso) | También entran en la cola y el estado los cuenta como pendientes. Cuando llega la primera copia completa del servidor, reemplaza los datos locales y los cambios pendientes se vuelven a aplicar encima; después se envían.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | Vuelve la conexión                                                                               | La cola se envía sola y la tablet descarga lo que cambiaron las demás. Si el servidor no responde, reintenta cada vez más espaciado (1 s, 2 s, 4 s... hasta 60 s).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Otra tablet guarda un cambio                                                                     | El servidor avisa en vivo (Server-Sent Events) y esta tablet lo descarga en segundos.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Dos tablets editan el mismo jugador o división                                                   | Gana el cambio más reciente según la hora en que se hizo (last-write-wins) y el registro se reemplaza completo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Dos tablets editan el mismo jugador, división o código de la planilla                            | Gana el cambio más reciente según la hora en que se hizo (last-write-wins) y el registro se reemplaza completo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | Dos tablets editan el mismo partido                                                              | Se combinan campo por campo: cada dato del partido (tiempos muertos, quinteto, estadio, etc.) guarda la hora de su último cambio y gana el más reciente; con la misma hora queda el del servidor. Si una tablet maneja el reloj y otra corrige el estadio, se conservan los dos cambios. El estado, el período y el reloj forman un solo grupo (el estado de juego): gana completo el de la tablet que lo cambió último, así que nunca se mezcla el período de una tablet con el reloj de otra (por ejemplo, "2.º cuarto con 0:20" cuando una tablet pasó al 2.º cuarto y otra pausó el 1.º en 0:20). Los tiempos muertos de cada equipo también son un solo dato: si dos tablets piden a la vez un tiempo muerto del mismo equipo, queda el pedido más reciente. Eliminar un partido gana solo si es posterior a todos sus cambios. |
 | Varias pestañas abiertas en el mismo navegador                                                   | Solo una pestaña (la principal) sincroniza y guarda los datos en el navegador, también por http en la red local. Las demás muestran lo que guarda la principal y le envían sus cambios al instante. Si se cierra la principal, otra pestaña toma su lugar sola, sin perder cambios: lo que una pestaña secundaria cambió y la principal no llegó a confirmar queda guardado en el navegador, y la próxima pestaña principal lo envía aunque la secundaria ya se haya cerrado.                                                                                                                                                                                                                                                                                                                                                        |
 | Jugadas                                                                                          | Nunca se pisan: cada jugada tiene su propio ID y se suma a la lista, ordenada por hora y luego por ID. Dos tablets pueden cargar jugadas del mismo partido a la vez sin perder ninguna. El marcador y las faltas se recalculan con todas.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
@@ -794,7 +835,8 @@ El motor de sincronización (`createSyncEngine`) no conoce el navegador: recibe 
 ```text
 src/
   app/                      rutas: /, /divisions, /players, /matches,
-                            /matches/live, /matches/[id]/{lineup,live,stats}
+                            /matches/live, /matches/[id]/{lineup,live,stats},
+                            /planilla, /ayuda
                             /login, /api/auth/*, /api/sync/*
   core/
     domain/                 entities/, rules/, value-objects/
@@ -825,8 +867,10 @@ public/brand/               escudo del club
 
 ### Cómo agregar un código de la planilla
 
+Un club agrega sus propios códigos desde la pantalla [Códigos de la planilla](#códigos-de-la-planilla-planilla), sin tocar el código fuente. Para sumar un código de fábrica, para todos los clubes:
+
 1. Agregarlo a `CHART_CATALOG` (`src/core/domain/entities/chart.types.ts`) con su símbolo, su etiqueta y su tono. El id (`code`) se guarda en cada entrada: no se renombra ni se reutiliza. El símbolo y la etiqueta sí pueden cambiar.
-2. La consola, la grilla y las referencias lo toman del catálogo sin más cambios.
+2. La consola, la grilla y las referencias leen el catálogo del club (`resolveChartCatalog`, en `src/core/domain/rules/chart-catalog.ts`: los códigos de fábrica con los cambios del club, más sus códigos propios), así que lo toman sin más cambios.
 3. Agregarlo a la tabla de [Códigos de la planilla](#códigos-de-la-planilla) de este manual.
 
 ### Cómo agregar o cambiar una regla

@@ -1,6 +1,8 @@
 import {
+  CHART_CATALOG,
   CHART_CATEGORIES,
   findChartCode,
+  type ChartCatalog,
   type ChartCategory,
   type ChartEntry,
 } from '../entities/chart.types';
@@ -109,8 +111,14 @@ export interface PlayerChartSummary {
   pointsAllowed: number;
 }
 
-/** Per-player charting summary; team-level entries are keyed by TEAM_CHART_KEY. */
-export function summarizeChartByPlayer(events: readonly PlayByPlayEvent[]): Map<string, PlayerChartSummary> {
+/**
+ * Per-player charting summary; team-level entries are keyed by TEAM_CHART_KEY.
+ * Tones come from the club catalog, so renamed tones and custom codes count.
+ */
+export function summarizeChartByPlayer(
+  events: readonly PlayByPlayEvent[],
+  catalog: ChartCatalog = CHART_CATALOG
+): Map<string, PlayerChartSummary> {
   const summary = new Map<string, PlayerChartSummary>();
   for (const event of events) {
     if (!isChartEvent(event)) continue;
@@ -126,7 +134,7 @@ export function summarizeChartByPlayer(events: readonly PlayByPlayEvent[]): Map<
       summary.set(key, line);
     }
     line.byCategory[event.chart.category] += 1;
-    const tone = findChartCode(event.chart.category, event.chart.code)?.tone;
+    const tone = findChartCode(event.chart.category, event.chart.code, catalog)?.tone;
     if (tone === 'POSITIVE') line.positive += 1;
     else if (tone === 'NEGATIVE') line.negative += 1;
     if (event.chart.category === 'POINTS_ALLOWED') line.pointsAllowed += event.chart.points ?? 0;

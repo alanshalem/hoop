@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   CalendarDays,
+  ClipboardList,
   LayoutDashboard,
   LifeBuoy,
   Radio,
@@ -51,8 +52,18 @@ const HELP_ITEM: NavItem = {
   tourTarget: 'nav-help',
 };
 
-// The rail closes with the manual; on phones it lives in the top bar so the bottom bar stays balanced.
-const RAIL_ITEMS: NavItem[] = [...NAV_ITEMS, HELP_ITEM];
+const CHART_CATALOG_ITEM: NavItem = {
+  label: 'Planilla',
+  shortLabel: 'Planilla',
+  href: '/planilla',
+  icon: ClipboardList,
+  tourTarget: 'nav-planilla',
+};
+
+// The rail closes with the chart catalog and the manual; on phones both live in the top bar
+// so the bottom bar stays balanced around the live button.
+const TOP_BAR_ITEMS: NavItem[] = [CHART_CATALOG_ITEM, HELP_ITEM];
+const RAIL_ITEMS: NavItem[] = [...NAV_ITEMS, ...TOP_BAR_ITEMS];
 
 // The mobile bottom bar places the live button between these two halves.
 const BOTTOM_LEFT_ITEMS = NAV_ITEMS.slice(0, 2);
@@ -71,7 +82,6 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
   const pathname = usePathname();
   const isLiveActive = isLivePath(pathname);
   const activeHref = RAIL_ITEMS.find((item) => isNavItemActive(pathname, item.href))?.href ?? null;
-  const isHelpActive = activeHref === HELP_ITEM.href;
 
   const mainRef = useRef<HTMLElement | null>(null);
   const navRef = useRef<HTMLElement | null>(null);
@@ -157,15 +167,22 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
         </Link>
         <div className={styles.mobileTopActions}>
           <SyncStatusIndicator compact />
-          <Link
-            href={HELP_ITEM.href}
-            className={clsx(styles.mobileHelpLink, isHelpActive && styles.mobileHelpLinkActive)}
-            aria-label={HELP_ITEM.label}
-            aria-current={isHelpActive ? 'page' : undefined}
-            data-tour={HELP_ITEM.tourTarget}
-          >
-            <LifeBuoy size={ICON_SIZE.lg} aria-hidden="true" />
-          </Link>
+          {TOP_BAR_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeHref === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={clsx(styles.mobileTopLink, isActive && styles.mobileTopLinkActive)}
+                aria-label={item.label}
+                aria-current={isActive ? 'page' : undefined}
+                data-tour={item.tourTarget}
+              >
+                <Icon size={ICON_SIZE.lg} aria-hidden="true" />
+              </Link>
+            );
+          })}
         </div>
       </header>
 

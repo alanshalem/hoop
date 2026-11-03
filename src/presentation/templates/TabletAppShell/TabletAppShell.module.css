@@ -252,7 +252,7 @@
   min-width: 0;
 }
 
-.mobileHelpLink {
+.mobileTopLink {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -264,13 +264,13 @@
   transition: color var(--transition-fast), background-color var(--transition-fast);
 }
 
-.mobileHelpLink:hover {
+.mobileTopLink:hover {
   color: var(--text-primary);
   background-color: var(--bg-surface-2);
 }
 
-.mobileHelpLinkActive,
-.mobileHelpLinkActive:hover {
+.mobileTopLinkActive,
+.mobileTopLinkActive:hover {
   color: var(--brand-primary-ink);
   background-color: var(--brand-primary-subtle);
 }

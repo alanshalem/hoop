@@ -2,14 +2,15 @@ import React from 'react';
 import clsx from 'clsx';
 import type { Player } from '@/core/domain/entities/club.types';
 import {
-  CHART_CATALOG,
   CHART_CATEGORIES,
   CHART_CATEGORY_LABELS,
   findChartCode,
+  type ChartCatalog,
   type ChartCategory,
   type ChartTone,
 } from '@/core/domain/entities/chart.types';
 import type { PlayByPlayEvent } from '@/core/domain/entities/match.types';
+import { activeChartCodes } from '@/core/domain/rules/chart-catalog';
 import { buildChartSheet, type ChartSheetCell, type ChartTotals } from '@/core/domain/rules/chart-sheet';
 import { QUARTER_LABELS, QUARTER_SHORT_LABELS } from '@/presentation/organisms/ScoreboardHeader/quarter-labels';
 import {
@@ -26,6 +27,8 @@ export interface ChartSheetTableProps {
   events: PlayByPlayEvent[];
   /** Club players, to resolve jersey numbers and names. */
   players: Player[];
+  /** The club's catalog: archived codes still render old entries; the legend lists active codes. */
+  catalog: ChartCatalog;
   /** Grid only: hides the legend and the per-player summary (live console). */
   compact?: boolean;
   className?: string;
@@ -44,7 +47,13 @@ const TotalsLine: React.FC<{ category: ChartCategory; totals: ChartTotals }> = (
 );
 
 /** The coach's paper "Sistemas" sheet: category x period, blue = positive, red = negative. */
-export const ChartSheetTable: React.FC<ChartSheetTableProps> = ({ events, players, compact = false, className }) => {
+export const ChartSheetTable: React.FC<ChartSheetTableProps> = ({
+  events,
+  players,
+  catalog,
+  compact = false,
+  className,
+}) => {
   const sheet = buildChartSheet(events);
   const playersById = new Map(players.map((p) => [p.id, p]));
   const hasEntries = sheet.rows.some((row) => row.total.count > 0);
@@ -54,14 +63,14 @@ export const ChartSheetTable: React.FC<ChartSheetTableProps> = ({ events, player
   }
 
   const renderCell = (category: ChartCategory, cell: ChartSheetCell) => {
-    const codeCounts = category === 'OFFENSE' ? formatCodeCounts(category, cell.codeCounts) : '';
+    const codeCounts = category === 'OFFENSE' ? formatCodeCounts(category, cell.codeCounts, catalog) : '';
     return (
       <>
         {cell.entries.length > 0 && (
           <ul className={styles.chips}>
             {cell.entries.map((entry) => {
-              const code = findChartCode(category, entry.code);
-              const title = chartEntryTitle(category, entry, playersById);
+              const code = findChartCode(category, entry.code, catalog);
+              const title = chartEntryTitle(category, entry, playersById, catalog);
               return (
                 <li
                   key={entry.eventId}
@@ -81,7 +90,7 @@ export const ChartSheetTable: React.FC<ChartSheetTableProps> = ({ events, player
     );
   };
 
-  const summaryRows = compact ? [] : buildChartSummaryRows(events, players);
+  const summaryRows = compact ? [] : buildChartSummaryRows(events, players, catalog);
 
   return (
     <div className={clsx(styles.sheet, className)}>
@@ -195,7 +204,7 @@ export const ChartSheetTable: React.FC<ChartSheetTableProps> = ({ events, player
             <div key={category} className={styles.legendGroup}>
               <h3 className={styles.legendTitle}>{CHART_CATEGORY_LABELS[category]}</h3>
               <ul className={styles.legendList}>
-                {CHART_CATALOG[category].map((entry) => (
+                {activeChartCodes(catalog, category).map((entry) => (
                   <li key={entry.code} className={styles.legendItem}>
                     <span className={clsx(styles.legendSymbol, TONE_CLASS[entry.tone])}>{entry.symbol}</span>
                     {entry.label}

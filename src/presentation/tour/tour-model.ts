@@ -16,6 +16,7 @@ export const SCREEN_TOUR_IDS = [
   'lineup',
   'live',
   'stats',
+  'planilla',
   'help',
 ] as const;
 

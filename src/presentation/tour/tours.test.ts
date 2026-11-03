@@ -27,7 +27,17 @@ describe('tour catalog', () => {
       [...TOUR_IDS]
     );
     assert.deepStrictEqual(TOUR_IDS, [WELCOME_TOUR_ID, ...SCREEN_TOUR_IDS]);
-    assert.deepStrictEqual(SCREEN_TOUR_IDS, ['dashboard', 'divisions', 'players', 'matches', 'lineup', 'live', 'stats', 'help']);
+    assert.deepStrictEqual(SCREEN_TOUR_IDS, [
+      'dashboard',
+      'divisions',
+      'players',
+      'matches',
+      'lineup',
+      'live',
+      'stats',
+      'planilla',
+      'help',
+    ]);
     for (const id of TOUR_IDS) assert.strictEqual(getTour(id).id, id);
   });
 
@@ -43,7 +53,17 @@ describe('tour catalog', () => {
       getTour(WELCOME_TOUR_ID)
         .steps.map((step) => step.target)
         .filter((target) => target !== null),
-      ['nav-dashboard', 'nav-divisions', 'nav-players', 'nav-matches', 'nav-live', 'sync-status', 'user-menu', 'nav-help']
+      [
+        'nav-dashboard',
+        'nav-divisions',
+        'nav-players',
+        'nav-matches',
+        'nav-live',
+        'nav-planilla',
+        'sync-status',
+        'user-menu',
+        'nav-help',
+      ]
     );
   });
 
@@ -92,6 +112,12 @@ describe('tour catalog', () => {
     assert.ok(targetsFor('matches', 'HEAD_COACH').includes('matches-create'));
     assert.ok(!targetsFor('matches', 'ASSISTANT_STATISTICIAN').includes('matches-create'));
     assert.ok(!targetsFor('lineup', 'ASSISTANT_STATISTICIAN').includes('lineup-start'));
+    for (const target of ['chart-catalog-create', 'chart-catalog-edit', 'chart-catalog-archive']) {
+      assert.ok(targetsFor('planilla', 'ADMIN').includes(target), `ADMIN sees ${target}`);
+      assert.ok(targetsFor('planilla', 'HEAD_COACH').includes(target), `HEAD_COACH sees ${target}`);
+      assert.ok(!targetsFor('planilla', 'ASSISTANT_STATISTICIAN').includes(target), `no ${target} for the assistant`);
+    }
+    assert.ok(targetsFor('planilla', 'ASSISTANT_STATISTICIAN').includes('chart-catalog-code'));
     for (const role of UserRoleSchema.options) {
       assert.ok(targetsFor('live', role).includes('live-pad'), `${role} records live`);
     }

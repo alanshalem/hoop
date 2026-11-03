@@ -11,6 +11,7 @@ const MANAGE_PLAYERS = rolesWith('MANAGE_PLAYERS');
 const MANAGE_MATCHES = rolesWith('MANAGE_MATCHES');
 const MANAGE_LINEUP = rolesWith('MANAGE_LINEUP');
 const RECORD_LIVE = rolesWith('RECORD_LIVE');
+const MANAGE_CHART_CATALOG = rolesWith('MANAGE_CHART_CATALOG');
 
 const WELCOME: TourDefinition = {
   id: 'welcome',
@@ -51,6 +52,12 @@ const WELCOME: TourDefinition = {
       placement: 'right',
       title: 'Modo partido en vivo',
       body: 'Abre directo la consola del partido que se está jugando para cargar cada jugada desde la tablet.',
+    },
+    {
+      target: 'nav-planilla',
+      placement: 'right',
+      title: 'Códigos de la planilla',
+      body: 'Los símbolos, nombres y colores de la planilla táctica del club. El administrador y los entrenadores principales los editan.',
     },
     {
       target: 'sync-status',
@@ -367,6 +374,43 @@ const STATS: TourDefinition = {
   ],
 };
 
+const PLANILLA: TourDefinition = {
+  id: 'planilla',
+  title: 'Códigos de la planilla',
+  steps: [
+    {
+      target: 'chart-catalog-category',
+      title: 'Una sección por categoría',
+      body: 'Pérdidas, Puntos recibidos, Acciones ofensivas y Acciones defensivas, con sus códigos en el orden del panel de carga en vivo.',
+    },
+    {
+      target: 'chart-catalog-code',
+      title: 'Código',
+      body: 'Símbolo en su color (azul positiva, rojo negativa), nombre y tono. "Propio" marca los códigos que agregó el club y "Archivado" los que ya no se cargan.',
+      example: 'Ejemplo: P, Pase malo, rojo, en Pérdidas.',
+    },
+    {
+      target: 'chart-catalog-create',
+      roles: MANAGE_CHART_CATALOG,
+      title: 'Nuevo código',
+      body: 'Agrega un código propio a la categoría: símbolo de 1 a 3 caracteres, nombre y tono.',
+      example: 'Ejemplo: PT, Juego en el poste, azul, en Acciones ofensivas.',
+    },
+    {
+      target: 'chart-catalog-edit',
+      roles: MANAGE_CHART_CATALOG,
+      title: 'Editar',
+      body: 'Cambia el símbolo, el nombre o el tono. Las entradas ya cargadas se ven con el cambio.',
+    },
+    {
+      target: 'chart-catalog-archive',
+      roles: MANAGE_CHART_CATALOG,
+      title: 'Archivar',
+      body: 'Saca el código del panel de carga en vivo sin borrarlo: las entradas ya cargadas lo siguen mostrando y se puede restaurar.',
+    },
+  ],
+};
+
 const HELP: TourDefinition = {
   id: 'help',
   title: 'Ayuda',
@@ -390,7 +434,18 @@ const HELP: TourDefinition = {
   ],
 };
 
-export const TOURS: TourDefinition[] = [WELCOME, DASHBOARD, DIVISIONS, PLAYERS, MATCHES, LINEUP, LIVE, STATS, HELP];
+export const TOURS: TourDefinition[] = [
+  WELCOME,
+  DASHBOARD,
+  DIVISIONS,
+  PLAYERS,
+  MATCHES,
+  LINEUP,
+  LIVE,
+  STATS,
+  PLANILLA,
+  HELP,
+];
 
 const TOURS_BY_ID = new Map(TOURS.map((tour) => [tour.id, tour]));
 

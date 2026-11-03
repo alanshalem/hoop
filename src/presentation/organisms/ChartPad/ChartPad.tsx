@@ -5,15 +5,16 @@ import clsx from 'clsx';
 import { Lock, Undo2, Users } from 'lucide-react';
 import type { Player } from '@/core/domain/entities/club.types';
 import {
-  CHART_CATALOG,
   CHART_CATEGORIES,
   CHART_CATEGORY_LABELS,
   DEFAULT_CHART_POINTS,
   findChartCode,
+  type ChartCatalog,
   type ChartCategory,
   type ChartPoints,
 } from '@/core/domain/entities/chart.types';
 import type { PlayByPlayEvent } from '@/core/domain/entities/match.types';
+import { activeChartCodes } from '@/core/domain/rules/chart-catalog';
 import { TEAM_CHART_KEY, isChartEvent } from '@/core/domain/rules/chart-sheet';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { MOTION, gsap } from '@/presentation/motion/motion';
@@ -33,6 +34,8 @@ export interface ChartPadProps {
   benchPlayers: Player[];
   /** Full play-by-play; only chart entries are listed. */
   events: PlayByPlayEvent[];
+  /** The club's catalog: the pad offers its active codes, old entries render archived ones too. */
+  catalog: ChartCatalog;
   readOnly?: boolean;
   /** Recording paused (halftime). */
   locked?: boolean;
@@ -50,6 +53,7 @@ export const ChartPad: React.FC<ChartPadProps> = ({
   onCourtPlayers,
   benchPlayers,
   events,
+  catalog,
   readOnly = false,
   locked = false,
   onRecord,
@@ -182,7 +186,7 @@ export const ChartPad: React.FC<ChartPadProps> = ({
               2. {playerKey === null ? 'Elige un jugador o Equipo' : 'Acción'}
             </h3>
             <div className={styles.codeGrid}>
-              {CHART_CATALOG[category].map((entry) => (
+              {activeChartCodes(catalog, category).map((entry) => (
                 <button
                   key={entry.code}
                   type="button"
@@ -213,7 +217,7 @@ export const ChartPad: React.FC<ChartPadProps> = ({
       ) : (
         <ol ref={listRef} className={styles.recentList}>
           {recent.map((event) => {
-            const code = findChartCode(event.chart.category, event.chart.code);
+            const code = findChartCode(event.chart.category, event.chart.code, catalog);
             return (
               <li
                 key={event.id}

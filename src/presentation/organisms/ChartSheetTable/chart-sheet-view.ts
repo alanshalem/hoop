@@ -1,5 +1,10 @@
 import type { Player } from '@/core/domain/entities/club.types';
-import { CHART_CATALOG, findChartCode, type ChartCategory } from '@/core/domain/entities/chart.types';
+import {
+  CHART_CATALOG,
+  findChartCode,
+  type ChartCatalog,
+  type ChartCategory,
+} from '@/core/domain/entities/chart.types';
 import type { PlayByPlayEvent } from '@/core/domain/entities/match.types';
 import {
   TEAM_CHART_KEY,
@@ -8,9 +13,13 @@ import {
   type PlayerChartSummary,
 } from '@/core/domain/rules/chart-sheet';
 
-/** Compact per-code counts in catalog order, e.g. "A=1 F=4". */
-export function formatCodeCounts(category: ChartCategory, codeCounts: Record<string, number>): string {
-  return CHART_CATALOG[category]
+/** Compact per-code counts in catalog order, e.g. "A=1 F=4"; archived codes still count. */
+export function formatCodeCounts(
+  category: ChartCategory,
+  codeCounts: Record<string, number>,
+  catalog: ChartCatalog = CHART_CATALOG
+): string {
+  return catalog[category]
     .filter((entry) => (codeCounts[entry.code] ?? 0) > 0)
     .map((entry) => `${entry.symbol}=${codeCounts[entry.code]}`)
     .join(' ');
@@ -31,9 +40,10 @@ export function formatChartPoints(points: number): string {
 export function chartEntryTitle(
   category: ChartCategory,
   entry: ChartSheetEntry,
-  playersById: ReadonlyMap<string, Player>
+  playersById: ReadonlyMap<string, Player>,
+  catalog: ChartCatalog = CHART_CATALOG
 ): string {
-  const label = findChartCode(category, entry.code)?.label ?? entry.code;
+  const label = findChartCode(category, entry.code, catalog)?.label ?? entry.code;
   const code = entry.points !== undefined ? `${label} (${formatChartPoints(entry.points)})` : label;
   const player = entry.playerId ? playersById.get(entry.playerId) : undefined;
   const who = !entry.playerId
@@ -54,12 +64,16 @@ export interface ChartSummaryRow {
 }
 
 /** Per-player summary sorted by negative entries (then jersey); the team row goes last. */
-export function buildChartSummaryRows(events: readonly PlayByPlayEvent[], players: readonly Player[]): ChartSummaryRow[] {
+export function buildChartSummaryRows(
+  events: readonly PlayByPlayEvent[],
+  players: readonly Player[],
+  catalog: ChartCatalog = CHART_CATALOG
+): ChartSummaryRow[] {
   const playersById = new Map(players.map((p) => [p.id, p]));
   const rows: ChartSummaryRow[] = [];
   let teamRow: ChartSummaryRow | undefined;
 
-  for (const [key, summary] of summarizeChartByPlayer(events)) {
+  for (const [key, summary] of summarizeChartByPlayer(events, catalog)) {
     if (key === TEAM_CHART_KEY) {
       teamRow = { key, name: 'Equipo', isTeam: true, summary };
       continue;

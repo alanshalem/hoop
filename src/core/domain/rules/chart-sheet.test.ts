@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { CHART_CATALOG, findChartCode } from '../entities/chart.types';
+import { CHART_CATALOG, findChartCode, type ChartCodeRecord } from '../entities/chart.types';
+import { resolveChartCatalog } from './chart-catalog';
 import { buildChartSheet, isChartEvent, summarizeChartByPlayer } from './chart-sheet';
 import { calculateMatchBoxScore, deriveScoreboard } from './match-derivations';
 import { makeEvent, makeMatch } from '@/core/testing/fixtures';
@@ -98,6 +99,40 @@ describe('summarizeChartByPlayer', () => {
       pointsAllowed: 3,
     });
     assert.strictEqual(summary.get('TEAM')?.positive, 1);
+  });
+
+  it('takes the tone from the club catalog: renamed tones and custom codes count (S9)', () => {
+    const record = (code: string, tone: 'POSITIVE' | 'NEGATIVE', archived = false): ChartCodeRecord => ({
+      id: `club-1:OFFENSE:${code}`,
+      clubId: 'club-1',
+      category: 'OFFENSE',
+      code,
+      symbol: 'X',
+      label: 'Propio',
+      tone,
+      archived,
+      order: 10,
+    });
+    const catalog = resolveChartCatalog([
+      record('FORCED_SHOT', 'POSITIVE'),
+      record('CUSTOM_a', 'POSITIVE'),
+      record('CUSTOM_b', 'NEGATIVE', true),
+    ]);
+    const events = [
+      chart('Q1', 'OFFENSE', 'FORCED_SHOT', 'p1'),
+      chart('Q1', 'OFFENSE', 'CUSTOM_a', 'p1'),
+      chart('Q2', 'OFFENSE', 'CUSTOM_b', 'p1'),
+    ];
+
+    const club = summarizeChartByPlayer(events, catalog).get('p1');
+    assert.strictEqual(club?.positive, 2);
+    assert.strictEqual(club?.negative, 1);
+
+    // Without the club catalog the built-in tone applies and unknown codes count for neither.
+    const builtIn = summarizeChartByPlayer(events).get('p1');
+    assert.strictEqual(builtIn?.positive, 0);
+    assert.strictEqual(builtIn?.negative, 1);
+    assert.strictEqual(builtIn?.byCategory.OFFENSE, 3);
   });
 });
 

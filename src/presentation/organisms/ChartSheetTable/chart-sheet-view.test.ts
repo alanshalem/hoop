@@ -1,7 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { makeEvent, makePlayer } from '@/core/testing/fixtures';
-import type { ChartCategory, ChartPoints } from '@/core/domain/entities/chart.types';
+import type { ChartCategory, ChartCodeRecord, ChartPoints } from '@/core/domain/entities/chart.types';
+import { resolveChartCatalog } from '@/core/domain/rules/chart-catalog';
 import {
   buildChartSummaryRows,
   chartEntryTag,
@@ -17,10 +18,38 @@ const ana = makePlayer({ id: 'p-ana', firstName: 'Ana', lastName: 'Gómez', dors
 const bea = makePlayer({ id: 'p-bea', firstName: 'Bea', lastName: 'Ruiz', dorsal: 12 });
 const playersById = new Map([ana, bea].map((p) => [p.id, p]));
 
+const record = (
+  category: ChartCategory,
+  code: string,
+  fields: Pick<ChartCodeRecord, 'symbol' | 'label' | 'tone'> & { archived?: boolean; order: number }
+): ChartCodeRecord => ({
+  id: `club-1:${category}:${code}`,
+  clubId: 'club-1',
+  category,
+  code,
+  archived: false,
+  ...fields,
+});
+
+// A club that renamed two built-in codes, added a custom one and archived another.
+const clubCatalog = resolveChartCatalog([
+  record('OFFENSE', 'GOOD_SHOT', { symbol: 'BL', label: 'Lanzamiento abierto', tone: 'POSITIVE', order: 0 }),
+  record('TURNOVER', 'BAD_PASS', { symbol: 'PM', label: 'Pase perdido', tone: 'NEGATIVE', order: 0 }),
+  record('OFFENSE', 'CUSTOM_p', { symbol: 'PT', label: 'Poste', tone: 'POSITIVE', order: 4 }),
+  record('OFFENSE', 'FORCED_SHOT', { symbol: 'F', label: 'Forzado', tone: 'POSITIVE', archived: true, order: 3 }),
+]);
+
 describe('formatCodeCounts (S4)', () => {
   it('lists symbol=count in catalog order and skips missing codes', () => {
     assert.strictEqual(formatCodeCounts('OFFENSE', { FORCED_SHOT: 4, GOOD_SHOT: 1 }), 'A=1 F=4');
     assert.strictEqual(formatCodeCounts('OFFENSE', {}), '');
+  });
+
+  it('uses the club symbols, custom codes and archived codes of old entries (S9)', () => {
+    assert.strictEqual(
+      formatCodeCounts('OFFENSE', { CUSTOM_p: 2, FORCED_SHOT: 4, GOOD_SHOT: 1 }, clubCatalog),
+      'BL=1 F=4 PT=2'
+    );
   });
 });
 
@@ -41,6 +70,21 @@ describe('chartEntryTitle (S4)', () => {
     assert.strictEqual(
       chartEntryTitle('POINTS_ALLOWED', { eventId: 'e2', code: 'CUT', points: 3, gameClockFormatted: '01:10' }, playersById),
       'Corte (3 pts) · Equipo · 01:10'
+    );
+  });
+
+  it('spells the club label of renamed and custom codes (S9)', () => {
+    assert.strictEqual(
+      chartEntryTitle('TURNOVER', { eventId: 'e1', playerId: 'p-ana', code: 'BAD_PASS' }, playersById, clubCatalog),
+      'Pase perdido · #7 Ana Gómez'
+    );
+    assert.strictEqual(
+      chartEntryTitle('OFFENSE', { eventId: 'e2', code: 'CUSTOM_p', gameClockFormatted: '02:00' }, playersById, clubCatalog),
+      'Poste · Equipo · 02:00'
+    );
+    assert.strictEqual(
+      chartEntryTitle('OFFENSE', { eventId: 'e3', code: 'CUSTOM_gone' }, playersById, clubCatalog),
+      'CUSTOM_gone · Equipo'
     );
   });
 });
@@ -83,6 +127,18 @@ describe('buildChartSummaryRows (S4)', () => {
     assert.deepStrictEqual(
       rows.map((row) => row.key),
       ['p-ana', 'p-bea']
+    );
+  });
+
+  it('counts tones with the club catalog (S9)', () => {
+    const rows = buildChartSummaryRows(
+      [chart('OFFENSE', 'FORCED_SHOT', 'p-ana'), chart('OFFENSE', 'CUSTOM_p', 'p-ana')],
+      [ana],
+      clubCatalog
+    );
+    assert.deepStrictEqual(
+      rows.map((row) => [row.key, row.summary.positive, row.summary.negative]),
+      [['p-ana', 2, 0]]
     );
   });
 

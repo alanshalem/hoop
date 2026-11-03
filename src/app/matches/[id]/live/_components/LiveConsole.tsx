@@ -12,6 +12,7 @@ import { crossesHalftime, formatGameClock, getQuarterLengthSeconds } from '@/cor
 import { getTimeoutPeriod, isLastTwoMinutesOfFourthQuarter } from '@/core/domain/rules/timeouts';
 import type { TeamSide } from '@/core/application/use-cases/match-use-cases';
 import { useClubStore } from '@/core/application/stores/useClubStore';
+import { selectChartCatalog } from '@/core/application/stores/club-state';
 import { useLiveMatchConsole } from '@/core/application/hooks/useLiveMatchConsole';
 import type { PeriodEndAction } from '@/core/application/hooks/live-console-rules';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
@@ -60,6 +61,7 @@ const notifyRefusal = (reason: ConsoleRefusal, title = 'Acción no registrada') 
 export function LiveConsole({ matchId }: { matchId: string }) {
   const router = useRouter();
   const players = useClubStore((state) => state.players);
+  const chartCatalog = useClubStore(selectChartCatalog);
   const live = useLiveMatchConsole(matchId, { onPeriodEnd: (action) => void handlePeriodEnd(action) });
 
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
@@ -364,6 +366,7 @@ export function LiveConsole({ matchId }: { matchId: string }) {
                 onCourtPlayers={live.onCourtPlayers}
                 benchPlayers={live.benchPlayers}
                 events={match.events}
+                catalog={chartCatalog}
                 readOnly={readOnly}
                 locked={live.isHalftime}
                 onRecord={handleChartEntry}
@@ -371,7 +374,7 @@ export function LiveConsole({ matchId }: { matchId: string }) {
               />
             </div>
             <div className={clsx(styles.sheetView, sheetTab !== 'view' && styles.columnHidden)} data-tour="live-chart-sheet">
-              <ChartSheetTable compact events={match.events} players={players} />
+              <ChartSheetTable compact events={match.events} players={players} catalog={chartCatalog} />
             </div>
           </div>
         </div>

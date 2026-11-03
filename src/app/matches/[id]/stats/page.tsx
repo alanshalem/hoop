@@ -8,6 +8,7 @@ import type { Match, Quarter } from '@/core/domain/entities/match.types';
 import type { ShootingStats } from '@/core/domain/rules/basketball-rules';
 import { calculateMatchBoxScore, getQuarterPartials } from '@/core/domain/rules/match-derivations';
 import { useClubStore } from '@/core/application/stores/useClubStore';
+import { selectChartCatalog } from '@/core/application/stores/club-state';
 import {
   ALL_SHOTS,
   calculateShotEffectiveness,
@@ -104,6 +105,7 @@ const EffectivenessTile: React.FC<{ label: string; stats: ShootingStats }> = ({ 
 
 function MatchStats({ match }: { match: Match }) {
   const players = useClubStore((state) => state.players);
+  const chartCatalog = useClubStore(selectChartCatalog);
   const [quarterFilter, setQuarterFilter] = useState<Quarter | typeof ALL_SHOTS>(ALL_SHOTS);
   const [playerFilter, setPlayerFilter] = useState<string>(ALL_SHOTS);
   // A scheduled match shows a gate without the sheet, so it declares no tour.
@@ -195,7 +197,7 @@ function MatchStats({ match }: { match: Match }) {
           icon={ClipboardList}
           description="Planilla táctica cargada en vivo: azul = acción positiva, rojo = negativa."
         >
-          <ChartSheetTable events={match.events} players={players} />
+          <ChartSheetTable events={match.events} players={players} catalog={chartCatalog} />
         </SectionCard>
 
         <SectionCard title="Parciales por período" icon={Table2} data-tour="stats-partials">
