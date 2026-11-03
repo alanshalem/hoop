@@ -9,6 +9,7 @@ import {
   getQuarterPartials,
 } from '@/core/domain/rules/match-derivations';
 import { getPlayerFoulsFromEvents } from '@/core/domain/rules/basketball-rules';
+import { CHART_CATEGORIES, findChartCode } from '@/core/domain/entities/chart.types';
 
 const NOW = new Date('2026-10-30T18:00:00.000Z');
 
@@ -142,6 +143,47 @@ describe('seed data', () => {
           isFg3,
           `${event.id} ${event.type} at ${event.coordinates.x},${event.coordinates.y}`
         );
+      }
+    }
+  });
+
+  it('charts every quarter of the finished matches with valid tactical entries', () => {
+    const finished = state.matches.filter((m) => m.status === 'FINISHED');
+    for (const match of finished) {
+      for (const quarter of ['Q1', 'Q2', 'Q3', 'Q4'] as const) {
+        const entries = match.events.filter((e) => e.type === 'CHART' && e.quarter === quarter);
+        assert.ok(entries.length >= 6 && entries.length <= 14, `${match.id} ${quarter}: ${entries.length}`);
+      }
+      const categories = new Set(match.events.filter((e) => e.type === 'CHART').map((e) => e.chart?.category));
+      assert.deepStrictEqual([...categories].sort(), [...CHART_CATEGORIES].sort(), match.id);
+    }
+    const live = state.matches.find((m) => m.id === SEED_LIVE_MATCH_ID);
+    assert.ok(live?.events.some((e) => e.type === 'CHART'), 'live match has chart entries');
+  });
+
+  it('stores chart entries like the live sheet does (own team, catalog codes, points only when allowed)', () => {
+    for (const match of state.matches) {
+      let lineup = [...match.startingLineupOwn];
+      for (const event of match.events) {
+        if (event.type === 'SUBSTITUTION' && event.substitution) {
+          const { playerInId, playerOutId } = event.substitution;
+          lineup = lineup.map((id) => (id === playerOutId ? playerInId : id));
+        }
+        if (event.type !== 'CHART') {
+          assert.strictEqual(event.chart, undefined, event.id);
+          continue;
+        }
+        assert.ok(event.chart, `${event.id} has a chart entry`);
+        const { category, code, points } = event.chart;
+        assert.ok(findChartCode(category, code), `${event.id} ${category}/${code}`);
+        assert.strictEqual(event.isOwnTeam, true, event.id);
+        assert.strictEqual(event.teamId, match.ownTeamId, event.id);
+        if (event.playerId) assert.ok(lineup.includes(event.playerId), `${event.id} player on court`);
+        if (category === 'POINTS_ALLOWED') {
+          assert.ok(points === 1 || points === 2 || points === 3, `${event.id} points ${points}`);
+        } else {
+          assert.strictEqual(points, undefined, `${event.id} points only on POINTS_ALLOWED`);
+        }
       }
     }
   });

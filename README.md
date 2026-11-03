@@ -1,6 +1,6 @@
 # Hoop · Club Atlético Monte Grande
 
-Hoop es el sistema de básquet del Club Atlético Monte Grande: gestiona divisiones, planteles y calendario, arma convocatorias y quintetos, y registra los partidos en vivo con reglas FIBA desde una tablet al borde de la cancha. Es local primero con servidor: cada cambio se guarda al instante en el navegador (Zustand + `localStorage`) y se sincroniza con PostgreSQL cuando hay conexión (cola de salida persistente, last-write-wins para registros, jugadas solo agregadas y avisos en vivo por SSE). Sin conexión sigue funcionando igual. El acceso es con correo y contraseña, y los roles se validan en el servidor. El marcador, las faltas y el box score se derivan del jugada a jugada.
+Hoop es el sistema de básquet del Club Atlético Monte Grande: gestiona divisiones, planteles y calendario, arma convocatorias y quintetos, y registra los partidos en vivo con reglas FIBA desde una tablet al borde de la cancha. Su núcleo es la planilla táctica del entrenador, que se carga en vivo durante el partido: pérdidas, puntos recibidos, acciones ofensivas y defensivas, cada una con su jugador, período y reloj ([manual](docs/MANUAL.md#2-planilla-táctica-en-vivo)). Es local primero con servidor: cada cambio se guarda al instante en el navegador (Zustand + `localStorage`) y se sincroniza con PostgreSQL cuando hay conexión (cola de salida persistente, last-write-wins para registros, jugadas solo agregadas y avisos en vivo por SSE). Sin conexión sigue funcionando igual. El acceso es con correo y contraseña, y los roles se validan en el servidor. El marcador, las faltas y el box score se derivan del jugada a jugada.
 
 Manual completo (uso, reglas, datos y arquitectura): [docs/MANUAL.md](docs/MANUAL.md).
 
@@ -17,7 +17,7 @@ npm run db:seed      # club de demostración y cuentas (solo inserta lo que falt
 npm run dev
 ```
 
-Abrir `http://localhost:3000` e iniciar sesión, por ejemplo con `admin@camg.com.ar` y la contraseña de demostración `camg1922` (variable `SEED_DEMO_PASSWORD`). Cuentas por rol, variables de entorno (`DATABASE_URL`, `TEST_DATABASE_URL`, `POSTGRES_*`, `SESSION_COOKIE_SECURE`) y solución de problemas: [sección Servidor y base de datos del manual](docs/MANUAL.md#8-servidor-y-base-de-datos).
+Abrir `http://localhost:3000` e iniciar sesión, por ejemplo con `admin@camg.com.ar` y la contraseña de demostración `camg1922` (variable `SEED_DEMO_PASSWORD`). Cuentas por rol, variables de entorno (`DATABASE_URL`, `TEST_DATABASE_URL`, `POSTGRES_*`, `SESSION_COOKIE_SECURE`) y solución de problemas: [sección Servidor y base de datos del manual](docs/MANUAL.md#9-servidor-y-base-de-datos).
 
 > Tablets en la red del club con una compilación de producción por `http`: definir `SESSION_COOKIE_SECURE=false`, o el navegador descarta la cookie de sesión.
 

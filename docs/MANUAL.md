@@ -1,23 +1,24 @@
 # Manual del sistema Hoop · Club Atlético Monte Grande
 
-Hoop es el sistema de básquet del Club Atlético Monte Grande (CAMG): divisiones, planteles, calendario de partidos y estadísticas FIBA registradas en vivo desde una tablet al borde de la cancha. Este manual describe el sistema tal como está implementado hoy, primero para quien lo usa y después para quien lo mantiene.
+Hoop es el sistema de básquet del Club Atlético Monte Grande (CAMG). Su núcleo es la planilla táctica que el entrenador carga en vivo durante el partido (ver [Planilla táctica](#2-planilla-táctica-en-vivo)); alrededor de ella están las divisiones, los planteles, el calendario de partidos y las estadísticas FIBA registradas en vivo desde una tablet al borde de la cancha. Este manual describe el sistema tal como está implementado hoy, primero para quien lo usa y después para quien lo mantiene.
 
-> Estado de esta versión: local primero con servidor. Cada cambio se guarda al instante en el navegador y se sincroniza con un servidor PostgreSQL cuando hay conexión. El acceso es con correo y contraseña, y los roles se validan en el servidor (ver [Datos, persistencia y sincronización](#7-datos-persistencia-y-sincronización) y [Servidor y base de datos](#8-servidor-y-base-de-datos)).
+> Estado de esta versión: local primero con servidor. Cada cambio se guarda al instante en el navegador y se sincroniza con un servidor PostgreSQL cuando hay conexión. El acceso es con correo y contraseña, y los roles se validan en el servidor (ver [Datos, persistencia y sincronización](#8-datos-persistencia-y-sincronización) y [Servidor y base de datos](#9-servidor-y-base-de-datos)).
 
 ## Índice
 
 1. [Qué es Hoop](#1-qué-es-hoop)
-2. [Inicio rápido](#2-inicio-rápido)
-3. [Roles y permisos](#3-roles-y-permisos)
-4. [Guía por pantalla](#4-guía-por-pantalla)
-5. [Flujos paso a paso](#5-flujos-paso-a-paso)
-6. [Reglas FIBA aplicadas](#6-reglas-fiba-aplicadas)
-7. [Datos, persistencia y sincronización](#7-datos-persistencia-y-sincronización)
-8. [Servidor y base de datos](#8-servidor-y-base-de-datos)
-9. [Identidad visual](#9-identidad-visual)
-10. [Limitaciones conocidas](#10-limitaciones-conocidas)
-11. [Arquitectura](#11-arquitectura)
-12. [Glosario](#12-glosario)
+2. [Planilla táctica (en vivo)](#2-planilla-táctica-en-vivo)
+3. [Inicio rápido](#3-inicio-rápido)
+4. [Roles y permisos](#4-roles-y-permisos)
+5. [Guía por pantalla](#5-guía-por-pantalla)
+6. [Flujos paso a paso](#6-flujos-paso-a-paso)
+7. [Reglas FIBA aplicadas](#7-reglas-fiba-aplicadas)
+8. [Datos, persistencia y sincronización](#8-datos-persistencia-y-sincronización)
+9. [Servidor y base de datos](#9-servidor-y-base-de-datos)
+10. [Identidad visual](#10-identidad-visual)
+11. [Limitaciones conocidas](#11-limitaciones-conocidas)
+12. [Arquitectura](#12-arquitectura)
+13. [Glosario](#13-glosario)
 
 ---
 
@@ -26,15 +27,132 @@ Hoop es el sistema de básquet del Club Atlético Monte Grande (CAMG): divisione
 | Rasgo                     | Qué significa en la práctica                                                                                                                                        |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Del club                  | Marca, escudo y paleta del Club Atlético Monte Grande (fundado en 1922). Los datos de demostración corresponden al club.                                            |
+| Planilla táctica          | El núcleo del sistema: la planilla "Sistemas" del entrenador, cargada en vivo en dos toques (pérdidas, puntos recibidos, acciones ofensivas y defensivas). Ver la [sección 2](#2-planilla-táctica-en-vivo). |
 | Offline-first             | Cada acción se guarda al instante en el navegador. Un corte de WiFi o 4G en el estadio no interrumpe el registro del partido.                                       |
 | Sincronizado              | Con conexión, los cambios viajan al servidor del club y llegan en vivo a las demás tablets. Sin conexión quedan en una cola y se envían solos cuando vuelve la red. |
 | Tablet-first              | Pensado para tablet (horizontal o vertical) y teléfono. Áreas táctiles de 48 px como mínimo y de 56 px en la consola en vivo. Registro de jugadas en dos toques.    |
-| Reglas FIBA               | Faltas, bonus, tiempos muertos, duración de períodos, convocatoria, PIR y +/- siguen el reglamento FIBA (detalle en la [sección 6](#6-reglas-fiba-aplicadas)).      |
+| Reglas FIBA               | Faltas, bonus, tiempos muertos, duración de períodos, convocatoria, PIR y +/- siguen el reglamento FIBA (detalle en la [sección 7](#7-reglas-fiba-aplicadas)).      |
 | Sin alertas del navegador | Todos los avisos y confirmaciones son modales propios de la aplicación (`notify` y `confirm`). Nunca se usa `alert`, `confirm` ni `prompt` del navegador.           |
 
 ---
 
-## 2. Inicio rápido
+## 2. Planilla táctica (en vivo)
+
+La planilla táctica es el núcleo de Hoop. Es la planilla de papel "Sistemas" del entrenador llevada a la tablet: durante el partido, en vivo, se anota por qué pasaron las cosas (cómo se perdió cada pelota, por qué se recibió cada canasta, qué tiros se tomaron y cómo defendió el equipo), no solo qué pasó. El marcador, el box score y el mapa de tiros complementan a la planilla, pero no la reemplazan.
+
+Cada entrada guarda la categoría, el código, el jugador propio (o **Equipo** si la acción no es de un jugador) y, de forma automática, el período y el reloj del partido en ese momento.
+
+### Cargar la planilla durante el partido
+
+1. Abrir la consola en vivo (`/matches/[id]/live`). La consola abre en modo **Planilla**, que es el modo por defecto. El selector **Planilla** / **Estadística**, debajo de la barra de herramientas, pasa al registro estadístico y vuelve.
+2. Elegir la categoría en las pestañas: **Pérdidas**, **Puntos recibidos**, **Acciones ofensivas** o **Acciones defensivas**.
+3. En **1. Jugador**, tocar un jugador en cancha, uno del banco (fila de abajo) o **Equipo**.
+4. Solo en **Puntos recibidos**: elegir los puntos de la canasta en el selector **Puntos** (**1**, **2** o **3**). Empieza en 2 y vuelve a 2 después de cada entrada.
+5. En **2. Acción**, tocar el código. Ese toque registra la entrada. Los códigos quedan deshabilitados hasta elegir un jugador o **Equipo** ("Elige un jugador o Equipo").
+
+Son dos toques por entrada: jugador y código. Después de cada entrada la selección de jugador se limpia, así la siguiente empieza de cero. El período y el reloj se toman de la consola; no hace falta escribirlos.
+
+**Últimas entradas** muestra las 5 más recientes (período, reloj, dorsal o Equipo, acción y puntos), en azul o rojo según el tono. **Deshacer**, al lado, elimina la última entrada de la planilla.
+
+**Cuándo se puede cargar.** Solo con el partido **En vivo**. En el entretiempo el panel queda bloqueado (no se cargan ni se deshacen entradas) hasta **Comenzar 3.er cuarto**. Un partido programado o finalizado no admite entradas. Sin el permiso `RECORD_LIVE` el panel muestra "Tu rol no puede cargar la planilla en vivo."
+
+**Distribución.** Desde 900 px de ancho, el panel de carga y la grilla de la planilla se ven lado a lado. En pantallas más angostas hay dos pestañas: **Cargar** y **Ver planilla**.
+
+### Códigos de la planilla
+
+Cada código tiene un símbolo corto (el que se escribe junto al dorsal en la grilla), una etiqueta y un tono: azul para las acciones positivas y rojo para las negativas, como las tintas de la planilla de papel. Algunos símbolos se repiten en categorías distintas (por ejemplo `RD`, `FI`, `CO` y `PK`); la fila de la grilla y el color los distinguen. El id es el valor que se guarda en cada entrada.
+
+**Pérdidas.** Cómo se perdió la pelota (todas negativas). Los tipos siguen los de pérdida del FIBA Statisticians' Manual 2024 (Anexo B). **Violación de tiempo** agrupa 3, 5, 8 y 24 segundos.
+
+| Símbolo | Acción              | Tono            | Id                 |
+| ------- | ------------------- | --------------- | ------------------ |
+| `P`     | Pase malo           | Rojo (negativa) | `BAD_PASS`         |
+| `C`     | Caminos             | Rojo (negativa) | `TRAVELLING`       |
+| `DD`    | Doble dribling      | Rojo (negativa) | `DOUBLE_DRIBBLE`   |
+| `M`     | Manejo de balón     | Rojo (negativa) | `BALL_HANDLING`    |
+| `FO`    | Falta ofensiva      | Rojo (negativa) | `OFFENSIVE_FOUL`   |
+| `FI`    | Foul innecesario    | Rojo (negativa) | `UNNECESSARY_FOUL` |
+| `T`     | Violación de tiempo | Rojo (negativa) | `TIME_VIOLATION`   |
+| `AF`    | Pelota afuera       | Rojo (negativa) | `OUT_OF_BOUNDS`    |
+| `?`     | Otra                | Rojo (negativa) | `OTHER`            |
+
+**Puntos recibidos.** Una entrada por cada canasta recibida: por qué entró (todas negativas). Además del código guarda los puntos de la canasta (1, 2 o 3; por defecto 2).
+
+| Símbolo | Acción                  | Tono            | Id                    |
+| ------- | ----------------------- | --------------- | --------------------- |
+| `CO`    | Corte                   | Rojo (negativa) | `CUT`                 |
+| `1x1`   | 1x1                     | Rojo (negativa) | `ONE_ON_ONE`          |
+| `RD`    | Sin rebote defensivo    | Rojo (negativa) | `NO_DEF_REBOUND`      |
+| `FI`    | Foul innecesario        | Rojo (negativa) | `UNNECESSARY_FOUL`    |
+| `PC`    | Pérdida + contra        | Rojo (negativa) | `TURNOVER_FAST_BREAK` |
+| `X`     | No puntear tiro         | Rojo (negativa) | `NO_CLOSEOUT`         |
+| `NR`    | No rotar                | Rojo (negativa) | `NO_ROTATION`         |
+| `NT`    | No transición defensiva | Rojo (negativa) | `NO_TRANSITION_D`     |
+| `TM`    | Transición por mal tiro | Rojo (negativa) | `BAD_SHOT_TRANSITION` |
+| `PK`    | Pick                    | Rojo (negativa) | `PICK`                |
+| `MR`    | Mérito rival            | Rojo (negativa) | `OPPONENT_MERIT`      |
+
+**Acciones ofensivas.** Calidad de los tiros propios.
+
+| Símbolo | Acción            | Tono            | Id            |
+| ------- | ----------------- | --------------- | ------------- |
+| `A`     | Buen lanzamiento  | Azul (positiva) | `GOOD_SHOT`   |
+| `R`     | Mal lanzamiento   | Rojo (negativa) | `BAD_SHOT`    |
+| `B`     | Bandeja           | Azul (positiva) | `LAYUP`       |
+| `F`     | Forzado permitido | Rojo (negativa) | `FORCED_SHOT` |
+
+**Acciones defensivas.** Trabajo defensivo y de esfuerzo (hustle): en azul lo bien hecho, en rojo las fallas.
+
+| Símbolo | Acción               | Tono            | Id              |
+| ------- | -------------------- | --------------- | --------------- |
+| `RD`    | Rebote defensivo     | Azul (positiva) | `DEF_REBOUND`   |
+| `BR`    | Bloqueo de rebote    | Azul (positiva) | `BOX_OUT`       |
+| `AY`    | Ayuda                | Azul (positiva) | `HELP`          |
+| `CT`    | Contestar tiro       | Azul (positiva) | `CONTEST`       |
+| `RO`    | Rotación             | Azul (positiva) | `ROTATION`      |
+| `TD`    | Transición defensiva | Azul (positiva) | `TRANSITION_D`  |
+| `PR`    | Presión              | Azul (positiva) | `PRESSURE`      |
+| `RB`    | Robo                 | Azul (positiva) | `STEAL`         |
+| `DV`    | Desvío               | Azul (positiva) | `DEFLECTION`    |
+| `BF`    | Buen foul            | Azul (positiva) | `GOOD_FOUL`     |
+| `2O`    | 2da oportunidad      | Rojo (negativa) | `SECOND_CHANCE` |
+| `CO`    | Corte                | Rojo (negativa) | `CUT`           |
+| `PK`    | Pick                 | Rojo (negativa) | `PICK`          |
+| `MF`    | Mal foul             | Rojo (negativa) | `BAD_FOUL`      |
+
+### Leer la planilla táctica
+
+**Dónde está.** En la página del partido (`/matches/[id]/stats`), sección **Planilla**, la primera debajo del resultado. Desde la consola, el botón **Planilla** de la barra de herramientas abre esa página. Dentro de la consola, en modo **Planilla**, la grilla se ve junto al panel de carga (o en la pestaña **Ver planilla** en pantallas angostas), sin el resumen por jugador ni las referencias.
+
+| Parte               | Cómo se lee                                                                                                                                                                                                                                                                                                                       |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Grilla              | Una fila por categoría y una columna por período: 1C a 4C siempre, más los suplementarios que tengan entradas. Cada entrada aparece como dorsal y símbolo (por ejemplo `#7 P`, o `EQ P` si es del equipo), en azul o rojo según el tono. Al apoyar el puntero sobre una entrada se ven la acción completa, el jugador y el reloj. |
+| Totales por período | Debajo de las entradas de cada celda: la cantidad de entradas; en **Puntos recibidos**, además, los puntos recibidos (por ejemplo `7 pts`). En **Acciones ofensivas**, también el conteo por código, por ejemplo `A=1 F=4`. Una celda sin entradas muestra `-`.                                                                   |
+| Mitades y total     | Columnas **1.ª mitad** (1C y 2C), **2.ª mitad** (3C, 4C y suplementarios) y **Total** del partido, con la cantidad de entradas y, en **Puntos recibidos**, los puntos.                                                                                                                                                            |
+| Resumen por jugador | Una fila por jugador con entradas y una de **Equipo**: cantidad de **Pérdidas**, **Puntos recibidos** (con los puntos), **Ofensivas**, **Defensivas** y el total de acciones positivas (`+`) y negativas (`−`).                                                                                                                   |
+| Referencias         | Todos los códigos de cada categoría con su símbolo y su color.                                                                                                                                                                                                                                                                    |
+
+Debajo de la planilla, en la misma página, siguen los parciales por período, el box score y el mapa de tiros.
+
+### Qué no cambia la planilla
+
+- Las entradas de la planilla no cambian el marcador, las faltas (de jugador ni de equipo), el box score, los tiros, el mapa de tiros ni la analítica de temporada. Anotar **Pase malo** en la planilla no suma una pérdida al box score: si también se quiere la estadística, se registra en modo **Estadística**.
+- El **Deshacer** de Últimas jugadas (modo **Estadística**) deshace solo jugadas estadísticas y nunca una entrada de la planilla. El **Deshacer** de la planilla quita solo entradas de la planilla.
+- Las entradas viajan como jugadas de tipo `CHART`: se guardan al instante en la tablet, se envían con la misma cola de salida y solo se agregan; deshacer una entrada la marca como eliminada en todas las tablets (ver [Sincronización](#sincronización)).
+
+### Fuentes
+
+No existe un estándar universal; se basa en la planilla del entrenador, los tipos de pérdida del FIBA Statisticians' Manual 2024 (Anexo B) y las planillas de coaching: turnover chart, defensive breakdown chart, hustle stats.
+
+- Planilla del entrenador: la planilla de papel "Sistemas", con sus cuatro bloques y su leyenda de códigos, es la base del catálogo.
+- FIBA Statisticians' Manual 2024, Anexo B: nombres de los tipos de pérdida (pase malo, caminos, doble dribling, manejo de balón, falta ofensiva, violaciones de tiempo, pelota afuera).
+- Turnover chart: cada pérdida con su jugador y su tipo.
+- Defensive breakdown chart: una entrada por canasta recibida, con la falla que la permitió, el jugador y los puntos.
+- Hustle stats (como las de NBA.com): desvíos, tiros contestados, bloqueos de rebote y otras acciones de esfuerzo defensivo.
+
+---
+
+## 3. Inicio rápido
 
 ### Requisitos
 
@@ -72,7 +190,7 @@ Control de tipos (no tiene script propio): `npx tsc --noEmit`.
 
 ---
 
-## 3. Roles y permisos
+## 4. Roles y permisos
 
 Hay tres roles. Cada usuario tiene uno, asignado en el servidor. Cada pantalla oculta o deshabilita lo que el rol no puede hacer, usando la matriz de `src/core/domain/rules/permissions.ts` (función `can(role, permission)`). El servidor aplica la misma matriz a cada cambio que recibe, así que un permiso no se puede saltear desde el navegador.
 
@@ -106,7 +224,7 @@ Para usar otro rol hay que cerrar sesión y entrar con otra cuenta. Si el rol de
 
 ---
 
-## 4. Guía por pantalla
+## 5. Guía por pantalla
 
 ### Navegación general
 
@@ -238,7 +356,9 @@ La pantalla tiene tres modos según el estado del partido:
 
 Pantalla de registro del partido en cancha, a altura completa y sin desplazamiento general.
 
-**Distribución.** Desde 900 px de ancho: a la izquierda quinteto y banca, al centro la media cancha y las últimas jugadas, a la derecha el pad de acciones. En pantallas más angostas, tres pestañas: **Quinteto**, **Cancha** y **Acciones**. Al elegir un jugador en el teléfono se pasa sola a **Acciones**.
+**Modos.** La consola abre en modo **Planilla**, la planilla táctica (ver [Cargar la planilla durante el partido](#cargar-la-planilla-durante-el-partido)). El selector **Planilla** / **Estadística**, debajo de la barra de herramientas, pasa al registro estadístico, que es lo que describen la distribución y la tabla siguientes.
+
+**Distribución (modo Estadística).** Desde 900 px de ancho: a la izquierda quinteto y banca, al centro la media cancha y las últimas jugadas, a la derecha el pad de acciones. En pantallas más angostas, tres pestañas: **Quinteto**, **Cancha** y **Acciones**. Al elegir un jugador en el teléfono se pasa sola a **Acciones**.
 
 **Accesos.** Si el partido está programado, la consola muestra un aviso con el botón para armar el quinteto. Si está finalizado, muestra el resultado y un enlace a la planilla.
 
@@ -264,6 +384,7 @@ Atajo del botón **Partido en vivo**. Si hay un partido en juego, redirige a su 
 | Bloque                | Contenido                                                                                                                                                                                                                                                                                    |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Resultado             | Marcador propio y rival. Si terminó: Victoria, Derrota o Empate. Si está en juego: estado y período, con acceso a la **Consola en vivo**.                                                                                                                                                    |
+| Planilla              | Planilla táctica cargada en vivo: grilla por categoría y período con totales por mitad y del partido, resumen por jugador y referencias de los códigos (ver [Leer la planilla táctica](#leer-la-planilla-táctica)).                                                                          |
 | Parciales por período | Puntos por cuarto (1C a 4C) más los suplementarios que tuvieron jugadas.                                                                                                                                                                                                                     |
 | Box score             | Una fila por convocado y una de totales: PTS, T2, T3, TL, TC (convertidos/intentados y %), REB (ofensivos-defensivos-totales), AST, ROB, TAP, PER, FAL, +/- y VAL (PIR). Los excluidos por faltas llevan el icono `Ban`. La tabla se desplaza en horizontal con la columna del jugador fija. |
 | Mapa de tiros         | Filtros **Período** (Todos o un período) y **Jugador** (Todo el equipo o cada lanzador). Efectividad de dobles, triples y total de campo para el filtro elegido. Una nota indica cuántos tiros se cargaron desde el pad y no tienen ubicación en el mapa.                                    |
@@ -272,7 +393,7 @@ Un partido programado muestra "El partido todavía no comenzó".
 
 ---
 
-## 5. Flujos paso a paso
+## 6. Flujos paso a paso
 
 ### Iniciar sesión
 
@@ -335,6 +456,8 @@ Renombrar la división también renombra su equipo.
 
 ### Registrar jugadas en la consola
 
+Estos pasos son del modo **Estadística**. Para la planilla táctica, ver [Cargar la planilla durante el partido](#cargar-la-planilla-durante-el-partido).
+
 El reloj arranca en pausa al entrar. Pulsar **Iniciar** (icono `Play`) para que corra.
 
 **Tiro desde la media cancha (dos toques con el jugador ya seleccionado):**
@@ -386,7 +509,7 @@ El rival no tiene jugadores cargados. En la barra de herramientas, **+1**, **+2*
 
 ### Deshacer
 
-**Deshacer** (en Últimas jugadas) elimina la última jugada registrada, sea propia o del rival. Si era un cambio, revierte el quinteto en cancha. El marcador y las faltas se recalculan desde las jugadas, así que deshacer funciona aunque la jugada sea de un período anterior. Los tiempos muertos y los cambios de período no son jugadas y no se deshacen con este botón.
+**Deshacer** (en Últimas jugadas) elimina la última jugada registrada, sea propia o del rival. Si era un cambio, revierte el quinteto en cancha. El marcador y las faltas se recalculan desde las jugadas, así que deshacer funciona aunque la jugada sea de un período anterior. Los tiempos muertos y los cambios de período no son jugadas y no se deshacen con este botón. Tampoco quita entradas de la planilla táctica, que tiene su propio **Deshacer**.
 
 Con varias tablets en el mismo partido, **Deshacer** quita la última jugada de la lista, que puede haber cargado otra tablet. La jugada no se borra del servidor: queda marcada como eliminada y desaparece también en las demás tablets (ver [Sincronización](#sincronización)).
 
@@ -399,12 +522,12 @@ Con varias tablets en el mismo partido, **Deshacer** quita la última jugada de 
 ### Leer la planilla y el mapa de tiros
 
 1. Abrir **Planilla box score** desde Partidos, **Planilla** desde la consola o un resultado del Dashboard.
-2. Revisar los parciales por período y el box score.
+2. Revisar la sección **Planilla** (ver [Leer la planilla táctica](#leer-la-planilla-táctica)), los parciales por período y el box score.
 3. En **Mapa de tiros**, combinar los filtros de período y jugador. Los indicadores de dobles, triples y total de campo se actualizan con el filtro.
 
 ---
 
-## 6. Reglas FIBA aplicadas
+## 7. Reglas FIBA aplicadas
 
 | Regla                | Implementación                                                                                                                                                                                                                                                                            | Código                                                                                                                           |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -418,17 +541,17 @@ Con varias tablets en el mismo partido, **Deshacer** quita la última jugada de 
 | +/-                  | Diferencia de puntos mientras el jugador estuvo en cancha. Parte del quinteto inicial (`startingLineupOwn`) y sigue cada cambio propio en orden.                                                                                                                                          | `calculatePlayerPlusMinus`, `getStartingLineup`                                                                                  |
 | Doble o triple       | Arco de triple a 6,75 m del aro (radio de 235 unidades sobre una media cancha SVG de 500 x 470). En las esquinas, la zona de triple es la franja junto a la línea lateral cerca de la línea de fondo.                                                                                     | `HalfCourtShotChart.tsx` (`isThreePointSpot`)                                                                                    |
 
-Fuente única de verdad: el marcador, las faltas de equipo, los parciales y el box score se derivan siempre de la lista de jugadas del partido (`match-derivations.ts`). Los campos guardados en el partido son una copia que se recalcula en cada cambio.
+Fuente única de verdad: el marcador, las faltas de equipo, los parciales y el box score se derivan siempre de la lista de jugadas del partido (`match-derivations.ts`). Los campos guardados en el partido son una copia que se recalcula en cada cambio. Las entradas de la planilla táctica (`CHART`) no suman puntos ni faltas.
 
 ---
 
-## 7. Datos, persistencia y sincronización
+## 8. Datos, persistencia y sincronización
 
 ### Dónde se guardan
 
 | Dato                                                                                                                                   | Ubicación                                                                                                         |
 | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Divisiones, equipos, jugadores, partidos y jugadas (copia del servidor)                                                                | PostgreSQL: tablas `sync_records` y `match_events` (ver [Servidor y base de datos](#8-servidor-y-base-de-datos)). |
+| Divisiones, equipos, jugadores, partidos y jugadas (copia del servidor)                                                                | PostgreSQL: tablas `sync_records` y `match_events` (ver [Servidor y base de datos](#9-servidor-y-base-de-datos)). |
 | Usuarios y sesiones                                                                                                                    | PostgreSQL: tablas `users` (contraseñas con hash scrypt) y `sessions` (solo el hash del token).                   |
 | Copia local del club: divisiones, equipos, jugadores, partidos y jugadas, usuario actual, división y partido activos                   | `localStorage`, clave `hoop-club-storage` (Zustand con el middleware `persist`).                                  |
 | Cola de cambios pendientes (outbox), usuario dueño de esa cola, cursor de sincronización, versiones y hora de la última sincronización | `localStorage`, clave `hoop-sync-storage`.                                                                        |
@@ -460,6 +583,7 @@ Se generan en `src/core/infrastructure/mocks/seed-data.ts`, de forma determinís
 | Jugadores            | 17: 12 de Primera (uno lesionado, con parte médico), 3 de Sub-19 y 2 de Sub-17.                                                                                                           |
 | Partidos finalizados | 3, con jugada a jugada completa: contra Peñarol de Mar del Plata (local), Quimsa (visitante) y Ferro Carril Oeste (local), hace 20, 13 y 6 días.                                          |
 | Partido en vivo      | Contra Obras Sanitarias, hoy, en el Estadio CAMG: 2.º cuarto con 07:08 en el reloj y el rival en bonus.                                                                                   |
+| Planilla táctica     | Los partidos finalizados y el partido en vivo traen entradas de la planilla en cada cuarto jugado (entre 6 y 14 por cuarto completo, de las cuatro categorías), atadas a jugadas del partido. |
 | Partido programado   | Contra Boca Juniors como visitante, dentro de 7 días, con convocatoria precargada.                                                                                                        |
 
 Los mismos datos cargan el servidor con `npm run db:seed`. El navegador los usa solo hasta el primer ingreso: en la primera sincronización de una tablet, la copia del servidor reemplaza los datos locales de demostración (nunca se envían al servidor). Los cambios que alguien haya hecho antes de esa primera sincronización no se pierden: se vuelven a aplicar sobre la copia del servidor y se envían.
@@ -508,7 +632,7 @@ Detalle técnico:
 
 ---
 
-## 8. Servidor y base de datos
+## 9. Servidor y base de datos
 
 El servidor es la propia aplicación Next.js: las rutas `src/app/api/**` atienden el inicio de sesión y la sincronización, y el código de servidor vive en `src/server/**` (nunca llega al navegador). Los datos están en PostgreSQL 17.
 
@@ -536,7 +660,7 @@ Se definen en `.env.local` (no se sube al repositorio; `.env.example` documenta 
 
 ### Datos de demostración en el servidor
 
-`npm run db:seed` carga el mismo club de demostración de la [sección 7](#datos-de-demostración) y las [cuentas de demostración](#cuentas-de-demostración). Con los datos del club solo inserta: nunca sobrescribe ni revive registros o jugadas que ya existen (tampoco los que alguien eliminó), así que se puede correr varias veces sin pisar lo cargado por los usuarios. Al terminar informa cuántos registros y jugadas nuevos insertó (`recordsInserted`, `eventsInserted`) y lista las cuentas. Las cuentas de demostración, en cambio, se actualizan por ID: cada corrida restablece su nombre, correo y rol, y su contraseña a la de `SEED_DEMO_PASSWORD`.
+`npm run db:seed` carga el mismo club de demostración de la [sección 8](#datos-de-demostración) y las [cuentas de demostración](#cuentas-de-demostración). Con los datos del club solo inserta: nunca sobrescribe ni revive registros o jugadas que ya existen (tampoco los que alguien eliminó), así que se puede correr varias veces sin pisar lo cargado por los usuarios. Al terminar informa cuántos registros y jugadas nuevos insertó (`recordsInserted`, `eventsInserted`) y lista las cuentas. Las cuentas de demostración, en cambio, se actualizan por ID: cada corrida restablece su nombre, correo y rol, y su contraseña a la de `SEED_DEMO_PASSWORD`.
 
 ### API
 
@@ -576,7 +700,7 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 
 ---
 
-## 9. Identidad visual
+## 10. Identidad visual
 
 ### Paleta (tokens de `src/app/globals.css`)
 
@@ -628,7 +752,7 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 
 ---
 
-## 10. Limitaciones conocidas
+## 11. Limitaciones conocidas
 
 Resueltas en esta versión: los partidos se combinan campo por campo entre tablets (con el estado, el período y el reloj como un solo grupo), el servidor rechaza jugadas de partidos inexistentes, una sola pestaña sincroniza por navegador (también por http en la red local), la consola en vivo muestra el estado de sincronización, y el entretiempo y la regla de tiempos muertos de los últimos 2 minutos del 4.º cuarto están implementados.
 
@@ -647,7 +771,7 @@ Resueltas en esta versión: los partidos se combinan campo por campo entre table
 
 ---
 
-## 11. Arquitectura
+## 12. Arquitectura
 
 ### Capas (Clean Architecture)
 
@@ -699,6 +823,12 @@ public/brand/               escudo del club
 5. Pruebas en `src/core/domain/rules/*.test.ts` y, si cambia un caso de uso, en `src/core/application/use-cases/match-use-cases.test.ts`.
 6. Si cambia la forma de los datos guardados, subir `CLUB_STORE_VERSION`.
 
+### Cómo agregar un código de la planilla
+
+1. Agregarlo a `CHART_CATALOG` (`src/core/domain/entities/chart.types.ts`) con su símbolo, su etiqueta y su tono. El id (`code`) se guarda en cada entrada: no se renombra ni se reutiliza. El símbolo y la etiqueta sí pueden cambiar.
+2. La consola, la grilla y las referencias lo toman del catálogo sin más cambios.
+3. Agregarlo a la tabla de [Códigos de la planilla](#códigos-de-la-planilla) de este manual.
+
 ### Cómo agregar o cambiar una regla
 
 1. Escribir la regla como función pura en `src/core/domain/rules/` y exportarla desde `rules/index.ts`.
@@ -709,7 +839,7 @@ public/brand/               escudo del club
 ### Estrategia de pruebas
 
 - Runner: `node:test` con `node:assert`, ejecutado por `tsx` (`npm test`). Los archivos `*.test.ts` viven junto al código que prueban.
-- Cubren: reglas FIBA (faltas, bonus, PIR, +/-, box score), reloj y períodos, tiempos muertos, convocatoria, permisos, clasificación de jugadas, esquemas, derivación del marcador y parciales, analítica de temporada, casos de uso de club y de partido, estado del store y migración, reducer del reloj, reglas de la consola, efectividad de tiros, integridad e identidad de los datos de demostración.
+- Cubren: reglas FIBA (faltas, bonus, PIR, +/-, box score), reloj y períodos, tiempos muertos, convocatoria, permisos, clasificación de jugadas, esquemas, derivación del marcador y parciales, analítica de temporada, casos de uso de club y de partido, estado del store y migración, reducer del reloj, reglas de la consola, efectividad de tiros, planilla táctica (catálogo, carga, deshacer y grilla), integridad e identidad de los datos de demostración.
 - Sincronización del cliente: diferencias entre estados, coalescencia de la cola, límites del envío, resultado del envío (aceptado, `STALE`, `FORBIDDEN`, `INVALID`), fusión last-write-wins, eliminaciones, orden de jugadas, primera sincronización, cambios hechos antes de la primera sincronización, cola reaplicada sobre la copia completa, reinicio del cursor, dueño de la cola al cambiar de usuario, motor (debounce, reintentos con espera creciente, 401, sin conexión, SSE), cierre de sesión sin conexión, destino seguro tras el ingreso, adaptador HTTP y textos del indicador.
 - Servidor: hash de contraseñas, sesiones, RBAC, esquemas de la API, reglas de fusión, SSE y, con `npm run test:db`, integración contra PostgreSQL.
 - No cubren: componentes React ni flujos en navegador.
@@ -717,11 +847,11 @@ public/brand/               escudo del club
 
 ---
 
-## 12. Glosario
+## 13. Glosario
 
 | Término                          | Significado                                                                                                        |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| PIR / VAL                        | Valoración FIBA (Performance Index Rating). Fórmula en la [sección 6](#6-reglas-fiba-aplicadas).                   |
+| PIR / VAL                        | Valoración FIBA (Performance Index Rating). Fórmula en la [sección 7](#7-reglas-fiba-aplicadas).                   |
 | +/-                              | Diferencia de puntos del equipo mientras el jugador estuvo en cancha.                                              |
 | Bonus                            | Situación de penalización del equipo con 4 o más faltas de equipo en el período.                                   |
 | TL                               | Tiro libre (1 punto).                                                                                              |
@@ -746,3 +876,5 @@ public/brand/               escudo del club
 | Versión por campo                | Hora del último cambio de cada dato de un partido; permite combinar ediciones de distintas tablets sin pisarse.    |
 | Pestaña principal                | La única pestaña del navegador que sincroniza y guarda los datos; las demás le envían sus cambios.                 |
 | Entretiempo                      | Descanso tras el 2.º cuarto (`HALFTIME`): sin jugadas ni tiempos muertos hasta comenzar el 3.er cuarto.            |
+| Planilla táctica                 | Planilla del entrenador cargada en vivo: pérdidas, puntos recibidos, acciones ofensivas y defensivas, con jugador, período y reloj. |
+| EQ                               | En la grilla de la planilla, entrada del equipo (sin jugador).                                                     |
