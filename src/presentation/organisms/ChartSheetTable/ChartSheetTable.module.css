@@ -267,3 +267,8 @@
   font-size: var(--text-sm);
   text-align: center;
 }
+
+/* Offensive result on the chip: "+3" made, "+0" missed (S11). */
+.result {
+  font-weight: var(--font-weight-display);
+}

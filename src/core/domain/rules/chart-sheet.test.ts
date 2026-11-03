@@ -159,3 +159,17 @@ describe('chart events and sync', () => {
     );
   });
 });
+
+describe('offensive points on the sheet (S11)', () => {
+  it('sums made offensive points per cell and keeps the result on each entry', () => {
+    const made = makeEvent({ quarter: 'Q1', type: 'CHART', playerId: 'p1', chart: { category: 'OFFENSE', code: 'BAD_SHOT', made: true, points: 3 } });
+    const missed = makeEvent({ quarter: 'Q1', type: 'CHART', playerId: 'p2', chart: { category: 'OFFENSE', code: 'GOOD_SHOT', made: false } });
+    const offense = buildChartSheet([made, missed]).rows.find((r) => r.category === 'OFFENSE')!;
+    assert.deepStrictEqual(offense.cells.Q1.points, 3);
+    assert.deepStrictEqual(offense.cells.Q1.entries.map((e) => [e.code, e.made, e.points]), [
+      ['BAD_SHOT', true, 3],
+      ['GOOD_SHOT', false, undefined],
+    ]);
+    assert.deepStrictEqual(offense.total, { count: 2, points: 3 });
+  });
+});

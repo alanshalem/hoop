@@ -36,6 +36,18 @@ export function formatChartPoints(points: number): string {
   return points === 1 ? '1 pt' : `${points} pts`;
 }
 
+/** Result marker of an offensive action: "+3" when made, "+0" when missed; empty otherwise. */
+export function chartEntryResult(entry: Pick<ChartSheetEntry, 'made' | 'points'>): string {
+  if (entry.made === undefined) return '';
+  return entry.made ? `+${entry.points ?? 0}` : '+0';
+}
+
+function describePoints(entry: ChartSheetEntry): string | undefined {
+  if (entry.made === true) return `convirtió, ${formatChartPoints(entry.points ?? 0)}`;
+  if (entry.made === false) return 'no convirtió';
+  return entry.points !== undefined ? formatChartPoints(entry.points) : undefined;
+}
+
 /** Full description for the chip tooltip and accessible name. */
 export function chartEntryTitle(
   category: ChartCategory,
@@ -44,7 +56,8 @@ export function chartEntryTitle(
   catalog: ChartCatalog = CHART_CATALOG
 ): string {
   const label = findChartCode(category, entry.code, catalog)?.label ?? entry.code;
-  const code = entry.points !== undefined ? `${label} (${formatChartPoints(entry.points)})` : label;
+  const detail = describePoints(entry);
+  const code = detail ? `${label} (${detail})` : label;
   const player = entry.playerId ? playersById.get(entry.playerId) : undefined;
   const who = !entry.playerId
     ? 'Equipo'

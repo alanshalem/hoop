@@ -71,12 +71,14 @@ export interface RecordChartEntryInput {
   code: string;
   /** Own player involved; omitted for team-level entries. */
   playerId?: string;
-  /** Only for POINTS_ALLOWED (defaults to 2). */
+  /** POINTS_ALLOWED: basket allowed (defaults to 2). OFFENSE: points scored, only when `made`. */
   points?: ChartPoints;
+  /** Required for OFFENSE: whether the action ended in a basket (S11). */
+  made?: boolean;
   clockSeconds?: number;
 }
 
-export type RecordChartReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'INVALID_CHART_CODE';
+export type RecordChartReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'INVALID_CHART_CODE' | 'INVALID_CHART_RESULT';
 export type UndoChartReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'NO_CHART_ENTRIES';
 export type SubstitutionReason =
   | 'MATCH_NOT_LIVE'
@@ -232,13 +234,19 @@ export function recordChartEntry(
   const chartCode = findChartCode(input.category, input.code, catalog);
   if (!chartCode || chartCode.archived) return { ok: false, reason: 'INVALID_CHART_CODE' };
   const isPointsAllowed = input.category === 'POINTS_ALLOWED';
-  if (!isPointsAllowed && input.points !== undefined) return { ok: false, reason: 'INVALID_CHART_CODE' };
+  const isOffense = input.category === 'OFFENSE';
+  // Offensive actions always carry their result: made with its points, or missed without points (S11).
+  if (isOffense) {
+    if (input.made === undefined) return { ok: false, reason: 'INVALID_CHART_RESULT' };
+    if (input.made !== (input.points !== undefined)) return { ok: false, reason: 'INVALID_CHART_RESULT' };
+  } else {
+    if (input.made !== undefined) return { ok: false, reason: 'INVALID_CHART_RESULT' };
+    if (!isPointsAllowed && input.points !== undefined) return { ok: false, reason: 'INVALID_CHART_CODE' };
+  }
 
   const clocked =
     input.clockSeconds === undefined ? match : setClock(match, input.clockSeconds);
-  const chart: ChartEntry = isPointsAllowed
-    ? { category: input.category, code: input.code, points: input.points ?? DEFAULT_CHART_POINTS }
-    : { category: input.category, code: input.code };
+  const chart = buildChartEntry(input, isPointsAllowed, isOffense);
   const next = appendEvent(
     clocked,
     {
@@ -251,6 +259,13 @@ export function recordChartEntry(
     ctx
   );
   return { ok: true, match: next };
+}
+
+function buildChartEntry(input: RecordChartEntryInput, isPointsAllowed: boolean, isOffense: boolean): ChartEntry {
+  const base = { category: input.category, code: input.code };
+  if (isPointsAllowed) return { ...base, points: input.points ?? DEFAULT_CHART_POINTS };
+  if (isOffense) return input.made ? { ...base, made: true, points: input.points } : { ...base, made: false };
+  return base;
 }
 
 export function undoLastChartEntry(match: Match): MatchResult<UndoChartReason> {

@@ -17,6 +17,7 @@ import {
   buildChartSummaryRows,
   chartEntryTag,
   chartEntryTitle,
+  chartEntryResult,
   formatChartPoints,
   formatCodeCounts,
 } from './chart-sheet-view';
@@ -42,7 +43,9 @@ const TONE_CLASS: Record<ChartTone, string> = {
 const TotalsLine: React.FC<{ category: ChartCategory; totals: ChartTotals }> = ({ category, totals }) => (
   <span className={styles.totals}>
     <span className={styles.count}>{totals.count}</span>
-    {category === 'POINTS_ALLOWED' && <span className={styles.points}>{formatChartPoints(totals.points)}</span>}
+    {(category === 'POINTS_ALLOWED' || category === 'OFFENSE') && (
+      <span className={styles.points}>{formatChartPoints(totals.points)}</span>
+    )}
   </span>
 );
 
@@ -75,6 +78,7 @@ export const ChartSheetTable: React.FC<ChartSheetTableProps> = ({
                   aria-label={title}
                 >
                   {chartEntryTag(entry.playerId, playersById)} {code?.symbol ?? entry.code}
+                  {entry.made !== undefined && <span className={styles.result}> {chartEntryResult(entry)}</span>}
                 </li>
               );
             })}

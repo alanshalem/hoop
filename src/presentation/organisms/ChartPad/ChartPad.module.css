@@ -336,3 +336,50 @@
 .codeBtn:not(:disabled):active {
   transform: scale(0.97);
 }
+
+/* OFFENSE: the action picked in step 2, waiting for its result. */
+.codeSelected {
+  background-color: var(--brand-primary-subtle);
+  box-shadow: 0 0 0 2px var(--brand-primary);
+}
+
+/* Step 3 (OFFENSE): result of the action (S11). */
+.resultGrid {
+  display: grid;
+  grid-template-columns: 1.6fr repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+.resultBtn {
+  min-height: var(--touch-lg);
+  padding: var(--space-1) var(--space-2);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-2);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-display);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.resultMade:not(:disabled) {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.resultMiss:not(:disabled) {
+  border-color: var(--text-muted);
+  color: var(--text-secondary);
+}
+
+.resultBtn:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.resultBtn:disabled {
+  border-style: dashed;
+  opacity: 0.6;
+  cursor: not-allowed;
+}

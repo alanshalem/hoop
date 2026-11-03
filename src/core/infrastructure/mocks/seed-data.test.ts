@@ -174,13 +174,17 @@ describe('seed data', () => {
           continue;
         }
         assert.ok(event.chart, `${event.id} has a chart entry`);
-        const { category, code, points } = event.chart;
+        const { category, code, points, made } = event.chart;
         assert.ok(findChartCode(category, code), `${event.id} ${category}/${code}`);
         assert.strictEqual(event.isOwnTeam, true, event.id);
         assert.strictEqual(event.teamId, match.ownTeamId, event.id);
         if (event.playerId) assert.ok(lineup.includes(event.playerId), `${event.id} player on court`);
         if (category === 'POINTS_ALLOWED') {
           assert.ok(points === 1 || points === 2 || points === 3, `${event.id} points ${points}`);
+        } else if (category === 'OFFENSE') {
+          assert.strictEqual(typeof made, 'boolean', `${event.id} offensive result (S11)`);
+          if (made) assert.ok(points === 2 || points === 3, `${event.id} made points ${points}`);
+          else assert.strictEqual(points, undefined, `${event.id} missed without points`);
         } else {
           assert.strictEqual(points, undefined, `${event.id} points only on POINTS_ALLOWED`);
         }

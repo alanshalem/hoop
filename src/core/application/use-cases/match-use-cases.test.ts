@@ -249,6 +249,53 @@ describe('recordChartEntry', () => {
   });
 });
 
+describe('recordChartEntry offensive result (S11)', () => {
+  it('records a made offensive action with its points', () => {
+    const { match: next } = expectOk(
+      recordChartEntry(makeMatch(), { category: 'OFFENSE', code: 'BAD_SHOT', playerId: 'p1', made: true, points: 3 }, ctx)
+    );
+    assert.deepStrictEqual(next.events[0].chart, { category: 'OFFENSE', code: 'BAD_SHOT', made: true, points: 3 });
+    assert.strictEqual(next.homeScore, 0, 'the sheet never changes the scoreboard');
+  });
+
+  it('records a missed offensive action without points', () => {
+    const { match: next } = expectOk(
+      recordChartEntry(makeMatch(), { category: 'OFFENSE', code: 'GOOD_SHOT', made: false }, ctx)
+    );
+    assert.deepStrictEqual(next.events[0].chart, { category: 'OFFENSE', code: 'GOOD_SHOT', made: false });
+  });
+
+  it('refuses an offensive action without result, made without points or missed with points', () => {
+    const match = makeMatch();
+    for (const input of [
+      { category: 'OFFENSE', code: 'GOOD_SHOT' },
+      { category: 'OFFENSE', code: 'GOOD_SHOT', made: true },
+      { category: 'OFFENSE', code: 'GOOD_SHOT', made: false, points: 2 },
+    ] as const) {
+      assert.deepStrictEqual(recordChartEntry(match, input, ctx), { ok: false, reason: 'INVALID_CHART_RESULT' });
+    }
+    assert.strictEqual(match.events.length, 0);
+  });
+
+  it('refuses a result outside the offensive category', () => {
+    assert.deepStrictEqual(
+      recordChartEntry(makeMatch(), { category: 'TURNOVER', code: 'BAD_PASS', made: true, points: 2 }, ctx),
+      { ok: false, reason: 'INVALID_CHART_RESULT' }
+    );
+    assert.deepStrictEqual(
+      recordChartEntry(makeMatch(), { category: 'POINTS_ALLOWED', code: 'CUT', made: false }, ctx),
+      { ok: false, reason: 'INVALID_CHART_RESULT' }
+    );
+  });
+
+  it('keeps the previous rules for the other categories', () => {
+    const allowed = expectOk(recordChartEntry(makeMatch(), { category: 'POINTS_ALLOWED', code: 'CUT' }, ctx));
+    assert.deepStrictEqual(allowed.match.events[0].chart, { category: 'POINTS_ALLOWED', code: 'CUT', points: 2 });
+    const turnover = expectOk(recordChartEntry(makeMatch(), { category: 'TURNOVER', code: 'BAD_PASS' }, ctx));
+    assert.deepStrictEqual(turnover.match.events[0].chart, { category: 'TURNOVER', code: 'BAD_PASS' });
+  });
+});
+
 describe('undoLastChartEntry', () => {
   it('removes only the last chart entry and keeps later stat events', () => {
     const first = makeEvent({ type: 'CHART', chart: { category: 'TURNOVER', code: 'BAD_PASS' } });

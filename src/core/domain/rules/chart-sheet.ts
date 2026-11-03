@@ -31,12 +31,14 @@ export interface ChartSheetEntry {
   playerId?: string;
   code: string;
   points?: number;
+  /** OFFENSE only: whether the action ended in a basket. */
+  made?: boolean;
   gameClockFormatted?: string;
 }
 
 export interface ChartTotals {
   count: number;
-  /** Sum of points (only POINTS_ALLOWED entries carry points). */
+  /** Sum of points: allowed (POINTS_ALLOWED) or scored (made OFFENSE actions). */
   points: number;
 }
 
@@ -91,6 +93,7 @@ export function buildChartSheet(events: readonly PlayByPlayEvent[]): ChartSheet 
       playerId: event.playerId,
       code: event.chart.code,
       points: event.chart.points,
+      made: event.chart.made,
       gameClockFormatted: event.gameClockFormatted,
     });
     cell.codeCounts[event.chart.code] = (cell.codeCounts[event.chart.code] ?? 0) + 1;

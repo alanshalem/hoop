@@ -375,6 +375,8 @@ function chartAnchors(events: PlayByPlayEvent[], starterIds: string[]): ChartAnc
             chart: {
               category: 'OFFENSE',
               code: event.type === 'FG2_MADE' && rng.chance(0.4) ? 'LAYUP' : 'GOOD_SHOT',
+              made: true,
+              points: event.type === 'FG3_MADE' ? 3 : 2,
             },
             playerId: own,
           }));
@@ -382,7 +384,7 @@ function chartAnchors(events: PlayByPlayEvent[], starterIds: string[]): ChartAnc
         case 'FG2_MISS':
         case 'FG3_MISS':
           add('OFFENSE', (rng) => ({
-            chart: { category: 'OFFENSE', code: pickCode(rng, OWN_MISS_CODES) },
+            chart: { category: 'OFFENSE', code: pickCode(rng, OWN_MISS_CODES), made: false },
             playerId: own,
           }));
           break;

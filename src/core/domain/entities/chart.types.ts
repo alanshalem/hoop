@@ -33,8 +33,10 @@ export const DEFAULT_CHART_POINTS: ChartPoints = 2;
 export const ChartEntrySchema = z.object({
   category: ChartCategorySchema,
   code: z.string().min(1, 'Chart code is required'),
-  /** Only for POINTS_ALLOWED: points of the basket allowed. */
+  /** POINTS_ALLOWED: points of the basket allowed. OFFENSE: points scored when `made`. */
   points: ChartPointsSchema.optional(),
+  /** Only for OFFENSE: whether the action ended in a basket (S11). */
+  made: z.boolean().optional(),
 });
 export type ChartEntry = z.infer<typeof ChartEntrySchema>;
 

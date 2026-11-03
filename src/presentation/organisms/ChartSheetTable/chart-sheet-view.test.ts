@@ -7,6 +7,7 @@ import {
   buildChartSummaryRows,
   chartEntryTag,
   chartEntryTitle,
+  chartEntryResult,
   formatChartPoints,
   formatCodeCounts,
 } from './chart-sheet-view';
@@ -144,5 +145,26 @@ describe('buildChartSummaryRows (S4)', () => {
 
   it('is empty when there are no chart entries', () => {
     assert.deepStrictEqual(buildChartSummaryRows([makeEvent({ type: 'FG2_MADE' })], [ana]), []);
+  });
+});
+
+describe('offensive result on the sheet (S11)', () => {
+  const playersById = new Map([['p-ana', makePlayer({ id: 'p-ana', dorsal: 9, firstName: 'Ana', lastName: 'Delfino' })]]);
+
+  it('marks made actions with their points and missed ones with +0', () => {
+    assert.strictEqual(chartEntryResult({ made: true, points: 3 }), '+3');
+    assert.strictEqual(chartEntryResult({ made: false }), '+0');
+    assert.strictEqual(chartEntryResult({ points: 2 }), '');
+  });
+
+  it('describes the result in the entry title', () => {
+    assert.strictEqual(
+      chartEntryTitle('OFFENSE', { eventId: 'e1', playerId: 'p-ana', code: 'BAD_SHOT', made: true, points: 3, gameClockFormatted: '04:10' }, playersById),
+      'Mal lanzamiento (convirtió, 3 pts) · #9 Ana Delfino · 04:10'
+    );
+    assert.strictEqual(
+      chartEntryTitle('OFFENSE', { eventId: 'e2', code: 'GOOD_SHOT', made: false }, playersById),
+      'Buen lanzamiento (no convirtió) · Equipo'
+    );
   });
 });

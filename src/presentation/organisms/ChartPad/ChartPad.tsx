@@ -27,6 +27,8 @@ export interface ChartPadEntryInput {
   code: string;
   playerId?: string;
   points?: ChartPoints;
+  /** OFFENSE only: whether the action ended in a basket. */
+  made?: boolean;
 }
 
 export interface ChartPadProps {
@@ -63,6 +65,8 @@ export const ChartPad: React.FC<ChartPadProps> = ({
   const [category, setCategory] = useState<ChartCategory>('TURNOVER');
   const [playerKey, setPlayerKey] = useState<string | null>(null);
   const [points, setPoints] = useState<ChartPoints>(DEFAULT_CHART_POINTS);
+  /** OFFENSE: the action picked in step 2, waiting for its result in step 3 (S11). */
+  const [pendingCode, setPendingCode] = useState<string | null>(null);
   const listRef = useRef<HTMLOListElement | null>(null);
 
   const allPlayers = [...onCourtPlayers, ...benchPlayers];
@@ -88,17 +92,37 @@ export const ChartPad: React.FC<ChartPadProps> = ({
     return player ? `#${player.dorsal}` : '#?';
   };
 
-  const handleCode = (code: string) => {
+  const record = (input: Omit<ChartPadEntryInput, 'category' | 'playerId'>) => {
     if (disabled || playerKey === null) return;
     const recorded = onRecord({
       category,
-      code,
       playerId: playerKey === TEAM_CHART_KEY ? undefined : playerKey,
-      points: category === 'POINTS_ALLOWED' ? points : undefined,
+      ...input,
     });
     if (!recorded) return;
     setPlayerKey(null);
     setPoints(DEFAULT_CHART_POINTS);
+    setPendingCode(null);
+  };
+
+  const handleCode = (code: string) => {
+    if (disabled || playerKey === null) return;
+    // Offensive actions are saved in step 3, once the result is known.
+    if (category === 'OFFENSE') {
+      setPendingCode(code);
+      return;
+    }
+    record({ code, points: category === 'POINTS_ALLOWED' ? points : undefined });
+  };
+
+  const handleResult = (made: boolean, value?: ChartPoints) => {
+    if (pendingCode === null) return;
+    record({ code: pendingCode, made, points: made ? value : undefined });
+  };
+
+  const handleCategory = (value: ChartCategory) => {
+    setCategory(value);
+    setPendingCode(null);
   };
 
   const renderPlayerChip = (player: Player, bench: boolean) => (
@@ -126,7 +150,7 @@ export const ChartPad: React.FC<ChartPadProps> = ({
             role="tab"
             aria-selected={category === value}
             className={clsx(styles.categoryTab, category === value && styles.categoryTabActive)}
-            onClick={() => setCategory(value)}
+            onClick={() => handleCategory(value)}
           >
             {CHART_CATEGORY_LABELS[value]}
           </button>
@@ -190,7 +214,12 @@ export const ChartPad: React.FC<ChartPadProps> = ({
                 <button
                   key={entry.code}
                   type="button"
-                  className={clsx(styles.codeBtn, entry.tone === 'POSITIVE' ? styles.positive : styles.negative)}
+                  className={clsx(
+                    styles.codeBtn,
+                    entry.tone === 'POSITIVE' ? styles.positive : styles.negative,
+                    pendingCode === entry.code && styles.codeSelected
+                  )}
+                  aria-pressed={category === 'OFFENSE' ? pendingCode === entry.code : undefined}
                   onClick={() => handleCode(entry.code)}
                   disabled={disabled || playerKey === null}
                 >
@@ -200,6 +229,36 @@ export const ChartPad: React.FC<ChartPadProps> = ({
               ))}
             </div>
           </div>
+
+          {category === 'OFFENSE' && (
+            <div className={styles.step}>
+              <h3 className={clsx(styles.stepTitle, playerKey !== null && pendingCode === null && styles.stepTitleWaiting)}>
+                {pendingCode === null ? '3. Resultado: primero elige la acción' : '3. Resultado: ¿convirtió?'}
+              </h3>
+              <div className={styles.resultGrid} role="group" aria-label="Resultado de la acción ofensiva">
+                <button
+                  type="button"
+                  className={clsx(styles.resultBtn, styles.resultMiss)}
+                  onClick={() => handleResult(false)}
+                  disabled={disabled || pendingCode === null}
+                >
+                  No convirtió
+                </button>
+                {POINT_OPTIONS.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={clsx(styles.resultBtn, styles.resultMade)}
+                    aria-label={`Convirtió ${value === 1 ? '1 punto' : `${value} puntos`}`}
+                    onClick={() => handleResult(true, value)}
+                    disabled={disabled || pendingCode === null}
+                  >
+                    +{value}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -230,7 +289,9 @@ export const ChartPad: React.FC<ChartPadProps> = ({
                 <span className={styles.recentPlayer}>{playerLabel(event.playerId)}</span>
                 <span className={styles.recentCode}>
                   {code?.label ?? event.chart.code}
-                  {event.chart.points !== undefined && ` (${event.chart.points})`}
+                  {event.chart.made === false && ' (no convirtió)'}
+                  {event.chart.made === true && ` (+${event.chart.points ?? 0})`}
+                  {event.chart.made === undefined && event.chart.points !== undefined && ` (${event.chart.points})`}
                 </span>
                 <span className={styles.recentCategory}>{CHART_CATEGORY_LABELS[event.chart.category]}</span>
               </li>
