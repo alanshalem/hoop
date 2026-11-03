@@ -97,3 +97,13 @@ describe('tour catalog', () => {
     }
   });
 });
+
+describe('live tour', () => {
+  it('walks the Planilla mode first: mode switch, chart pad and sheet, before the stats console', () => {
+    const targets = getTour('live').steps.map((step) => step.target);
+    const sheetSteps = ['live-mode', 'live-chart-pad', 'live-chart-sheet'];
+    for (const target of sheetSteps) assert.ok(targets.includes(target), target);
+    const firstStats = targets.indexOf('live-lineup');
+    for (const target of sheetSteps) assert.ok(targets.indexOf(target) < firstStats, `${target} before stats steps`);
+  });
+});

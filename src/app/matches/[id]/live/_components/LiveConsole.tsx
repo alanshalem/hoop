@@ -316,7 +316,7 @@ export function LiveConsole({ matchId }: { matchId: string }) {
         </p>
       )}
 
-      <div className={styles.modeSwitch} role="tablist" aria-label="Modo de la consola">
+      <div className={styles.modeSwitch} role="tablist" aria-label="Modo de la consola" data-tour="live-mode">
         <button
           type="button"
           role="tab"
@@ -370,7 +370,7 @@ export function LiveConsole({ matchId }: { matchId: string }) {
                 onUndo={handleChartUndo}
               />
             </div>
-            <div className={clsx(styles.sheetView, sheetTab !== 'view' && styles.columnHidden)}>
+            <div className={clsx(styles.sheetView, sheetTab !== 'view' && styles.columnHidden)} data-tour="live-chart-sheet">
               <ChartSheetTable compact events={match.events} players={players} />
             </div>
           </div>

@@ -249,7 +249,7 @@ const LIVE: TourDefinition = {
     {
       target: null,
       title: 'Consola en vivo',
-      body: 'Cada jugada se registra con 2 toques: primero el jugador y después la acción, en la cancha o en el pad.',
+      body: 'La consola abre en la Planilla táctica: cada entrada se carga con 2 toques, primero el jugador y después el código.',
     },
     {
       target: 'live-scoreboard',
@@ -263,6 +263,23 @@ const LIVE: TourDefinition = {
       body: 'Inicia y pausa el reloj; los botones de segundos lo corrigen. Al llegar a 00:00 se ofrece pasar al período siguiente.',
     },
     {
+      target: 'live-mode',
+      title: 'Planilla o Estadística',
+      body: 'Planilla es el modo principal: el porqué de cada jugada. Estadística registra tiros, rebotes y faltas para el box score.',
+    },
+    {
+      target: 'live-chart-pad',
+      roles: RECORD_LIVE,
+      title: 'Cargar la planilla',
+      body: 'Elige la categoría, toca el jugador (o Equipo) y después el código. Azul es una acción buena, rojo un error. En Puntos recibidos elige 1, 2 o 3 puntos.',
+      example: 'Ejemplo: Pérdidas, #7 Campagna y "Pase malo".',
+    },
+    {
+      target: 'live-chart-sheet',
+      title: 'La planilla armada',
+      body: 'La grilla por cuarto se arma sola, con los totales de cada cuarto y de cada mitad, como en el papel.',
+    },
+    {
       target: 'live-tabs',
       title: 'Secciones en el teléfono',
       body: 'En pantallas chicas la consola se divide en Quinteto, Cancha y Acciones.',
@@ -270,8 +287,8 @@ const LIVE: TourDefinition = {
     {
       target: 'live-lineup',
       placement: 'right',
-      title: '1. Elige el jugador',
-      body: 'Toca un jugador en cancha para seleccionarlo. Con "Cambio" haces una sustitución desde la banca.',
+      title: 'Estadística: elige el jugador',
+      body: 'En modo Estadística, toca un jugador en cancha para seleccionarlo. Con "Cambio" haces una sustitución desde la banca.',
       example: 'Ejemplo: toca #7 Campagna.',
     },
     {
