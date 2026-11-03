@@ -39,6 +39,8 @@ export const ChartEntrySchema = z.object({
   made: z.boolean().optional(),
   /** Scoring play recorded with this entry, so the points reach the scoreboard (S12). */
   scoreEventId: z.string().min(1).optional(),
+  /** POINTS_ALLOWED and OFFENSE only: rival player involved, from the match rival roster (S14). */
+  rivalPlayerId: z.string().min(1).optional(),
 });
 export type ChartEntry = z.infer<typeof ChartEntrySchema>;
 

@@ -18,7 +18,7 @@ import {
 import type { Match } from '@/core/domain/entities/match.types';
 import { chartCodeRecordId, type ChartCodeRecord } from '@/core/domain/entities/chart.types';
 import { resolveChartCatalog } from '@/core/domain/rules/chart-catalog';
-import { makeEvent, makeMatch } from '@/core/testing/fixtures';
+import { makeEvent, makeMatch, makeRivalTeam } from '@/core/testing/fixtures';
 
 const ctx = { id: 'ev-new', now: '2026-10-30T21:00:00.000Z' };
 
@@ -374,6 +374,108 @@ describe('scoring chart entries update the scoreboard (S12)', () => {
     const match = makeMatch({ events: [entry, makeEvent({ type: 'FG2_MADE', isOwnTeam: true })], homeScore: 2 });
     const { match: next } = expectOk(undoLastEvent(match));
     assert.deepStrictEqual(next.events, [entry]);
+  });
+});
+
+describe('rival player on chart entries (S14, L18)', () => {
+  const roster = makeRivalTeam().players;
+  const [rival] = roster;
+
+  it('stores the rival player on points allowed; the rival scoring play keeps no player', () => {
+    const { match: next } = expectOk(
+      recordChartEntry(
+        makeMatch(),
+        { category: 'POINTS_ALLOWED', code: 'CUT', playerId: 'p1', points: 3, rivalPlayerId: rival.id },
+        ctx,
+        undefined,
+        roster
+      )
+    );
+    const [play, entry] = next.events;
+    assert.deepStrictEqual(entry.chart, {
+      category: 'POINTS_ALLOWED',
+      code: 'CUT',
+      points: 3,
+      scoreEventId: 'ev-new-score',
+      rivalPlayerId: rival.id,
+    });
+    assert.strictEqual(entry.playerId, 'p1');
+    assert.deepStrictEqual(
+      { type: play.type, isOwnTeam: play.isOwnTeam, playerId: play.playerId },
+      { type: 'FG3_MADE', isOwnTeam: false, playerId: undefined }
+    );
+    assert.strictEqual(next.awayScore, 3);
+  });
+
+  it('stores the rival player on offensive actions, made or missed', () => {
+    for (const result of [{ made: false }, { made: true, points: 2 }] as const) {
+      const { match: next } = expectOk(
+        recordChartEntry(
+          makeMatch(),
+          { category: 'OFFENSE', code: 'FORCED_SHOT', playerId: 'p1', rivalPlayerId: rival.id, ...result },
+          ctx,
+          undefined,
+          roster
+        )
+      );
+      assert.strictEqual(next.events.at(-1)?.chart?.rivalPlayerId, rival.id);
+    }
+  });
+
+  it('accepts any rival player id when no roster is given', () => {
+    const { match: next } = expectOk(
+      recordChartEntry(makeMatch(), { category: 'POINTS_ALLOWED', code: 'CUT', rivalPlayerId: 'rp-any' }, ctx)
+    );
+    assert.strictEqual(next.events.at(-1)?.chart?.rivalPlayerId, 'rp-any');
+  });
+
+  it('refuses a rival player outside points allowed and offensive actions', () => {
+    const match = makeMatch();
+    for (const input of [
+      { category: 'TURNOVER', code: 'BAD_PASS', rivalPlayerId: rival.id },
+      { category: 'DEFENSE', code: 'STEAL', rivalPlayerId: rival.id },
+    ] as const) {
+      assert.deepStrictEqual(recordChartEntry(match, input, ctx, undefined, roster), {
+        ok: false,
+        reason: 'INVALID_RIVAL_PLAYER',
+      });
+    }
+    assert.deepStrictEqual(match.events, []);
+  });
+
+  it('refuses a rival player that is not in the given roster, or an empty id', () => {
+    const match = makeMatch();
+    const input = { category: 'POINTS_ALLOWED', code: 'CUT' } as const;
+    for (const [rivalPlayerId, rivalRoster] of [
+      ['rp-other', roster],
+      [rival.id, []],
+      ['', roster],
+      ['', undefined],
+    ] as const) {
+      assert.deepStrictEqual(
+        recordChartEntry(match, { ...input, rivalPlayerId }, ctx, undefined, rivalRoster),
+        { ok: false, reason: 'INVALID_RIVAL_PLAYER' },
+        `${rivalPlayerId} ${JSON.stringify(rivalRoster)}`
+      );
+    }
+    assert.deepStrictEqual(match.events, []);
+    assert.deepStrictEqual([match.homeScore, match.awayScore], [0, 0]);
+  });
+
+  it('records entries without a rival player exactly as before, roster or not', () => {
+    for (const rivalRoster of [undefined, roster, []]) {
+      const { match: next } = expectOk(
+        recordChartEntry(makeMatch(), { category: 'DEFENSE', code: 'STEAL', playerId: 'p1' }, ctx, undefined, rivalRoster)
+      );
+      assert.deepStrictEqual(next.events[0].chart, { category: 'DEFENSE', code: 'STEAL' });
+    }
+  });
+
+  it('still checks the chart code before the rival player', () => {
+    assert.deepStrictEqual(
+      recordChartEntry(makeMatch(), { category: 'DEFENSE', code: 'NOPE', rivalPlayerId: rival.id }, ctx, undefined, roster),
+      { ok: false, reason: 'INVALID_CHART_CODE' }
+    );
   });
 });
 

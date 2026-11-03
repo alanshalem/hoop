@@ -1,6 +1,7 @@
 import { chartCodeRecordId, type ChartCodeRecord } from '@/core/domain/entities/chart.types';
 import type { Division, Player, Team } from '@/core/domain/entities/club.types';
 import type { Match, PlayByPlayEvent } from '@/core/domain/entities/match.types';
+import type { RivalTeam } from '@/core/domain/entities/rival.types';
 
 /**
  * Test fixtures shared by core tests. Not imported by production code.
@@ -40,6 +41,21 @@ export function makeChartCode(overrides: Partial<ChartCodeRecord> = {}): ChartCo
     tone: 'NEGATIVE',
     archived: false,
     order: 0,
+    ...overrides,
+  };
+}
+
+/** The roster of `makeMatch()`'s rival (same division and name): #5 and #11. */
+export function makeRivalTeam(overrides: Partial<RivalTeam> = {}): RivalTeam {
+  return {
+    id: 'rival-test',
+    clubId: 'club-test',
+    divisionId: 'div-test',
+    name: 'Rival Team',
+    players: [
+      { id: 'rp-1', dorsal: 5, firstName: 'Juan', lastName: 'Pérez' },
+      { id: 'rp-2', dorsal: 11, firstName: 'Diego', lastName: 'García' },
+    ],
     ...overrides,
   };
 }

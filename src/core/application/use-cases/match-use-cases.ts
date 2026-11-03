@@ -14,6 +14,7 @@ import {
   type ChartEntry,
   type ChartPoints,
 } from '@/core/domain/entities/chart.types';
+import type { RivalPlayer } from '@/core/domain/entities/rival.types';
 import { getPlayerFoulsFromEvents } from '@/core/domain/rules/basketball-rules';
 import { RIVAL_TEAM_ID } from '@/core/domain/rules/event-rules';
 import {
@@ -75,10 +76,17 @@ export interface RecordChartEntryInput {
   points?: ChartPoints;
   /** Required for OFFENSE: whether the action ended in a basket (S11). */
   made?: boolean;
+  /** POINTS_ALLOWED and OFFENSE only: rival player involved (S14). */
+  rivalPlayerId?: string;
   clockSeconds?: number;
 }
 
-export type RecordChartReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'INVALID_CHART_CODE' | 'INVALID_CHART_RESULT';
+export type RecordChartReason =
+  | 'MATCH_NOT_LIVE'
+  | 'HALFTIME'
+  | 'INVALID_CHART_CODE'
+  | 'INVALID_CHART_RESULT'
+  | 'INVALID_RIVAL_PLAYER';
 export type UndoChartReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'NO_CHART_ENTRIES';
 export type SubstitutionReason =
   | 'MATCH_NOT_LIVE'
@@ -216,12 +224,16 @@ export function undoLastEvent(match: Match): MatchResult<UndoReason> {
   return { ok: true, match: withoutLinked({ ...match, activeLineupOwn }, lastIndex) };
 }
 
-/** Only active codes of the club's catalog (the built-in one by default) can be recorded (S9). */
+/**
+ * Only active codes of the club's catalog (the built-in one by default) can be recorded (S9).
+ * A rival player must belong to `rivalRoster`, the match rival roster, when it is given (S14).
+ */
 export function recordChartEntry(
   match: Match,
   input: RecordChartEntryInput,
   ctx: UseCaseContext,
-  catalog: ChartCatalog = CHART_CATALOG
+  catalog: ChartCatalog = CHART_CATALOG,
+  rivalRoster?: readonly RivalPlayer[]
 ): MatchResult<RecordChartReason> {
   const refusal = notLiveReason(match);
   if (refusal) return { ok: false, reason: refusal };
@@ -236,6 +248,11 @@ export function recordChartEntry(
   } else {
     if (input.made !== undefined) return { ok: false, reason: 'INVALID_CHART_RESULT' };
     if (!isPointsAllowed && input.points !== undefined) return { ok: false, reason: 'INVALID_CHART_CODE' };
+  }
+  if (input.rivalPlayerId !== undefined) {
+    const allowsRival = isPointsAllowed || isOffense;
+    const inRoster = !rivalRoster || rivalRoster.some((player) => player.id === input.rivalPlayerId);
+    if (!allowsRival || !input.rivalPlayerId || !inRoster) return { ok: false, reason: 'INVALID_RIVAL_PLAYER' };
   }
 
   const clocked =
@@ -291,7 +308,8 @@ function withoutLinked(match: Match, index: number): Match {
 }
 
 function buildChartEntry(input: RecordChartEntryInput, isPointsAllowed: boolean, isOffense: boolean): ChartEntry {
-  const base = { category: input.category, code: input.code };
+  const base: ChartEntry = { category: input.category, code: input.code };
+  if (input.rivalPlayerId !== undefined) base.rivalPlayerId = input.rivalPlayerId;
   if (isPointsAllowed) return { ...base, points: input.points ?? DEFAULT_CHART_POINTS };
   if (isOffense) return input.made ? { ...base, made: true, points: input.points } : { ...base, made: false };
   return base;

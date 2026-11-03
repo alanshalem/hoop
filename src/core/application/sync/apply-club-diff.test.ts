@@ -13,6 +13,7 @@ function club(overrides: Partial<SyncableClubData> = {}): SyncableClubData {
     players: [makePlayer({ id: 'p1' }), makePlayer({ id: 'p2', dorsal: 8 })],
     matches: [makeMatch()],
     chartCodes: [],
+    rivalTeams: [],
     ...overrides,
   };
 }

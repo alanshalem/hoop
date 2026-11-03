@@ -15,6 +15,7 @@ import type { ChartCategory } from '@/core/domain/entities/chart.types';
 import * as chartCatalog from '@/core/application/use-cases/chart-catalog-use-cases';
 import * as club from '@/core/application/use-cases/club-use-cases';
 import * as matchUseCases from '@/core/application/use-cases/match-use-cases';
+import * as rivalUseCases from '@/core/application/use-cases/rival-team-use-cases';
 import type {
   ChartCodeEditReason,
   ChartCodeTextReason,
@@ -25,6 +26,11 @@ import type {
   ClubData,
   NewDivisionInput,
 } from '@/core/application/use-cases/club-use-cases';
+import type {
+  NewRivalTeamInput,
+  RivalPlayerInput,
+  RivalPlayerReason,
+} from '@/core/application/use-cases/rival-team-use-cases';
 import type {
   CreateMatchInput,
   MatchResult,
@@ -49,6 +55,7 @@ import {
   mergePersistedClubState,
   migrateClubState,
   selectChartCatalog,
+  selectRivalRoster,
 } from './club-state';
 import { CLUB_STORAGE_KEY, gatedLocalStorage } from './persistence-gate';
 
@@ -131,6 +138,28 @@ export interface ClubStoreState extends ClubDataState {
     code: string,
     archived: boolean
   ) => ActionResult<'CHART_CODE_NOT_FOUND'>;
+
+  // Rival rosters (S14): a match resolves its roster with `selectRivalRoster`
+  /** Adds an empty rival team to a division; returns its id. */
+  createRivalTeam: (
+    input: NewRivalTeamInput
+  ) => { ok: true; id: string } | { ok: false; reason: 'INVALID_NAME' };
+  renameRivalTeam: (teamId: string, name: string) => ActionResult<'INVALID_NAME' | 'RIVAL_TEAM_NOT_FOUND'>;
+  deleteRivalTeam: (teamId: string) => ActionResult<'RIVAL_TEAM_NOT_FOUND'>;
+  /** Returns the new player's id. */
+  addRivalPlayer: (
+    teamId: string,
+    input: RivalPlayerInput
+  ) => { ok: true; playerId: string } | { ok: false; reason: RivalPlayerReason | 'RIVAL_TEAM_NOT_FOUND' };
+  updateRivalPlayer: (
+    teamId: string,
+    playerId: string,
+    updates: Partial<RivalPlayerInput>
+  ) => ActionResult<RivalPlayerReason | 'PLAYER_NOT_FOUND' | 'RIVAL_TEAM_NOT_FOUND'>;
+  removeRivalPlayer: (
+    teamId: string,
+    playerId: string
+  ) => ActionResult<'PLAYER_NOT_FOUND' | 'RIVAL_TEAM_NOT_FOUND'>;
 
   substitutePlayer: (
     matchId: string,
@@ -297,7 +326,13 @@ export const useClubStore = create<ClubStoreState>()(
 
         recordChartEntry: (matchId, input) =>
           runMatchUseCase(matchId, (m) =>
-            matchUseCases.recordChartEntry(m, input, eventContext(), selectChartCatalog(get()))
+            matchUseCases.recordChartEntry(
+              m,
+              input,
+              eventContext(),
+              selectChartCatalog(get()),
+              selectRivalRoster(get(), m)
+            )
           ),
 
         undoLastChartEntry: (matchId) => runMatchUseCase(matchId, matchUseCases.undoLastChartEntry),
@@ -325,6 +360,47 @@ export const useClubStore = create<ClubStoreState>()(
             clubId: CLUB_PROFILE.id,
           });
           if (result.ok) set({ chartCodes: result.chartCodes });
+          return toActionResult(result);
+        },
+
+        createRivalTeam: (input) => {
+          const result = rivalUseCases.createRivalTeam(get().rivalTeams, input, {
+            id: createId('rival'),
+            clubId: CLUB_PROFILE.id,
+          });
+          if (!result.ok) return result;
+          set({ rivalTeams: result.rivalTeams });
+          return { ok: true, id: result.id };
+        },
+
+        renameRivalTeam: (teamId, name) => {
+          const result = rivalUseCases.renameRivalTeam(get().rivalTeams, teamId, name);
+          if (result.ok) set({ rivalTeams: result.rivalTeams });
+          return toActionResult(result);
+        },
+
+        deleteRivalTeam: (teamId) => {
+          const result = rivalUseCases.deleteRivalTeam(get().rivalTeams, teamId);
+          if (result.ok) set({ rivalTeams: result.rivalTeams });
+          return toActionResult(result);
+        },
+
+        addRivalPlayer: (teamId, input) => {
+          const result = rivalUseCases.addRivalPlayer(get().rivalTeams, teamId, input, { id: createId('rp') });
+          if (!result.ok) return result;
+          set({ rivalTeams: result.rivalTeams });
+          return { ok: true, playerId: result.playerId };
+        },
+
+        updateRivalPlayer: (teamId, playerId, updates) => {
+          const result = rivalUseCases.updateRivalPlayer(get().rivalTeams, teamId, playerId, updates);
+          if (result.ok) set({ rivalTeams: result.rivalTeams });
+          return toActionResult(result);
+        },
+
+        removeRivalPlayer: (teamId, playerId) => {
+          const result = rivalUseCases.removeRivalPlayer(get().rivalTeams, teamId, playerId);
+          if (result.ok) set({ rivalTeams: result.rivalTeams });
           return toActionResult(result);
         },
 
@@ -387,6 +463,7 @@ export const useClubStore = create<ClubStoreState>()(
         matches: state.matches,
         activeMatchId: state.activeMatchId,
         chartCodes: state.chartCodes,
+        rivalTeams: state.rivalTeams,
       }),
       migrate: (persisted, version) => migrateClubState(persisted, version),
       // New synced fields default without a version bump, so local data is not reseeded (L9).

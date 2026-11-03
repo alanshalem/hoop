@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { Player } from '@/core/domain/entities/club.types';
 import type { Match, PlayByPlayEventType, Quarter } from '@/core/domain/entities/match.types';
+import type { RivalPlayer } from '@/core/domain/entities/rival.types';
 import type { CourtCoordinates } from '@/core/domain/value-objects/coordinates';
 import { calculateMatchBoxScore, deriveScoreboard } from '@/core/domain/rules/match-derivations';
 import { can } from '@/core/domain/rules/permissions';
@@ -9,6 +10,7 @@ import {
   getRemainingTimeouts,
   isLastTwoMinutesOfFourthQuarter,
 } from '@/core/domain/rules/timeouts';
+import { selectRivalRoster } from '@/core/application/stores/club-state';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import type { RecordChartEntryInput, TeamSide } from '@/core/application/use-cases/match-use-cases';
 import { useGameClock, type GameClock } from './useGameClock';
@@ -36,6 +38,7 @@ export interface UseLiveMatchConsoleOptions {
 
 const EMPTY_LINES: Record<string, PlayerLiveLine> = {};
 const EMPTY_PLAYERS: Player[] = [];
+const EMPTY_RIVAL_PLAYERS: readonly RivalPlayer[] = [];
 
 function resolvePlayers(ids: string[], players: Player[]): Player[] {
   return ids
@@ -76,6 +79,8 @@ function buildTeams(
 export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMatchConsoleOptions = {}) {
   const match = useClubStore((state) => state.matches.find((m) => m.id === matchId));
   const players = useClubStore((state) => state.players);
+  // Stable references: the players of the resolved rival team, or one shared empty list.
+  const rivalRoster = useClubStore((state) => (match ? selectRivalRoster(state, match) : EMPTY_RIVAL_PLAYERS));
   const role = useClubStore((state) => state.currentUser.role);
   const recordEvent = useClubStore((state) => state.recordEvent);
   const undoLastEvent = useClubStore((state) => state.undoLastEvent);
@@ -137,6 +142,7 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
 
   const undo = () => undoLastEvent(matchId);
 
+  /** `rivalPlayerId` must come from `rivalRoster` (S14). */
   const recordChartEntry = (input: Omit<RecordChartEntryInput, 'clockSeconds'>) =>
     recordChartEntryInStore(matchId, { ...input, clockSeconds: clock.read() });
 
@@ -181,6 +187,8 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
     benchPlayers: lineup.bench,
     playerLines: lineup.lines,
     fouledOutIds: lineup.fouledOutIds,
+    /** Players of the match rival team (S14); empty when the rival has no roster. */
+    rivalRoster,
     role,
     canRecord: can(role, 'RECORD_LIVE'),
     isHalftime: match?.status === 'HALFTIME',

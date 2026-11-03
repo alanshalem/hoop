@@ -10,7 +10,15 @@ import { toMatchRecord } from './sync-records';
 import { readFieldVersions, resolveFieldVersions, writeFieldVersions, type CompleteFieldVersions } from './match-fields';
 import { createEmptyOutbox, enqueueChanges } from './outbox';
 import type { PulledChanges, SyncableClubData, SyncEvent, SyncRecord } from './sync-types';
-import { makeChartCode, makeDivision, makeEvent, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
+import {
+  makeChartCode,
+  makeDivision,
+  makeEvent,
+  makeMatch,
+  makePlayer,
+  makeRivalTeam,
+  makeTeam,
+} from '@/core/testing/fixtures';
 
 const T0 = '2026-10-30T18:00:00.000Z';
 const T1 = '2026-10-30T18:00:01.000Z';
@@ -23,6 +31,7 @@ function club(overrides: Partial<SyncableClubData> = {}): SyncableClubData {
     players: [makePlayer({ id: 'p1' })],
     matches: [makeMatch({ events: [] })],
     chartCodes: [],
+    rivalTeams: [],
     ...overrides,
   };
 }
@@ -62,6 +71,20 @@ describe('mergePulledChanges: records by last-write-wins (S10.7)', () => {
 
     const removed = mergePulledChanges(applied, pulled({ records: [{ ...record, updatedAt: T2, deleted: true }] }));
     assert.deepStrictEqual(removed.data.chartCodes, []);
+  });
+
+  it('applies a pulled rivalTeam record and its tombstone (S14)', () => {
+    const team = makeRivalTeam();
+    const record: SyncRecord = { kind: 'rivalTeam', id: team.id, data: team, updatedAt: T1, deleted: false };
+    const applied = mergePulledChanges({ data: club(), versions: {}, outbox: createEmptyOutbox() }, pulled({
+      records: [record],
+    }));
+    assert.strictEqual(applied.changed, true);
+    assert.deepStrictEqual(applied.data.rivalTeams, [team]);
+    assert.strictEqual(applied.versions[`rivalTeam:${team.id}`], T1);
+
+    const removed = mergePulledChanges(applied, pulled({ records: [{ ...record, updatedAt: T2, deleted: true }] }));
+    assert.deepStrictEqual(removed.data.rivalTeams, []);
   });
 
   it('applies equal or newer versions and ignores older ones', () => {

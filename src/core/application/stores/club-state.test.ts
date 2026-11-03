@@ -6,10 +6,12 @@ import {
   mergePersistedClubState,
   migrateClubState,
   selectChartCatalog,
+  selectRivalRoster,
   type ClubDataState,
 } from './club-state';
 import { CHART_CATALOG } from '@/core/domain/entities/chart.types';
-import { makeChartCode } from '@/core/testing/fixtures';
+import { createSeedState } from '@/core/infrastructure/mocks/seed-data';
+import { makeChartCode, makeMatch, makeRivalTeam } from '@/core/testing/fixtures';
 
 const NOW = new Date('2026-10-30T18:00:00.000Z');
 
@@ -60,6 +62,34 @@ describe('club store state', () => {
     assert.strictEqual(catalog.TURNOVER[0].label, 'Pase errado');
     assert.strictEqual(selectChartCatalog({ chartCodes }), catalog);
     assert.notStrictEqual(selectChartCatalog({ chartCodes: [...chartCodes] }), catalog);
+  });
+
+  it('starts with the seed rival teams (S14)', () => {
+    assert.deepStrictEqual(createInitialClubState(NOW).rivalTeams, createSeedState(NOW).rivalTeams);
+  });
+
+  it('rehydrates data persisted before rival teams existed with its data and no rival teams (S14, L18)', () => {
+    const older: Partial<ClubDataState> = { ...createInitialClubState(NOW), activeMatchId: 'match-past-1' };
+    delete older.rivalTeams;
+    const current = { ...createInitialClubState(NOW), rivalTeams: [makeRivalTeam()] };
+    const rehydrated = mergePersistedClubState(older, current);
+    assert.deepStrictEqual(rehydrated, { ...older, rivalTeams: [] });
+  });
+
+  it('rehydrates persisted rival teams', () => {
+    const rivalTeams = [makeRivalTeam({ name: 'Quimsa' })];
+    const persisted = { ...createInitialClubState(NOW), rivalTeams };
+    assert.deepStrictEqual(mergePersistedClubState(persisted, createInitialClubState(NOW)).rivalTeams, rivalTeams);
+  });
+
+  it('selects the rival roster of a match by division and rival name, empty when none (S14)', () => {
+    const team = makeRivalTeam({ divisionId: 'div-test', name: 'Obras Sanitarias' });
+    const other = makeRivalTeam({ id: 'rival-other', divisionId: 'div-other', name: 'Obras Sanitarias', players: [] });
+    const state = { rivalTeams: [other, team] };
+    assert.strictEqual(selectRivalRoster(state, makeMatch({ rivalTeamName: 'obras sanitarias' })), team.players);
+    const none = selectRivalRoster(state, makeMatch({ rivalTeamName: 'Boca Juniors' }));
+    assert.deepStrictEqual(none, []);
+    assert.strictEqual(selectRivalRoster({ rivalTeams: [] }, makeMatch()), none, 'the empty roster is one stable value');
   });
 
   it('keeps persisted data of the current version', () => {

@@ -42,6 +42,20 @@ function chartCodeRecord(code: string, updatedAt: Date, overrides: Record<string
   return { kind: 'chartCode', id, data: { ...data, ...overrides }, updatedAt, deleted: false };
 }
 
+function rivalTeamRecord(id: string, updatedAt: Date, overrides: Record<string, unknown> = {}, deleted = false): PushRecordInput {
+  const data = {
+    id,
+    clubId: seed.divisions[0].clubId,
+    divisionId: seed.divisions[0].id,
+    name: 'Atenas de Córdoba',
+    players: [
+      { id: `${id}-p1`, dorsal: 4, firstName: 'Bruno', lastName: 'Lell' },
+      { id: `${id}-p2`, dorsal: 15, firstName: 'Matías', lastName: 'Ruiz' },
+    ],
+  };
+  return { kind: 'rivalTeam', id, data: { ...data, ...overrides }, updatedAt, deleted };
+}
+
 function eventInput(id: string, matchId: string, deleted = false, overrides: Record<string, unknown> = {}): PushEventInput {
   return { id, matchId, data: { ...seedEvents[0], id, matchId, ...overrides }, deleted };
 }
@@ -61,7 +75,7 @@ describe('sync push / pull (database)', () => {
     return applyPush(connection.db, user, payload);
   };
 
-  const storedRecord = async (kind: 'player' | 'match' | 'division' | 'chartCode', id: string) => {
+  const storedRecord = async (kind: 'player' | 'match' | 'division' | 'chartCode' | 'rivalTeam', id: string) => {
     const [row] = await connection.db
       .select()
       .from(syncRecords)
@@ -239,6 +253,49 @@ describe('sync push / pull (database)', () => {
     const invalid = await push(ADMIN, body([chartCodeRecord(code, at(26), { symbol: 'ABCD' })]));
     assert.deepStrictEqual(invalid.rejected, [{ id: record.id, reason: 'INVALID' }]);
     assert.strictEqual((await storedRecord('chartCode', record.id)).data.symbol, 'ZP');
+  });
+
+  it('stores rival teams only from roles that manage matches and pulls them back (S14)', async () => {
+    const id = uid('rival');
+    const record = rivalTeamRecord(id, at(27));
+
+    const statistician = await push(STATISTICIAN, body([record]));
+    assert.deepStrictEqual(statistician.accepted, []);
+    assert.deepStrictEqual(statistician.rejected, [{ id, reason: 'FORBIDDEN' }]);
+    assert.strictEqual(await storedRecord('rivalTeam', id), undefined);
+
+    const start = await readCurrentCursor(connection.db);
+    const coach = await push(COACH, body([record]));
+    assert.deepStrictEqual(coach.accepted, [id]);
+    assert.deepStrictEqual(coach.rejected, []);
+
+    const pulled = await pullChanges(connection.db, Number(start));
+    assert.deepStrictEqual(
+      pulled.records.map(({ kind, id, data, updatedAt, deleted }) => ({ kind, id, data, updatedAt, deleted })),
+      [{ kind: 'rivalTeam', id, data: record.data, updatedAt: at(27).toISOString(), deleted: false }]
+    );
+
+    const rename = await push(STATISTICIAN, body([rivalTeamRecord(id, at(28), { name: 'Atenas' })]));
+    assert.deepStrictEqual(rename.rejected, [{ id, reason: 'FORBIDDEN' }]);
+    const removal = await push(STATISTICIAN, body([rivalTeamRecord(id, at(28), {}, true)]));
+    assert.deepStrictEqual(removal.rejected, [{ id, reason: 'FORBIDDEN' }]);
+    const kept = await storedRecord('rivalTeam', id);
+    assert.strictEqual(kept.data.name, 'Atenas de Córdoba');
+    assert.strictEqual(kept.deleted, false);
+
+    const repeatedDorsal = rivalTeamRecord(id, at(29), {
+      players: [
+        { id: `${id}-p1`, dorsal: 4, firstName: 'Bruno', lastName: 'Lell' },
+        { id: `${id}-p2`, dorsal: 4, firstName: 'Matías', lastName: 'Ruiz' },
+      ],
+    });
+    const invalid = await push(ADMIN, body([repeatedDorsal]));
+    assert.deepStrictEqual(invalid.rejected, [{ id, reason: 'INVALID' }]);
+    assert.deepStrictEqual((await storedRecord('rivalTeam', id)).data, record.data);
+
+    const deleted = await push(COACH, body([rivalTeamRecord(id, at(30), {}, true)]));
+    assert.deepStrictEqual(deleted.accepted, [id]);
+    assert.strictEqual((await storedRecord('rivalTeam', id)).deleted, true);
   });
 
   it('rejects data that fails the domain schema as INVALID and never stores match events in records', async () => {

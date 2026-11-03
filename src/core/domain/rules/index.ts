@@ -6,5 +6,6 @@ export * from './game-clock';
 export * from './lineup-rules';
 export * from './match-derivations';
 export * from './permissions';
+export * from './rival-teams';
 export * from './season-analytics';
 export * from './timeouts';

@@ -32,6 +32,8 @@ const REQUIRED_PERMISSIONS: Record<SyncEntityKind, Record<WriteOperation, readon
   },
   // Chart codes are archived, never deleted: old charted entries keep rendering them (S9).
   chartCode: { create: ['MANAGE_CHART_CATALOG'], update: ['MANAGE_CHART_CATALOG'], delete: [] },
+  // Rival rosters belong to match preparation (S14, L18).
+  rivalTeam: ALL_OPERATIONS(['MANAGE_MATCHES']),
   event: ALL_OPERATIONS(['RECORD_LIVE']),
 };
 

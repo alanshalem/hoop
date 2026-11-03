@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ChartCodeRecordSchema } from '@/core/domain/entities/chart.types';
 import { DivisionSchema, PlayerSchema, TeamSchema, UserRoleSchema } from '@/core/domain/entities/club.types';
 import { MatchSchema, PlayByPlayEventSchema } from '@/core/domain/entities/match.types';
+import { RivalTeamSchema } from '@/core/domain/entities/rival.types';
 import type { AuthUser } from '@/core/application/auth/auth-session';
 import { pickFieldVersions } from '@/core/application/sync/match-fields';
 import {
@@ -86,6 +87,10 @@ function parseRecord({ kind, id, data, updatedAt, deleted, fieldVersions }: Pull
     }
     case 'chartCode': {
       const parsed = ChartCodeRecordSchema.safeParse(data);
+      return parsed.success ? { ...base, kind, data: parsed.data } : null;
+    }
+    case 'rivalTeam': {
+      const parsed = RivalTeamSchema.safeParse(data);
       return parsed.success ? { ...base, kind, data: parsed.data } : null;
     }
     case 'match': {

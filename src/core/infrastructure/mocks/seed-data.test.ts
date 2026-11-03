@@ -10,6 +10,8 @@ import {
 } from '@/core/domain/rules/match-derivations';
 import { getPlayerFoulsFromEvents } from '@/core/domain/rules/basketball-rules';
 import { CHART_CATEGORIES, findChartCode } from '@/core/domain/entities/chart.types';
+import { RivalTeamSchema } from '@/core/domain/entities/rival.types';
+import { findRivalTeam } from '@/core/domain/rules/rival-teams';
 
 const NOW = new Date('2026-10-30T18:00:00.000Z');
 
@@ -243,5 +245,45 @@ describe('seed free-throw trips in the chart', () => {
       });
     }
     assert.ok(checked > 0, 'the seed charts at least one free-throw trip');
+  });
+});
+
+describe('seed rival rosters (S14)', () => {
+  const state = createSeedState(NOW);
+
+  it('validates every rival team against the domain schema, unchanged by parsing', () => {
+    assert.ok(state.rivalTeams.length >= 2);
+    for (const team of state.rivalTeams) {
+      assert.deepStrictEqual(RivalTeamSchema.parse(team), team, team.id);
+      assert.strictEqual(team.clubId, CLUB_PROFILE.id, team.id);
+    }
+  });
+
+  it('resolves Obras Sanitarias with 12 players for the live Primera match', () => {
+    const live = state.matches.find((m) => m.id === SEED_LIVE_MATCH_ID);
+    assert.ok(live);
+    const team = findRivalTeam(state.rivalTeams, live.divisionId, live.rivalTeamName);
+    assert.ok(team, 'the live match rival has a roster');
+    assert.strictEqual(team.name, 'Obras Sanitarias');
+    assert.strictEqual(team.divisionId, 'div-primera');
+    assert.deepStrictEqual(
+      team.players.map((p) => p.id),
+      Array.from({ length: 12 }, (_, i) => `rival-obras-p${i + 1}`)
+    );
+    assert.strictEqual(new Set(team.players.map((p) => p.dorsal)).size, 12);
+  });
+
+  it('resolves a second roster for a finished Primera match', () => {
+    const resolved = state.matches.filter(
+      (m) => m.status === 'FINISHED' && findRivalTeam(state.rivalTeams, m.divisionId, m.rivalTeamName)
+    );
+    assert.ok(resolved.length >= 1, 'a finished match has its rival roster');
+    for (const match of resolved) {
+      assert.strictEqual(match.divisionId, 'div-primera', match.id);
+    }
+    const resolvedTeams = state.matches
+      .map((m) => findRivalTeam(state.rivalTeams, m.divisionId, m.rivalTeamName))
+      .filter((team) => team !== undefined);
+    assert.deepStrictEqual(new Set(resolvedTeams), new Set(state.rivalTeams), 'every seed roster belongs to a match');
   });
 });

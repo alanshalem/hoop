@@ -31,6 +31,7 @@ export const REFUSAL_MESSAGES: Record<ConsoleRefusal, string> = {
   NO_EVENTS: 'No hay jugadas para deshacer.',
   INVALID_CHART_CODE: 'El código no corresponde a esa categoría de la planilla.',
   INVALID_CHART_RESULT: 'Elige si la acción ofensiva convirtió y cuántos puntos.',
+  INVALID_RIVAL_PLAYER: 'El jugador rival no pertenece al plantel de este rival.',
   NO_CHART_ENTRIES: 'No hay entradas de la planilla para deshacer.',
   PLAYER_NOT_ON_COURT: 'El jugador que sale no está en cancha.',
   PLAYER_ALREADY_ON_COURT: 'El jugador que entra ya está en cancha.',

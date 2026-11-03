@@ -50,6 +50,7 @@ export type Collections = {
   player: Collection<SyncableClubData['players'][number]>;
   match: Collection<Match>;
   chartCode: Collection<SyncableClubData['chartCodes'][number]>;
+  rivalTeam: Collection<SyncableClubData['rivalTeams'][number]>;
 };
 
 export function createCollections(data: SyncableClubData): Collections {
@@ -59,6 +60,7 @@ export function createCollections(data: SyncableClubData): Collections {
     player: new Collection(data.players),
     match: new Collection(data.matches),
     chartCode: new Collection(data.chartCodes),
+    rivalTeam: new Collection(data.rivalTeams),
   };
 }
 
@@ -73,6 +75,7 @@ export function toData(collections: Collections): SyncableClubData {
     players: collections.player.toArray(),
     matches: collections.match.toArray(),
     chartCodes: collections.chartCode.toArray(),
+    rivalTeams: collections.rivalTeam.toArray(),
   };
 }
 

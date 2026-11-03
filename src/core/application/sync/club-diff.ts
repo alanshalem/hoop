@@ -23,6 +23,12 @@ export function diffClubState(prev: SyncableClubData, next: SyncableClubData): C
       id: data.id,
       data,
       deleted,
+    })),
+    ...collectionChanges(prev.rivalTeams, next.rivalTeams, (data, deleted) => ({
+      kind: 'rivalTeam',
+      id: data.id,
+      data,
+      deleted,
     }))
   );
 

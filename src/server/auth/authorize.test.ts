@@ -10,7 +10,7 @@ import {
 } from './authorize';
 
 const ROLES: UserRole[] = ['ADMIN', 'HEAD_COACH', 'ASSISTANT_STATISTICIAN'];
-const KINDS: SyncEntityKind[] = ['division', 'team', 'player', 'match', 'chartCode', 'event'];
+const KINDS: SyncEntityKind[] = ['division', 'team', 'player', 'match', 'chartCode', 'rivalTeam', 'event'];
 const OPERATIONS: WriteOperation[] = ['create', 'update', 'delete'];
 
 /**
@@ -24,6 +24,7 @@ const EXPECTED: Record<UserRole, Record<SyncEntityKind, Record<WriteOperation, b
     player: { create: true, update: true, delete: true },
     match: { create: true, update: true, delete: true },
     chartCode: { create: true, update: true, delete: false },
+    rivalTeam: { create: true, update: true, delete: true },
     event: { create: true, update: true, delete: true },
   },
   HEAD_COACH: {
@@ -32,6 +33,7 @@ const EXPECTED: Record<UserRole, Record<SyncEntityKind, Record<WriteOperation, b
     player: { create: true, update: true, delete: true },
     match: { create: true, update: true, delete: true },
     chartCode: { create: true, update: true, delete: false },
+    rivalTeam: { create: true, update: true, delete: true },
     event: { create: true, update: true, delete: true },
   },
   ASSISTANT_STATISTICIAN: {
@@ -40,6 +42,7 @@ const EXPECTED: Record<UserRole, Record<SyncEntityKind, Record<WriteOperation, b
     player: { create: false, update: false, delete: false },
     match: { create: false, update: true, delete: false },
     chartCode: { create: false, update: false, delete: false },
+    rivalTeam: { create: false, update: false, delete: false },
     event: { create: true, update: true, delete: true },
   },
 };
@@ -51,6 +54,7 @@ describe('server RBAC (authorize)', () => {
       assert.deepStrictEqual(requiredPermissions('team', operation), ['MANAGE_DIVISIONS']);
       assert.deepStrictEqual(requiredPermissions('player', operation), ['MANAGE_PLAYERS']);
       if (operation !== 'delete') assert.deepStrictEqual(requiredPermissions('chartCode', operation), ['MANAGE_CHART_CATALOG']);
+      assert.deepStrictEqual(requiredPermissions('rivalTeam', operation), ['MANAGE_MATCHES']);
       assert.deepStrictEqual(requiredPermissions('event', operation), ['RECORD_LIVE']);
     }
     assert.deepStrictEqual(requiredPermissions('match', 'create'), ['MANAGE_MATCHES']);
@@ -91,6 +95,12 @@ describe('server RBAC (authorize)', () => {
       status: 403,
     });
     assert.deepStrictEqual(authorizeWrite({ role: 'HEAD_COACH' }, 'chartCode', 'update'), { allowed: true });
+    assert.deepStrictEqual(authorizeWrite({ role: 'ASSISTANT_STATISTICIAN' }, 'rivalTeam', 'update'), {
+      allowed: false,
+      status: 403,
+    });
+    assert.deepStrictEqual(authorizeWrite({ role: 'HEAD_COACH' }, 'rivalTeam', 'delete'), { allowed: true });
+    assert.deepStrictEqual(authorizeWrite(null, 'rivalTeam', 'create'), { allowed: false, status: 401 });
   });
 });
 

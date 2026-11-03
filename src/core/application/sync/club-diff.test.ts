@@ -2,7 +2,15 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { diffClubState } from './club-diff';
 import type { SyncableClubData } from './sync-types';
-import { makeChartCode, makeDivision, makeEvent, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
+import {
+  makeChartCode,
+  makeDivision,
+  makeEvent,
+  makeMatch,
+  makePlayer,
+  makeRivalTeam,
+  makeTeam,
+} from '@/core/testing/fixtures';
 
 function club(overrides: Partial<SyncableClubData> = {}): SyncableClubData {
   return {
@@ -11,6 +19,7 @@ function club(overrides: Partial<SyncableClubData> = {}): SyncableClubData {
     players: [makePlayer({ id: 'p1' }), makePlayer({ id: 'p2', dorsal: 8 })],
     matches: [makeMatch()],
     chartCodes: [],
+    rivalTeams: [],
     ...overrides,
   };
 }
@@ -59,6 +68,20 @@ describe('diffClubState (S10.7)', () => {
     const diff = diffClubState(prev, { ...prev, chartCodes: [archived] });
     assert.deepStrictEqual(diff, {
       records: [{ kind: 'chartCode', id: archived.id, data: archived, deleted: false }],
+      events: [],
+    });
+  });
+
+  it('sends rival teams as whole rivalTeam records and their deletion as a tombstone (S14)', () => {
+    const prev = club();
+    const team = makeRivalTeam();
+    assert.deepStrictEqual(diffClubState(prev, { ...prev, rivalTeams: [team] }), {
+      records: [{ kind: 'rivalTeam', id: team.id, data: team, deleted: false }],
+      events: [],
+    });
+    const withTeam = { ...prev, rivalTeams: [team] };
+    assert.deepStrictEqual(diffClubState(withTeam, { ...withTeam, rivalTeams: [] }), {
+      records: [{ kind: 'rivalTeam', id: team.id, data: team, deleted: true }],
       events: [],
     });
   });

@@ -33,6 +33,9 @@ export function applyClubDiff(data: SyncableClubData, diff: ClubDiff): SyncableC
       case 'chartCode':
         collections.chartCode.set(change.id, change.data);
         break;
+      case 'rivalTeam':
+        collections.rivalTeam.set(change.id, change.data);
+        break;
       case 'match': {
         const current = collections.match.get(change.id);
         const next = current && change.changedFields
