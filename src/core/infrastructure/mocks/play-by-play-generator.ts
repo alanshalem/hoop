@@ -427,14 +427,18 @@ function chartAnchors(events: PlayByPlayEvent[], starterIds: string[]): ChartAnc
         });
         break;
       }
-      case 'FT_MADE': {
+      case 'FT_MADE':
+      case 'FT_MISS': {
+        // Charted once, on the last free throw of the trip, with exactly the points made.
         if (isRivalFt(events[index + 1])) break;
         let start = index;
         while (isRivalFt(events[start - 1])) start--;
         const made = events.slice(start, index + 1).filter((e) => e.type === 'FT_MADE').length;
+        if (made === 0) break;
+        const points = Math.min(made, 3) as 1 | 2 | 3;
         const fouler = events[start - 1]?.isOwnTeam ? events[start - 1].playerId : undefined;
         add('POINTS_ALLOWED', () => ({
-          chart: { category: 'POINTS_ALLOWED', code: 'UNNECESSARY_FOUL', points: made === 1 ? 1 : 2 },
+          chart: { category: 'POINTS_ALLOWED', code: 'UNNECESSARY_FOUL', points },
           playerId: fouler,
         }));
         break;

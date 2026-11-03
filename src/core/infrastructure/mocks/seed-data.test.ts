@@ -219,3 +219,25 @@ describe('club identity', () => {
     }
   });
 });
+
+describe('seed free-throw trips in the chart', () => {
+  it('charts a rival free-throw trip with exactly the free throws made, never zero', () => {
+    const state = createSeedState(NOW);
+    let checked = 0;
+    for (const match of state.matches) {
+      match.events.forEach((event, index) => {
+        if (event.type !== 'CHART' || event.chart?.code !== 'UNNECESSARY_FOUL') return;
+        if (event.chart.category !== 'POINTS_ALLOWED') return;
+        let start = index;
+        const isRivalFt = (i: number) =>
+          !match.events[i].isOwnTeam && (match.events[i].type === 'FT_MADE' || match.events[i].type === 'FT_MISS');
+        while (start > 0 && isRivalFt(start - 1)) start--;
+        const made = match.events.slice(start, index).filter((e) => e.type === 'FT_MADE').length;
+        assert.ok(made > 0, `${event.id} charted a trip without made free throws`);
+        assert.strictEqual(event.chart.points, made, event.id);
+        checked++;
+      });
+    }
+    assert.ok(checked > 0, 'the seed charts at least one free-throw trip');
+  });
+});
