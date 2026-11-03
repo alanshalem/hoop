@@ -16,12 +16,21 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 - **S5** — Chart entries never change the scoreboard, fouls, box score, shot chart or season analytics, and the stat pad's undo keeps undoing only stat events. Chart entries sync like every play-by-play event (offline-first outbox, append-only).
 - **S6** — Manual (`docs/MANUAL.md`) documents the Planilla, its codes and the sources it follows.
 
+- **S7** — Guided tour of the live console works in the default Planilla mode (no step points to a hidden element; the Planilla pad and sheet have their own steps).
+- **S8** — Seed: a rival free-throw trip charted as Puntos recibidos counts exactly the free throws made; a trip with no made free throw produces no Puntos recibidos entry.
+- **S9** — "Por ahora el catálogo de códigos es fijo. Que cada club cargue los suyos quedó para más adelante. Hace esto..." Each club edits its own charting catalog: rename label/symbol/tone of built-in codes, add custom codes per category, archive codes (never delete; archived codes disappear from the live pad but old entries still render). Editable by roles ADMIN and HEAD_COACH (new permission MANAGE_CHART_CATALOG), enforced server-side; synced offline-first like other records (new sync record kind). Live recording validates against the club's active codes.
+- **S10** — Browser check of the live console (Planilla mode) and the sheet on tablet and phone widths, with the seeded data.
+
 ## Tasks
 
 - [x] T1 [S1,S2,S3,S5] Domain + use-cases: `CHART` event type with `chart: { category, code, points? }`, catalog, sheet aggregation, `recordChartEntry` / `undoLastChartEntry`, stat undo ignores chart events. Route: inline, test-first. Commit: 56c59cb
 - [x] T2 [S1,S3] Live console "Planilla" panel (mode toggle, player chips, code grid, points selector, undo, last entries). Route: inline. Commit: 2142964
 - [x] T3 [S4] Sheet view organism + match page integration (stats page section, live console access). Route: inline. Commit: 65a2f27
 - [x] T4 [S6] Manual + seed chart entries for finished/live matches. Route: inline. Commit: 97ef965
+- [x] T5 [S7] Tour steps for Planilla mode. Route: inline. Commit: 256bd1c
+- [x] T6 [S8] Seed free-throw trip points. Route: inline, test-first. Commit: 3800736
+- T7 [S9] Club chart catalog: domain, sync kind + migration, RBAC, settings UI. Route: explore, then inline/worker; independent verify (risk items 1, 2). Commit: _pending_
+- T8 [S10] Browser check with Docker + seed. Route: inline. Commit: n/a
 
 ## Log
 
@@ -31,3 +40,6 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 - L4 (research): No universal charting standard. Sources: FIBA Statisticians' Manual 2024 Annex B (turnover types); hoopcoach.org "How to chart a game" (offense/defense editions); coachingtoolbox.net turnover chart (player, type, how, phase); Tom Kelsey half-court defense chart (each basket allowed: play, missed technique, players, points); NBA.com hustle stats (deflections, contested shots, box outs, charges, loose balls).
 - L5 (decision): Chart entries travel as play-by-play events of type `CHART` to reuse the existing offline-first sync (no new table). Existing stat recording stays; the custom per-club catalog is deferred (YAGNI) — codes are stable string ids so it can be added later.
 - L6 (evidence): npm test 492/492 pass; tsc clean; eslint clean on touched areas. Seed differential: non-chart seed events byte-identical before/after T4. Browser check not run: Docker (Postgres) was not running, so login was unavailable.
+- L7 (user): "Pendiente - Probarla en pantalla ... - El tour guiado de la consola apunta a partes que ahora, en modo Planilla, están ocultas, así que puede fallar. - En los datos de ejemplo, una visita a la línea sin libres convertidos igual cuenta 2 puntos recibidos. No afecta partidos reales. - Por ahora el catálogo de códigos es fijo. Que cada club cargue los suyos quedó para más adelante. Hace esto..."
+- L8 (decision): catalog per club, editable by ADMIN and HEAD_COACH, codes archived never deleted, built-in codes editable, custom codes allowed.
+- L9 (design, T7): sync record kind `chartCode` (no hyphen). Record `ChartCodeRecord { id: "<clubId>:<category>:<code>", clubId, category, code, symbol (1-3 chars), label (1-40 chars), tone, archived, order }`. No records = built-in catalog (seed adds none). Effective catalog = built-in codes overridden by records with the same category+code, plus custom codes (code `CUSTOM_<id>`), ordered by `order`. Archived codes stay resolvable for rendering old entries but are hidden from the live pad and refused by `recordChartEntry`. New permission `MANAGE_CHART_CATALOG` (ADMIN, HEAD_COACH), enforced on push for kind `chartCode`. Store keeps `chartCodes` with default `[]` on rehydrate (no store version bump, so local data is not reseeded). Migration generated with `npm run db:generate` (additive enum value).
