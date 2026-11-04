@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ArrowLeft, BarChart3, Flag, ShieldAlert } from 'lucide-react';
-import type { PlayByPlayEventType } from '@/core/domain/entities/match.types';
+import { ArrowLeft, BarChart3, Flag, ShieldAlert, Undo2 } from 'lucide-react';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
@@ -13,29 +12,29 @@ export interface ConsoleToolbarProps {
   matchId: string;
   rivalName: string;
   readOnly: boolean;
-  /** Hides the rival quick actions (halftime: no plays are recorded). */
+  /** Hides the rival fouls (halftime: no plays are recorded). */
   recordingLocked?: boolean;
-  onRivalAction: (type: PlayByPlayEventType) => void;
+  /** Enables "Deshacer falta". */
+  hasRivalFoul: boolean;
+  onRivalFoul: () => void;
+  onUndoRivalFoul: () => void;
   onFinish: () => void;
 }
 
-const RIVAL_ACTIONS: Array<{ type: PlayByPlayEventType; label: string; ariaLabel: string }> = [
-  { type: 'FT_MADE', label: '+1', ariaLabel: 'Sumar 1 punto al rival' },
-  { type: 'FG2_MADE', label: '+2', ariaLabel: 'Sumar 2 puntos al rival' },
-  { type: 'FG3_MADE', label: '+3', ariaLabel: 'Sumar 3 puntos al rival' },
-];
-
 /**
- * Navigation, sync status, rival quick actions (points and team fouls) and match
- * closing. The console has no app shell, so this is its only sync indicator; it
- * sits at the start so the scrolling toolbar never hides it on phones.
+ * Navigation, sync status, rival fouls (they light the rival bonus; rival points
+ * come from Puntos recibidos, S15) and match closing. The console has no app
+ * shell, so this is its only sync indicator; it sits at the start so the
+ * scrolling toolbar never hides it on phones.
  */
 export const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
   matchId,
   rivalName,
   readOnly,
   recordingLocked = false,
-  onRivalAction,
+  hasRivalFoul,
+  onRivalFoul,
+  onUndoRivalFoul,
   onFinish,
 }) => (
   <div className={styles.toolbar}>
@@ -50,31 +49,30 @@ export const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
       <div
         className={styles.rivalGroup}
         role="group"
-        aria-label={`Acciones del rival ${rivalName}`}
+        aria-label={`Faltas del rival ${rivalName}`}
         data-tour="live-rival"
       >
         <span className={styles.rivalLabel}>
           <ShieldAlert size={ICON_SIZE.sm} aria-hidden="true" />
           <span className={styles.rivalName}>{rivalName}</span>
         </span>
-        {RIVAL_ACTIONS.map((action) => (
-          <button
-            key={action.type}
-            type="button"
-            className={styles.rivalBtn}
-            aria-label={action.ariaLabel}
-            onClick={() => onRivalAction(action.type)}
-          >
-            {action.label}
-          </button>
-        ))}
         <button
           type="button"
           className={styles.rivalFoulBtn}
           aria-label="Registrar falta del rival"
-          onClick={() => onRivalAction('FOUL_PERSONAL')}
+          onClick={onRivalFoul}
         >
           Falta
+        </button>
+        <button
+          type="button"
+          className={styles.rivalUndoBtn}
+          aria-label="Deshacer la última falta del rival"
+          onClick={onUndoRivalFoul}
+          disabled={!hasRivalFoul}
+        >
+          <Undo2 size={ICON_SIZE.sm} aria-hidden="true" />
+          Deshacer falta
         </button>
       </div>
     )}

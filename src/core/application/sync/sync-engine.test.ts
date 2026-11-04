@@ -23,6 +23,8 @@ function harness(initial: Partial<SyncStoreData> = {}) {
     teams: [makeTeam()],
     players: [makePlayer({ id: 'p1' })],
     matches: [],
+    chartCodes: [],
+    rivalTeams: [],
   };
   const clubListeners = new Set<() => void>();
   let store: SyncStoreData = {

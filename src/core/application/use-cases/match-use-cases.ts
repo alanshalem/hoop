@@ -5,8 +5,17 @@ import type {
   Quarter,
 } from '@/core/domain/entities/match.types';
 import type { CourtCoordinates } from '@/core/domain/value-objects/coordinates';
-import { getPlayerFoulsFromEvents } from '@/core/domain/rules/basketball-rules';
-import { RIVAL_TEAM_ID } from '@/core/domain/rules/event-rules';
+import {
+  CHART_CATALOG,
+  DEFAULT_CHART_POINTS,
+  findChartCode,
+  type ChartCatalog,
+  type ChartCategory,
+  type ChartEntry,
+  type ChartPoints,
+} from '@/core/domain/entities/chart.types';
+import type { RivalPlayer } from '@/core/domain/entities/rival.types';
+import { isFoulEvent, RIVAL_TEAM_ID } from '@/core/domain/rules/event-rules';
 import {
   clampGameClock,
   crossesHalftime,
@@ -55,14 +64,29 @@ export interface RecordEventInput {
 
 /** HALFTIME: the interval after Q2 (FIBA) accepts no plays and no timeouts. */
 export type RecordEventReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'INVALID_EVENT';
-export type UndoReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'NO_EVENTS';
-export type SubstitutionReason =
+export type UndoRivalFoulReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'NO_RIVAL_FOULS';
+
+export interface RecordChartEntryInput {
+  category: ChartCategory;
+  code: string;
+  /** Own player involved; omitted for team-level entries. */
+  playerId?: string;
+  /** POINTS_ALLOWED: basket allowed (defaults to 2). OFFENSE: points scored, only when `made`. */
+  points?: ChartPoints;
+  /** Required for OFFENSE: whether the action ended in a basket (S11). */
+  made?: boolean;
+  /** POINTS_ALLOWED and OFFENSE only: rival player involved (S14). */
+  rivalPlayerId?: string;
+  clockSeconds?: number;
+}
+
+export type RecordChartReason =
   | 'MATCH_NOT_LIVE'
   | 'HALFTIME'
-  | 'PLAYER_NOT_ON_COURT'
-  | 'PLAYER_ALREADY_ON_COURT'
-  | 'PLAYER_NOT_IN_ROSTER'
-  | 'PLAYER_FOULED_OUT';
+  | 'INVALID_CHART_CODE'
+  | 'INVALID_CHART_RESULT'
+  | 'INVALID_RIVAL_PLAYER';
+export type UndoChartReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'NO_CHART_ENTRIES';
 
 export type RequestTimeoutResult =
   | { ok: true; match: Match; remaining: number }
@@ -175,63 +199,118 @@ export function recordEvent(
   return { ok: true, match: next };
 }
 
-export function undoLastEvent(match: Match): MatchResult<UndoReason> {
-  const refusal = notLiveReason(match);
-  if (refusal) return { ok: false, reason: refusal };
-  const last = match.events.at(-1);
-  if (!last) return { ok: false, reason: 'NO_EVENTS' };
-
-  const sub = last.isOwnTeam ? last.substitution : undefined;
-  const activeLineupOwn = sub
-    ? match.activeLineupOwn.map((id) => (id === sub.playerInId ? sub.playerOutId : id))
-    : match.activeLineupOwn;
-
-  return {
-    ok: true,
-    match: withDerivedScoreboard({
-      ...match,
-      activeLineupOwn,
-      events: match.events.slice(0, -1),
-    }),
-  };
+/** Rival fouls feed the rival bonus; whether one can be undone drives the toolbar (S15). */
+export function isRivalFoul(event: PlayByPlayEvent): boolean {
+  return !event.isOwnTeam && isFoulEvent(event.type);
 }
 
-export function substitutePlayer(
-  match: Match,
-  playerOutId: string,
-  playerInId: string,
-  ctx: UseCaseContext
-): MatchResult<SubstitutionReason> {
+/** Removes the last rival foul (S15); every other event, chart entries included, stays. */
+export function undoLastRivalFoul(match: Match): MatchResult<UndoRivalFoulReason> {
   const refusal = notLiveReason(match);
   if (refusal) return { ok: false, reason: refusal };
-  if (!match.activeLineupOwn.includes(playerOutId)) {
-    return { ok: false, reason: 'PLAYER_NOT_ON_COURT' };
+  const lastIndex = match.events.findLastIndex(isRivalFoul);
+  if (lastIndex === -1) return { ok: false, reason: 'NO_RIVAL_FOULS' };
+  const events = match.events.filter((_, i) => i !== lastIndex);
+  return { ok: true, match: withDerivedScoreboard({ ...match, events }) };
+}
+
+/**
+ * Only active codes of the club's catalog (the built-in one by default) can be recorded (S9).
+ * A rival player must belong to `rivalRoster`, the match rival roster, when it is given (S14).
+ */
+export function recordChartEntry(
+  match: Match,
+  input: RecordChartEntryInput,
+  ctx: UseCaseContext,
+  catalog: ChartCatalog = CHART_CATALOG,
+  rivalRoster?: readonly RivalPlayer[]
+): MatchResult<RecordChartReason> {
+  const refusal = notLiveReason(match);
+  if (refusal) return { ok: false, reason: refusal };
+  const chartCode = findChartCode(input.category, input.code, catalog);
+  if (!chartCode || chartCode.archived) return { ok: false, reason: 'INVALID_CHART_CODE' };
+  const isPointsAllowed = input.category === 'POINTS_ALLOWED';
+  const isOffense = input.category === 'OFFENSE';
+  // Offensive actions always carry their result: made with its points, or missed without points (S11).
+  if (isOffense) {
+    if (input.made === undefined) return { ok: false, reason: 'INVALID_CHART_RESULT' };
+    if (input.made !== (input.points !== undefined)) return { ok: false, reason: 'INVALID_CHART_RESULT' };
+  } else {
+    if (input.made !== undefined) return { ok: false, reason: 'INVALID_CHART_RESULT' };
+    if (!isPointsAllowed && input.points !== undefined) return { ok: false, reason: 'INVALID_CHART_CODE' };
   }
-  if (match.activeLineupOwn.includes(playerInId)) {
-    return { ok: false, reason: 'PLAYER_ALREADY_ON_COURT' };
-  }
-  if (!match.rosterOwnPlayerIds.includes(playerInId)) {
-    return { ok: false, reason: 'PLAYER_NOT_IN_ROSTER' };
-  }
-  if (getPlayerFoulsFromEvents(playerInId, match.events).isFouledOut) {
-    return { ok: false, reason: 'PLAYER_FOULED_OUT' };
+  if (input.rivalPlayerId !== undefined) {
+    const allowsRival = isPointsAllowed || isOffense;
+    const inRoster = !rivalRoster || rivalRoster.some((player) => player.id === input.rivalPlayerId);
+    if (!allowsRival || !input.rivalPlayerId || !inRoster) return { ok: false, reason: 'INVALID_RIVAL_PLAYER' };
   }
 
-  const withLineup: Match = {
-    ...match,
-    activeLineupOwn: match.activeLineupOwn.map((id) => (id === playerOutId ? playerInId : id)),
-  };
+  const clocked =
+    input.clockSeconds === undefined ? match : setClock(match, input.clockSeconds);
+  let chart = buildChartEntry(input, isPointsAllowed, isOffense);
+  let scored = clocked;
+  // Points allowed go to the rival and made offensive actions to the own team, as a real scoring play (S12).
+  const scoringType = chart.points !== undefined ? SCORING_PLAY_BY_POINTS[chart.points] : undefined;
+  if (scoringType) {
+    const scoreEventId = `${ctx.id}-score`;
+    const ownTeamScores = isOffense;
+    scored = appendEvent(
+      clocked,
+      {
+        teamId: ownTeamScores ? match.ownTeamId : RIVAL_TEAM_ID,
+        isOwnTeam: ownTeamScores,
+        playerId: ownTeamScores ? input.playerId : undefined,
+        type: scoringType,
+      },
+      { ...ctx, id: scoreEventId }
+    );
+    chart = { ...chart, scoreEventId };
+  }
   const next = appendEvent(
-    withLineup,
+    scored,
     {
       teamId: match.ownTeamId,
       isOwnTeam: true,
-      type: 'SUBSTITUTION',
-      substitution: { playerInId, playerOutId },
+      playerId: input.playerId,
+      type: 'CHART',
+      chart,
     },
     ctx
   );
   return { ok: true, match: next };
+}
+
+const SCORING_PLAY_BY_POINTS: Record<ChartPoints, PlayByPlayEventType> = {
+  1: 'FT_MADE',
+  2: 'FG2_MADE',
+  3: 'FG3_MADE',
+};
+
+/** Removes the events at `index` plus everything linked to it through a chart entry's scoring play. */
+function withoutLinked(match: Match, index: number): Match {
+  const target = match.events[index];
+  const linkedIds = new Set<string>();
+  if (target.chart?.scoreEventId) linkedIds.add(target.chart.scoreEventId);
+  const events = match.events.filter(
+    (event, i) => i !== index && !linkedIds.has(event.id) && event.chart?.scoreEventId !== target.id
+  );
+  return withDerivedScoreboard({ ...match, events });
+}
+
+function buildChartEntry(input: RecordChartEntryInput, isPointsAllowed: boolean, isOffense: boolean): ChartEntry {
+  const base: ChartEntry = { category: input.category, code: input.code };
+  if (input.rivalPlayerId !== undefined) base.rivalPlayerId = input.rivalPlayerId;
+  if (isPointsAllowed) return { ...base, points: input.points ?? DEFAULT_CHART_POINTS };
+  if (isOffense) return input.made ? { ...base, made: true, points: input.points } : { ...base, made: false };
+  return base;
+}
+
+export function undoLastChartEntry(match: Match): MatchResult<UndoChartReason> {
+  const refusal = notLiveReason(match);
+  if (refusal) return { ok: false, reason: refusal };
+  const lastIndex = match.events.findLastIndex((event) => event.type === 'CHART');
+  if (lastIndex === -1) return { ok: false, reason: 'NO_CHART_ENTRIES' };
+  return { ok: true, match: withoutLinked(match, lastIndex) };
 }
 
 /** Uses the match clock, so the last-2-minutes rule of Q4 applies (FIBA Art. 18.2.5). */

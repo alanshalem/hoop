@@ -15,7 +15,9 @@ describe('database seed', () => {
   let connection: DatabaseConnection;
   const seed = createSeedState(new Date());
   const userIds = seed.users.map((user) => user.id);
-  const recordIds = [...seed.divisions, ...seed.teams, ...seed.players, ...seed.matches].map((entity) => entity.id);
+  const recordIds = [...seed.divisions, ...seed.teams, ...seed.players, ...seed.matches, ...seed.rivalTeams].map(
+    (entity) => entity.id
+  );
   const eventIds = seed.matches.flatMap((match) => match.events.map((event) => event.id));
 
   async function counts() {
@@ -130,6 +132,17 @@ describe('database seed', () => {
 
     assert.ok(!JSON.stringify(summary).includes('scrypt$'), 'summary never exposes hashes');
     assert.deepStrictEqual(Object.keys(summary.accounts[0]).sort(), ['email', 'name', 'role']);
+  });
+
+  it('stores the seed rival teams as rivalTeam records (S14)', async () => {
+    await seedDatabase(connection.db, { now: new Date(), demoPassword: DEMO_PASSWORD });
+    const rows = await connection.db
+      .select({ id: syncRecords.id, data: syncRecords.data })
+      .from(syncRecords)
+      .where(eq(syncRecords.kind, 'rivalTeam'));
+    for (const team of seed.rivalTeams) {
+      assert.deepStrictEqual(rows.find((row) => row.id === team.id)?.data, team, team.id);
+    }
   });
 
   it('stores matches without embedded events', async () => {

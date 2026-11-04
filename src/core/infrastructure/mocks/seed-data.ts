@@ -1,5 +1,6 @@
 import { Division, Player, Team, User } from '@/core/domain/entities/club.types';
 import { Match } from '@/core/domain/entities/match.types';
+import type { RivalPlayer, RivalTeam } from '@/core/domain/entities/rival.types';
 import { createMatch } from '@/core/application/use-cases/match-use-cases';
 import { withDerivedScoreboard } from '@/core/domain/rules/match-derivations';
 import { generatePlayByPlay, PeriodPlan } from './play-by-play-generator';
@@ -523,12 +524,70 @@ export function createSeedMatches(now: Date): Match[] {
   ];
 }
 
+type RivalPlayerRow = [dorsal: number, firstName: string, lastName: string];
+
+/** Players get stable ids `<teamId>-p<n>` in roster order. */
+function seedRivalTeam(id: string, name: string, rows: RivalPlayerRow[]): RivalTeam {
+  const players: RivalPlayer[] = rows.map(([dorsal, firstName, lastName], index) => ({
+    id: `${id}-p${index + 1}`,
+    dorsal,
+    firstName,
+    lastName,
+  }));
+  return { id, clubId: SEED_CLUB_ID, divisionId: 'div-primera', name, players };
+}
+
+/** Rival rosters (S14): the live match rival, the rival of the last finished match and the next rival. */
+export const SEED_RIVAL_TEAMS: RivalTeam[] = [
+  seedRivalTeam('rival-obras', 'Obras Sanitarias', [
+    [1, 'Martín', 'Aguirre'],
+    [4, 'Tomás', 'Benítez'],
+    [5, 'Federico', 'Cáceres'],
+    [7, 'Lautaro', 'Domínguez'],
+    [8, 'Ignacio', 'Ferraro'],
+    [10, 'Matías', 'Giménez'],
+    [11, 'Nahuel', 'Herrera'],
+    [13, 'Joaquín', 'Ledesma'],
+    [15, 'Emiliano', 'Medina'],
+    [21, 'Gonzalo', 'Olivera'],
+    [32, 'Franco', 'Peralta'],
+    [44, 'Ramiro', 'Sosa'],
+  ]),
+  seedRivalTeam('rival-ferro', 'Ferro Carril Oeste', [
+    [0, 'Bruno', 'Acosta'],
+    [2, 'Iván', 'Castro'],
+    [6, 'Leonel', 'Díaz'],
+    [9, 'Facundo', 'Ríos'],
+    [12, 'Agustín', 'Morales'],
+    [14, 'Valentín', 'Ortiz'],
+    [17, 'Nicolás', 'Paz'],
+    [20, 'Santino', 'Quiroga'],
+    [24, 'Mauro', 'Romero'],
+    [33, 'Ezequiel', 'Vega'],
+  ]),
+  seedRivalTeam('rival-boca', 'Boca Juniors', [
+    [3, 'Lucas', 'Fernández'],
+    [5, 'Thiago', 'Suárez'],
+    [6, 'Maximiliano', 'Rojas'],
+    [7, 'Juan Cruz', 'Molina'],
+    [9, 'Pablo', 'Navarro'],
+    [11, 'Damián', 'Luna'],
+    [14, 'Gabriel', 'Ponce'],
+    [18, 'Cristian', 'Silva'],
+    [22, 'Rodrigo', 'Torres'],
+    [23, 'Alan', 'Vera'],
+    [30, 'Kevin', 'Godoy'],
+    [41, 'Esteban', 'Ruiz'],
+  ]),
+];
+
 export interface SeedState {
   users: User[];
   divisions: Division[];
   teams: Team[];
   players: Player[];
   matches: Match[];
+  rivalTeams: RivalTeam[];
 }
 
 export function createSeedState(now: Date = new Date()): SeedState {
@@ -538,5 +597,6 @@ export function createSeedState(now: Date = new Date()): SeedState {
     teams: SEED_TEAMS,
     players: SEED_PLAYERS,
     matches: createSeedMatches(now),
+    rivalTeams: SEED_RIVAL_TEAMS,
   };
 }

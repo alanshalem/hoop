@@ -1,0 +1,15 @@
+.form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .fullRow {
+    grid-column: 1 / -1;
+  }
+}

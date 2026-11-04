@@ -7,26 +7,41 @@ import type {
 } from '@/core/domain/entities/club.types';
 import type {
   Match,
-  PlayByPlayEvent,
   Quarter,
 } from '@/core/domain/entities/match.types';
 import { withDerivedScoreboard } from '@/core/domain/rules/match-derivations';
+import type { ChartCategory } from '@/core/domain/entities/chart.types';
+import * as chartCatalog from '@/core/application/use-cases/chart-catalog-use-cases';
 import * as club from '@/core/application/use-cases/club-use-cases';
 import * as matchUseCases from '@/core/application/use-cases/match-use-cases';
+import * as rivalUseCases from '@/core/application/use-cases/rival-team-use-cases';
+import type {
+  ChartCodeEditReason,
+  ChartCodeTextReason,
+  ChartCodeUpdates,
+  NewChartCodeInput,
+} from '@/core/application/use-cases/chart-catalog-use-cases';
 import type {
   ClubData,
   NewDivisionInput,
 } from '@/core/application/use-cases/club-use-cases';
 import type {
+  NewRivalTeamInput,
+  RivalPlayerInput,
+  RivalPlayerReason,
+} from '@/core/application/use-cases/rival-team-use-cases';
+import type {
   CreateMatchInput,
   MatchResult,
+  RecordChartEntryInput,
+  RecordChartReason,
   RecordEventInput,
   RecordEventReason,
   RequestTimeoutResult,
   StartMatchResult,
-  SubstitutionReason,
   TeamSide,
-  UndoReason,
+  UndoChartReason,
+  UndoRivalFoulReason,
 } from '@/core/application/use-cases/match-use-cases';
 import { CLUB_PROFILE } from '@/core/infrastructure/mocks/seed-data';
 import { reconcileSelection } from '@/core/application/sync/pull-merge';
@@ -35,7 +50,10 @@ import {
   CLUB_STORE_VERSION,
   ClubDataState,
   createInitialClubState,
+  mergePersistedClubState,
   migrateClubState,
+  selectChartCatalog,
+  selectRivalRoster,
 } from './club-state';
 import { CLUB_STORAGE_KEY, gatedLocalStorage } from './persistence-gate';
 
@@ -94,13 +112,54 @@ export interface ClubStoreState extends ClubDataState {
     matchId: string,
     input: RecordEventInput
   ) => MatchResult<RecordEventReason> | MatchNotFound;
-  undoLastEvent: (matchId: string) => MatchResult<UndoReason> | MatchNotFound;
-  substitutePlayer: (
+  /** Removes the last rival foul (S15). */
+  undoLastRivalFoul: (matchId: string) => MatchResult<UndoRivalFoulReason> | MatchNotFound;
+  recordChartEntry: (
     matchId: string,
-    playerOutId: string,
-    playerInId: string,
-    clockSeconds?: number
-  ) => MatchResult<SubstitutionReason> | MatchNotFound;
+    input: RecordChartEntryInput
+  ) => MatchResult<RecordChartReason> | MatchNotFound;
+  undoLastChartEntry: (matchId: string) => MatchResult<UndoChartReason> | MatchNotFound;
+
+  // Chart catalog (S9): read it with `selectChartCatalog`
+  /** Adds a custom code to a category; returns its code. */
+  createChartCode: (
+    input: NewChartCodeInput
+  ) => { ok: true; code: string } | { ok: false; reason: ChartCodeTextReason };
+  /** Edits symbol, label or tone of a built-in or custom code. */
+  updateChartCode: (
+    category: ChartCategory,
+    code: string,
+    updates: ChartCodeUpdates
+  ) => ActionResult<ChartCodeEditReason>;
+  /** Archived codes leave the live pad; old entries keep rendering. */
+  setChartCodeArchived: (
+    category: ChartCategory,
+    code: string,
+    archived: boolean
+  ) => ActionResult<'CHART_CODE_NOT_FOUND'>;
+
+  // Rival rosters (S14): a match resolves its roster with `selectRivalRoster`
+  /** Adds an empty rival team to a division; returns its id. */
+  createRivalTeam: (
+    input: NewRivalTeamInput
+  ) => { ok: true; id: string } | { ok: false; reason: 'INVALID_NAME' };
+  renameRivalTeam: (teamId: string, name: string) => ActionResult<'INVALID_NAME' | 'RIVAL_TEAM_NOT_FOUND'>;
+  deleteRivalTeam: (teamId: string) => ActionResult<'RIVAL_TEAM_NOT_FOUND'>;
+  /** Returns the new player's id. */
+  addRivalPlayer: (
+    teamId: string,
+    input: RivalPlayerInput
+  ) => { ok: true; playerId: string } | { ok: false; reason: RivalPlayerReason | 'RIVAL_TEAM_NOT_FOUND' };
+  updateRivalPlayer: (
+    teamId: string,
+    playerId: string,
+    updates: Partial<RivalPlayerInput>
+  ) => ActionResult<RivalPlayerReason | 'PLAYER_NOT_FOUND' | 'RIVAL_TEAM_NOT_FOUND'>;
+  removeRivalPlayer: (
+    teamId: string,
+    playerId: string
+  ) => ActionResult<'PLAYER_NOT_FOUND' | 'RIVAL_TEAM_NOT_FOUND'>;
+
   /** Consumes a FIBA timeout; refusal comes back as NO_TIMEOUTS_LEFT. */
   requestTimeout: (
     matchId: string,
@@ -120,14 +179,6 @@ export interface ClubStoreState extends ClubDataState {
     matchId: string,
     clockSeconds?: number
   ) => MatchResult<'MATCH_NOT_LIVE'> | MatchNotFound;
-
-  /** @deprecated Use recordEvent. */
-  addPlayByPlayEvent: (
-    matchId: string,
-    event: Omit<PlayByPlayEvent, 'id' | 'timestamp' | 'scoreAtEvent'>
-  ) => void;
-  /** @deprecated Use undoLastEvent. */
-  undoLastPlayByPlayEvent: (matchId: string) => void;
 }
 
 type MatchOutcome = { ok: true; match: Match } | { ok: false; reason: string };
@@ -256,17 +307,87 @@ export const useClubStore = create<ClubStoreState>()(
         recordEvent: (matchId, input) =>
           runMatchUseCase(matchId, (m) => matchUseCases.recordEvent(m, input, eventContext())),
 
-        undoLastEvent: (matchId) => runMatchUseCase(matchId, matchUseCases.undoLastEvent),
+        undoLastRivalFoul: (matchId) => runMatchUseCase(matchId, matchUseCases.undoLastRivalFoul),
 
-        substitutePlayer: (matchId, playerOutId, playerInId, clockSeconds) =>
+        recordChartEntry: (matchId, input) =>
           runMatchUseCase(matchId, (m) =>
-            matchUseCases.substitutePlayer(
-              withClock(m, clockSeconds),
-              playerOutId,
-              playerInId,
-              eventContext()
+            matchUseCases.recordChartEntry(
+              m,
+              input,
+              eventContext(),
+              selectChartCatalog(get()),
+              selectRivalRoster(get(), m)
             )
           ),
+
+        undoLastChartEntry: (matchId) => runMatchUseCase(matchId, matchUseCases.undoLastChartEntry),
+
+        createChartCode: (input) => {
+          const result = chartCatalog.createChartCode(get().chartCodes, input, {
+            id: createId('cc'),
+            clubId: CLUB_PROFILE.id,
+          });
+          if (!result.ok) return result;
+          set({ chartCodes: result.chartCodes });
+          return { ok: true, code: result.code };
+        },
+
+        updateChartCode: (category, code, updates) => {
+          const result = chartCatalog.updateChartCode(get().chartCodes, category, code, updates, {
+            clubId: CLUB_PROFILE.id,
+          });
+          if (result.ok) set({ chartCodes: result.chartCodes });
+          return toActionResult(result);
+        },
+
+        setChartCodeArchived: (category, code, archived) => {
+          const result = chartCatalog.setChartCodeArchived(get().chartCodes, category, code, archived, {
+            clubId: CLUB_PROFILE.id,
+          });
+          if (result.ok) set({ chartCodes: result.chartCodes });
+          return toActionResult(result);
+        },
+
+        createRivalTeam: (input) => {
+          const result = rivalUseCases.createRivalTeam(get().rivalTeams, input, {
+            id: createId('rival'),
+            clubId: CLUB_PROFILE.id,
+          });
+          if (!result.ok) return result;
+          set({ rivalTeams: result.rivalTeams });
+          return { ok: true, id: result.id };
+        },
+
+        renameRivalTeam: (teamId, name) => {
+          const result = rivalUseCases.renameRivalTeam(get().rivalTeams, teamId, name);
+          if (result.ok) set({ rivalTeams: result.rivalTeams });
+          return toActionResult(result);
+        },
+
+        deleteRivalTeam: (teamId) => {
+          const result = rivalUseCases.deleteRivalTeam(get().rivalTeams, teamId);
+          if (result.ok) set({ rivalTeams: result.rivalTeams });
+          return toActionResult(result);
+        },
+
+        addRivalPlayer: (teamId, input) => {
+          const result = rivalUseCases.addRivalPlayer(get().rivalTeams, teamId, input, { id: createId('rp') });
+          if (!result.ok) return result;
+          set({ rivalTeams: result.rivalTeams });
+          return { ok: true, playerId: result.playerId };
+        },
+
+        updateRivalPlayer: (teamId, playerId, updates) => {
+          const result = rivalUseCases.updateRivalPlayer(get().rivalTeams, teamId, playerId, updates);
+          if (result.ok) set({ rivalTeams: result.rivalTeams });
+          return toActionResult(result);
+        },
+
+        removeRivalPlayer: (teamId, playerId) => {
+          const result = rivalUseCases.removeRivalPlayer(get().rivalTeams, teamId, playerId);
+          if (result.ok) set({ rivalTeams: result.rivalTeams });
+          return toActionResult(result);
+        },
 
         requestTimeout: (matchId, side, clockSeconds) =>
           runMatchUseCase(matchId, (m) =>
@@ -285,21 +406,6 @@ export const useClubStore = create<ClubStoreState>()(
 
         finishMatch: (matchId, clockSeconds) =>
           runMatchUseCase(matchId, (m) => matchUseCases.finishMatch(withClock(m, clockSeconds))),
-
-        addPlayByPlayEvent: (matchId, event) => {
-          get().recordEvent(matchId, {
-            type: event.type,
-            isOwnTeam: event.isOwnTeam,
-            playerId: event.playerId,
-            assistedByPlayerId: event.assistedByPlayerId,
-            coordinates: event.coordinates,
-            clockSeconds: event.quarterTimeRemainingSeconds,
-          });
-        },
-
-        undoLastPlayByPlayEvent: (matchId) => {
-          get().undoLastEvent(matchId);
-        },
       };
     },
     {
@@ -316,8 +422,12 @@ export const useClubStore = create<ClubStoreState>()(
         players: state.players,
         matches: state.matches,
         activeMatchId: state.activeMatchId,
+        chartCodes: state.chartCodes,
+        rivalTeams: state.rivalTeams,
       }),
       migrate: (persisted, version) => migrateClubState(persisted, version),
+      // New synced fields default without a version bump, so local data is not reseeded (L9).
+      merge: (persisted, current) => mergePersistedClubState(persisted, current),
     }
   )
 );

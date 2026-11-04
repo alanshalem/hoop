@@ -78,6 +78,7 @@ export async function seedDatabase(db: Database, { now, demoPassword }: SeedOpti
     ...seed.teams.map((team) => validRecord('team', team, now)),
     ...seed.players.map((player) => validRecord('player', player, now)),
     ...seed.matches.map((match) => validRecord('match', match, now)),
+    ...seed.rivalTeams.map((team) => validRecord('rivalTeam', team, now)),
   ];
 
   const events: EventWrite[] = seed.matches.flatMap((match) =>

@@ -143,7 +143,7 @@ function browser(initial: SyncableClubData, owner = 'u1') {
   };
 }
 
-const club = (m: Match): SyncableClubData => ({ divisions: [makeDivision()], teams: [makeTeam()], players: [makePlayer({ id: 'p1' })], matches: [m] });
+const club = (m: Match): SyncableClubData => ({ divisions: [makeDivision()], teams: [makeTeam()], players: [makePlayer({ id: 'p1' })], matches: [m], chartCodes: [], rivalTeams: [] });
 const live = makeMatch({ status: 'LIVE', currentQuarter: 'Q2', quarterTimeRemainingSeconds: 300, events: [] });
 const gameState = (m: Pick<Match, 'status' | 'currentQuarter' | 'quarterTimeRemainingSeconds'>) => ({
   status: m.status,

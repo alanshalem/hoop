@@ -1,0 +1,16 @@
+.form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+.division {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+
+.note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

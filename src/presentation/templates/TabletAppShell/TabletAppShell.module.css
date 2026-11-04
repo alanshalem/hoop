@@ -252,7 +252,7 @@
   min-width: 0;
 }
 
-.mobileHelpLink {
+.mobileTopLink {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -264,13 +264,13 @@
   transition: color var(--transition-fast), background-color var(--transition-fast);
 }
 
-.mobileHelpLink:hover {
+.mobileTopLink:hover {
   color: var(--text-primary);
   background-color: var(--bg-surface-2);
 }
 
-.mobileHelpLinkActive,
-.mobileHelpLinkActive:hover {
+.mobileTopLinkActive,
+.mobileTopLinkActive:hover {
   color: var(--brand-primary-ink);
   background-color: var(--brand-primary-subtle);
 }
@@ -395,5 +395,92 @@
     height: auto;
     overflow: visible;
     padding-bottom: 0;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   COLLAPSIBLE NAVIGATION: hide the rail (tablet) or the bottom bar (phone) so
+   wide content such as the sheet or the box score gets the whole screen.
+   ----------------------------------------------------------------------------- */
+.railTop {
+  position: relative;
+}
+
+.railToggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-2);
+  color: var(--text-secondary);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.railToggle:hover {
+  color: var(--text-primary);
+}
+
+/* Rendered only while the navigation is hidden: always visible, in the brand red, so it is found at once. */
+.floatingNavToggle {
+  position: fixed;
+  right: var(--space-3);
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+  z-index: var(--z-sticky);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-lg);
+  padding: 0 var(--space-5);
+  border: 2px solid var(--brand-white);
+  border-radius: var(--radius-full);
+  background-color: var(--brand-primary);
+  box-shadow: 0 6px 18px var(--brand-primary-glow);
+  color: var(--text-on-brand);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.floatingNavToggle:active {
+  transform: scale(0.97);
+}
+
+@media (min-width: 768px) {
+  .navCollapsed .navRail {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .navCollapsed .bottomBar {
+    display: none;
+  }
+
+  .navCollapsed .mainContent {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom)); /* clearance for the floating Menú button */
+  }
+}
+
+/* Keep the brand text clear of the hide button. */
+.navRail .brandSection {
+  padding-right: calc(var(--touch-min) + var(--space-2));
+}
+
+/* Narrow phones: the crest alone identifies the app, so the top bar keeps every action visible. */
+@media (max-width: 419px) {
+  .mobileBrandTitle {
+    display: none;
   }
 }

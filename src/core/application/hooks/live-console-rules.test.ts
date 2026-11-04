@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { getPeriodEndAction, getSelectableQuarters } from './live-console-rules';
+import { makePlayer } from '@/core/testing/fixtures';
+import { getPeriodEndAction, getRosterPlayers, getSelectableQuarters } from './live-console-rules';
 
 describe('getSelectableQuarters', () => {
   it('offers only regulation quarters before the 4th quarter', () => {
@@ -39,5 +40,21 @@ describe('getPeriodEndAction', () => {
 
   it('has nothing to offer when tied after the last supported overtime', () => {
     assert.deepStrictEqual(getPeriodEndAction('OT4', { own: 99, rival: 99 }), { kind: 'NONE' });
+  });
+});
+
+describe('getRosterPlayers (S15)', () => {
+  it('lists every called-up player by dorsal, on court or not, skipping unknown ids', () => {
+    const players = [
+      makePlayer({ id: 'p1', dorsal: 29 }),
+      makePlayer({ id: 'p2', dorsal: 4 }),
+      makePlayer({ id: 'p3', dorsal: 11 }),
+      makePlayer({ id: 'p4', dorsal: 7 }),
+    ];
+    assert.deepStrictEqual(
+      getRosterPlayers(['p1', 'p3', 'p2', 'p-gone'], players).map((player) => player.id),
+      ['p2', 'p3', 'p1']
+    );
+    assert.deepStrictEqual(getRosterPlayers([], players), []);
   });
 });

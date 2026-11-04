@@ -168,6 +168,12 @@ function applyRecord(collections: Collections, record: SyncRecord, touchedMatche
     case 'player':
       collections.player.set(record.id, record.data);
       break;
+    case 'chartCode':
+      collections.chartCode.set(record.id, record.data);
+      break;
+    case 'rivalTeam':
+      collections.rivalTeam.set(record.id, record.data);
+      break;
     case 'match': {
       const local = collections.match.get(record.id);
       collections.match.set(record.id, { ...record.data, events: local?.events ?? [] });
@@ -187,7 +193,7 @@ function applyRecord(collections: Collections, record: SyncRecord, touchedMatche
  * newer or equal version of is dropped, exactly as in an incremental pull.
  */
 export function applyServerSnapshot(pulled: PulledChanges, outbox: Outbox = createEmptyOutbox()): MergeState {
-  const empty: SyncableClubData = { divisions: [], teams: [], players: [], matches: [] };
+  const empty: SyncableClubData = { divisions: [], teams: [], players: [], matches: [], chartCodes: [], rivalTeams: [] };
   const merged = mergePulledChanges({ data: empty, versions: {}, outbox }, pulled);
   return reapplyOutbox(merged);
 }

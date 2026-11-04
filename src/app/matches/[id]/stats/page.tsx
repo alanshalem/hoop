@@ -8,6 +8,7 @@ import type { Match, Quarter } from '@/core/domain/entities/match.types';
 import type { ShootingStats } from '@/core/domain/rules/basketball-rules';
 import { calculateMatchBoxScore, getQuarterPartials } from '@/core/domain/rules/match-derivations';
 import { useClubStore } from '@/core/application/stores/useClubStore';
+import { selectChartCatalog, selectRivalRoster } from '@/core/application/stores/club-state';
 import {
   ALL_SHOTS,
   calculateShotEffectiveness,
@@ -23,6 +24,7 @@ import { FilterChip } from '@/presentation/atoms/FilterChip/FilterChip';
 import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
 import { BoxScoreTable } from '@/presentation/organisms/BoxScoreTable/BoxScoreTable';
 import { QuarterPartialsTable } from '@/presentation/organisms/QuarterPartialsTable/QuarterPartialsTable';
+import { ChartSheetTable } from '@/presentation/organisms/ChartSheetTable/ChartSheetTable';
 import { HalfCourtShotChart } from '@/presentation/organisms/HalfCourtShotChart/HalfCourtShotChart';
 import { QUARTER_SHORT_LABELS } from '@/presentation/organisms/ScoreboardHeader/quarter-labels';
 import { MatchStatusBadge } from '@/presentation/organisms/MatchCard/MatchStatusBadge';
@@ -103,6 +105,9 @@ const EffectivenessTile: React.FC<{ label: string; stats: ShootingStats }> = ({ 
 
 function MatchStats({ match }: { match: Match }) {
   const players = useClubStore((state) => state.players);
+  const chartCatalog = useClubStore(selectChartCatalog);
+  // Stable reference: the rival team's players, or one shared empty list (S14).
+  const rivalRoster = useClubStore((state) => selectRivalRoster(state, match));
   const [quarterFilter, setQuarterFilter] = useState<Quarter | typeof ALL_SHOTS>(ALL_SHOTS);
   const [playerFilter, setPlayerFilter] = useState<string>(ALL_SHOTS);
   // A scheduled match shows a gate without the sheet, so it declares no tour.
@@ -189,6 +194,19 @@ function MatchStats({ match }: { match: Match }) {
           </div>
         </section>
 
+        <SectionCard
+          title="Planilla"
+          icon={ClipboardList}
+          description="Planilla táctica cargada en vivo: azul = acción positiva, rojo = negativa."
+        >
+          <ChartSheetTable
+            events={match.events}
+            players={players}
+            catalog={chartCatalog}
+            rivalPlayers={rivalRoster}
+          />
+        </SectionCard>
+
         <SectionCard title="Parciales por período" icon={Table2} data-tour="stats-partials">
           <QuarterPartialsTable partials={partials} ownName={match.ownTeamName} rivalName={match.rivalTeamName} />
         </SectionCard>
@@ -249,8 +267,8 @@ function MatchStats({ match }: { match: Match }) {
               {unplacedShots > 0 && (
                 <p className={styles.note}>
                   {unplacedShots === 1
-                    ? '1 tiro registrado desde el pad no tiene ubicación en el mapa.'
-                    : `${unplacedShots} tiros registrados desde el pad no tienen ubicación en el mapa.`}
+                    ? '1 tiro registrado sin ubicación no aparece en el mapa.'
+                    : `${unplacedShots} tiros registrados sin ubicación no aparecen en el mapa.`}
                 </p>
               )}
             </div>

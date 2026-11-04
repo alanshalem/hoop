@@ -1,23 +1,24 @@
 # Manual del sistema Hoop · Club Atlético Monte Grande
 
-Hoop es el sistema de básquet del Club Atlético Monte Grande (CAMG): divisiones, planteles, calendario de partidos y estadísticas FIBA registradas en vivo desde una tablet al borde de la cancha. Este manual describe el sistema tal como está implementado hoy, primero para quien lo usa y después para quien lo mantiene.
+Hoop es el sistema de básquet del Club Atlético Monte Grande (CAMG). Su núcleo es la planilla táctica que el entrenador carga en vivo durante el partido (ver [Planilla táctica](#2-planilla-táctica-en-vivo)); alrededor de ella están las divisiones, los planteles, el calendario de partidos y las estadísticas FIBA de cada partido (box score, parciales y mapa de tiros). La planilla se carga desde una tablet al borde de la cancha. Este manual describe el sistema tal como está implementado hoy, primero para quien lo usa y después para quien lo mantiene.
 
-> Estado de esta versión: local primero con servidor. Cada cambio se guarda al instante en el navegador y se sincroniza con un servidor PostgreSQL cuando hay conexión. El acceso es con correo y contraseña, y los roles se validan en el servidor (ver [Datos, persistencia y sincronización](#7-datos-persistencia-y-sincronización) y [Servidor y base de datos](#8-servidor-y-base-de-datos)).
+> Estado de esta versión: local primero con servidor. Cada cambio se guarda al instante en el navegador y se sincroniza con un servidor PostgreSQL cuando hay conexión. El acceso es con correo y contraseña, y los roles se validan en el servidor (ver [Datos, persistencia y sincronización](#8-datos-persistencia-y-sincronización) y [Servidor y base de datos](#9-servidor-y-base-de-datos)).
 
 ## Índice
 
 1. [Qué es Hoop](#1-qué-es-hoop)
-2. [Inicio rápido](#2-inicio-rápido)
-3. [Roles y permisos](#3-roles-y-permisos)
-4. [Guía por pantalla](#4-guía-por-pantalla)
-5. [Flujos paso a paso](#5-flujos-paso-a-paso)
-6. [Reglas FIBA aplicadas](#6-reglas-fiba-aplicadas)
-7. [Datos, persistencia y sincronización](#7-datos-persistencia-y-sincronización)
-8. [Servidor y base de datos](#8-servidor-y-base-de-datos)
-9. [Identidad visual](#9-identidad-visual)
-10. [Limitaciones conocidas](#10-limitaciones-conocidas)
-11. [Arquitectura](#11-arquitectura)
-12. [Glosario](#12-glosario)
+2. [Planilla táctica (en vivo)](#2-planilla-táctica-en-vivo)
+3. [Inicio rápido](#3-inicio-rápido)
+4. [Roles y permisos](#4-roles-y-permisos)
+5. [Guía por pantalla](#5-guía-por-pantalla)
+6. [Flujos paso a paso](#6-flujos-paso-a-paso)
+7. [Reglas FIBA aplicadas](#7-reglas-fiba-aplicadas)
+8. [Datos, persistencia y sincronización](#8-datos-persistencia-y-sincronización)
+9. [Servidor y base de datos](#9-servidor-y-base-de-datos)
+10. [Identidad visual](#10-identidad-visual)
+11. [Limitaciones conocidas](#11-limitaciones-conocidas)
+12. [Arquitectura](#12-arquitectura)
+13. [Glosario](#13-glosario)
 
 ---
 
@@ -26,15 +27,173 @@ Hoop es el sistema de básquet del Club Atlético Monte Grande (CAMG): divisione
 | Rasgo                     | Qué significa en la práctica                                                                                                                                        |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Del club                  | Marca, escudo y paleta del Club Atlético Monte Grande (fundado en 1922). Los datos de demostración corresponden al club.                                            |
+| Planilla táctica          | El núcleo del sistema: la planilla "Sistemas" del entrenador, cargada en vivo en dos toques (pérdidas, puntos recibidos, acciones ofensivas y defensivas). Ver la [sección 2](#2-planilla-táctica-en-vivo). |
 | Offline-first             | Cada acción se guarda al instante en el navegador. Un corte de WiFi o 4G en el estadio no interrumpe el registro del partido.                                       |
 | Sincronizado              | Con conexión, los cambios viajan al servidor del club y llegan en vivo a las demás tablets. Sin conexión quedan en una cola y se envían solos cuando vuelve la red. |
 | Tablet-first              | Pensado para tablet (horizontal o vertical) y teléfono. Áreas táctiles de 48 px como mínimo y de 56 px en la consola en vivo. Registro de jugadas en dos toques.    |
-| Reglas FIBA               | Faltas, bonus, tiempos muertos, duración de períodos, convocatoria, PIR y +/- siguen el reglamento FIBA (detalle en la [sección 6](#6-reglas-fiba-aplicadas)).      |
+| Reglas FIBA               | Faltas, bonus, tiempos muertos, duración de períodos, convocatoria, PIR y +/- siguen el reglamento FIBA (detalle en la [sección 7](#7-reglas-fiba-aplicadas)).      |
 | Sin alertas del navegador | Todos los avisos y confirmaciones son modales propios de la aplicación (`notify` y `confirm`). Nunca se usa `alert`, `confirm` ni `prompt` del navegador.           |
 
 ---
 
-## 2. Inicio rápido
+## 2. Planilla táctica (en vivo)
+
+La planilla táctica es el núcleo de Hoop. Es la planilla de papel "Sistemas" del entrenador llevada a la tablet: durante el partido, en vivo, se anota por qué pasaron las cosas (cómo se perdió cada pelota, por qué se recibió cada canasta, qué tiros se tomaron y cómo defendió el equipo), no solo qué pasó. El marcador, el box score y el mapa de tiros complementan a la planilla, pero no la reemplazan.
+
+Cada entrada guarda la categoría, el código, el jugador propio (o **Equipo** si la acción no es de un jugador) y, de forma automática, el período y el reloj del partido en ese momento.
+
+### Cargar la planilla durante el partido
+
+1. Abrir la consola en vivo (`/matches/[id]/live`). La consola es la **Planilla**: no tiene otro modo.
+2. Elegir la categoría en las pestañas: **Pérdidas**, **Puntos recibidos**, **Acciones ofensivas** o **Acciones defensivas**.
+3. En el paso 1, tocar un jugador o **Equipo**. Aparece toda la convocatoria del partido por igual, ordenada por dorsal: botones del mismo tamaño con dorsal y apellido, sin separar a los que están en cancha. El título del paso cambia con la categoría:
+   - **Puntos recibidos**: **1. Responsable (tu jugador)**, el jugador propio responsable de la canasta recibida (el número que se marca con un círculo en la planilla de papel). Los puntos van al marcador del rival; quién convirtió del rival es opcional (ver **Jugador rival (opcional)** más abajo).
+   - **Acciones ofensivas**: **1. Quién lanzó**.
+   - **Pérdidas** y **Acciones defensivas**: **1. Jugador**.
+4. Solo en **Puntos recibidos**: elegir los puntos de la canasta en el selector **Puntos** (**1**, **2** o **3**). Empieza en 2 y vuelve a 2 después de cada entrada.
+5. En **2. Acción**, tocar el código. En Pérdidas, Puntos recibidos y Acciones defensivas ese toque registra la entrada. Los códigos quedan deshabilitados hasta elegir un jugador o **Equipo** ("primero elige un jugador o Equipo").
+6. Solo en **Acciones ofensivas**: el código queda marcado y aparece **3. Resultado**. Tocar **No convirtió**, **+1**, **+2** o **+3**; ese toque registra la entrada. Ejemplo: Delfino toma un mal lanzamiento y lo convierte de 2: **#9**, **Mal lanzamiento**, **+2**. En la planilla se ve como `#9 R +2` y un fallo como `#9 A +0`.
+
+Son dos toques por entrada (jugador y código), y tres en Acciones ofensivas (jugador, código y resultado). Después de cada entrada la selección de jugador se limpia, así la siguiente empieza de cero. El período y el reloj se toman de la consola; no hace falta escribirlos.
+
+**Jugador rival (opcional).** Si el rival del partido tiene plantel cargado (ver [Planteles rivales](#planteles-rivales)), en **Puntos recibidos** y **Acciones ofensivas** aparece el paso **Rival (opcional)** con un botón por jugador rival (`#7 Domínguez`, ordenados por dorsal). En Puntos recibidos pregunta **¿Quién convirtió?** y está justo antes de **2. Acción**; en Acciones ofensivas indica el **Defensor rival** y está justo antes de **3. Resultado**. No agrega un toque obligatorio: la entrada se sigue guardando con el toque del código (Puntos recibidos) o del resultado (Acciones ofensivas), con el jugador rival si se eligió y sin él si no. Tocar de nuevo el jugador rival elegido lo quita. La elección se limpia después de cada entrada y al cambiar de categoría. Si el rival no tiene plantel, el paso no aparece.
+
+**Últimas entradas** muestra las 5 más recientes, cada una en una tarjeta de dos líneas con el borde y el símbolo en azul o rojo según el tono:
+
+| Parte | Ejemplo | Qué muestra |
+| ----- | ------- | ----------- |
+| Símbolo | `R` | El símbolo del código, en su color. |
+| Primera línea | `#29 Garino` Mal lanzamiento | El jugador propio con dorsal y apellido completo (**Equipo** si la entrada es del equipo) y el nombre del código. |
+| Segunda línea | `2C 05:32 · Acciones ofensivas · vs #7 Domínguez` | Período y reloj, la categoría y, solo si se cargó, el jugador rival: `vs #7 Domínguez` en Acciones ofensivas y `convirtió #7 Domínguez` en Puntos recibidos. Si no se cargó el jugador rival, no se muestra nada. |
+| Resultado, a la derecha | `+2`, `no convirtió`, `3 pts` | En Acciones ofensivas, los puntos convertidos en verde o **no convirtió**; en Puntos recibidos, los puntos recibidos en rojo. Pérdidas y Acciones defensivas no tienen resultado. |
+
+**Deshacer**, al lado del título, elimina la última entrada de la planilla.
+
+**Cuándo se puede cargar.** Solo con el partido **En vivo**. En el entretiempo el panel queda bloqueado (no se cargan ni se deshacen entradas) hasta **Comenzar 3.er cuarto**. Un partido programado o finalizado no admite entradas. Sin el permiso `RECORD_LIVE` el panel muestra "Tu rol no puede cargar la planilla en vivo."
+
+**Distribución.** Desde 900 px de ancho, el panel de carga y la grilla de la planilla se ven lado a lado. En pantallas más angostas hay dos pestañas: **Cargar** y **Ver planilla**.
+
+### Códigos de la planilla
+
+Cada código tiene un símbolo corto (el que se escribe junto al dorsal en la grilla), una etiqueta y un tono: azul para las acciones positivas y rojo para las negativas, como las tintas de la planilla de papel. Algunos símbolos se repiten en categorías distintas (por ejemplo `RD`, `FI`, `CO` y `PK`); la fila de la grilla y el color los distinguen. El id es el valor que se guarda en cada entrada.
+
+Las tablas siguientes son los códigos de fábrica. Cada club los puede renombrar, completar con códigos propios y archivar (ver [Catálogo del club](#catálogo-del-club)).
+
+**Pérdidas.** Cómo se perdió la pelota (todas negativas). Los tipos siguen los de pérdida del FIBA Statisticians' Manual 2024 (Anexo B). **Violación de tiempo** agrupa 3, 5, 8 y 24 segundos.
+
+| Símbolo | Acción              | Tono            | Id                 |
+| ------- | ------------------- | --------------- | ------------------ |
+| `P`     | Pase malo           | Rojo (negativa) | `BAD_PASS`         |
+| `C`     | Caminos             | Rojo (negativa) | `TRAVELLING`       |
+| `DD`    | Doble dribling      | Rojo (negativa) | `DOUBLE_DRIBBLE`   |
+| `M`     | Manejo de balón     | Rojo (negativa) | `BALL_HANDLING`    |
+| `FO`    | Falta ofensiva      | Rojo (negativa) | `OFFENSIVE_FOUL`   |
+| `FI`    | Foul innecesario    | Rojo (negativa) | `UNNECESSARY_FOUL` |
+| `T`     | Violación de tiempo | Rojo (negativa) | `TIME_VIOLATION`   |
+| `AF`    | Pelota afuera       | Rojo (negativa) | `OUT_OF_BOUNDS`    |
+| `?`     | Otra                | Rojo (negativa) | `OTHER`            |
+
+**Puntos recibidos.** Una entrada por cada canasta recibida: por qué entró (todas negativas). Además del código guarda los puntos de la canasta (1, 2 o 3; por defecto 2).
+
+| Símbolo | Acción                  | Tono            | Id                    |
+| ------- | ----------------------- | --------------- | --------------------- |
+| `CO`    | Corte                   | Rojo (negativa) | `CUT`                 |
+| `1x1`   | 1x1                     | Rojo (negativa) | `ONE_ON_ONE`          |
+| `RD`    | Sin rebote defensivo    | Rojo (negativa) | `NO_DEF_REBOUND`      |
+| `FI`    | Foul innecesario        | Rojo (negativa) | `UNNECESSARY_FOUL`    |
+| `PC`    | Pérdida + contra        | Rojo (negativa) | `TURNOVER_FAST_BREAK` |
+| `X`     | No puntear tiro         | Rojo (negativa) | `NO_CLOSEOUT`         |
+| `NR`    | No rotar                | Rojo (negativa) | `NO_ROTATION`         |
+| `NT`    | No transición defensiva | Rojo (negativa) | `NO_TRANSITION_D`     |
+| `TM`    | Transición por mal tiro | Rojo (negativa) | `BAD_SHOT_TRANSITION` |
+| `PK`    | Pick                    | Rojo (negativa) | `PICK`                |
+| `MR`    | Mérito rival            | Rojo (negativa) | `OPPONENT_MERIT`      |
+
+**Acciones ofensivas.** Calidad de los tiros propios.
+
+| Símbolo | Acción            | Tono            | Id            |
+| ------- | ----------------- | --------------- | ------------- |
+| `A`     | Buen lanzamiento  | Azul (positiva) | `GOOD_SHOT`   |
+| `R`     | Mal lanzamiento   | Rojo (negativa) | `BAD_SHOT`    |
+| `B`     | Bandeja           | Azul (positiva) | `LAYUP`       |
+| `F`     | Forzado permitido | Rojo (negativa) | `FORCED_SHOT` |
+
+**Acciones defensivas.** Trabajo defensivo y de esfuerzo (hustle): en azul lo bien hecho, en rojo las fallas.
+
+| Símbolo | Acción               | Tono            | Id              |
+| ------- | -------------------- | --------------- | --------------- |
+| `RD`    | Rebote defensivo     | Azul (positiva) | `DEF_REBOUND`   |
+| `BR`    | Bloqueo de rebote    | Azul (positiva) | `BOX_OUT`       |
+| `AY`    | Ayuda                | Azul (positiva) | `HELP`          |
+| `CT`    | Contestar tiro       | Azul (positiva) | `CONTEST`       |
+| `RO`    | Rotación             | Azul (positiva) | `ROTATION`      |
+| `TD`    | Transición defensiva | Azul (positiva) | `TRANSITION_D`  |
+| `PR`    | Presión              | Azul (positiva) | `PRESSURE`      |
+| `RB`    | Robo                 | Azul (positiva) | `STEAL`         |
+| `DV`    | Desvío               | Azul (positiva) | `DEFLECTION`    |
+| `BF`    | Buen foul            | Azul (positiva) | `GOOD_FOUL`     |
+| `2O`    | 2da oportunidad      | Rojo (negativa) | `SECOND_CHANCE` |
+| `CO`    | Corte                | Rojo (negativa) | `CUT`           |
+| `PK`    | Pick                 | Rojo (negativa) | `PICK`          |
+| `MF`    | Mal foul             | Rojo (negativa) | `BAD_FOUL`      |
+
+### Catálogo del club
+
+Cada club tiene su propio catálogo de códigos. Mientras nadie lo edite, es el de las tablas anteriores. Se edita en la pantalla [Códigos de la planilla](#códigos-de-la-planilla-planilla) (**Planilla** en el menú, `/planilla`).
+
+| Acción    | Qué pasa                                                                                                                                                                                                                                                                            |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Renombrar | Cambia el símbolo (1 a 3 caracteres), el nombre (1 a 40 caracteres) o el tono (azul o rojo) de cualquier código, de fábrica o propio. El id no cambia: las entradas ya cargadas se ven con el símbolo, el nombre y el color nuevos, y el resumen por jugador cuenta el tono nuevo. |
+| Agregar   | Suma un código propio a una categoría, al final de su lista, marcado **Propio**. Se guarda con un id `CUSTOM_<id>`.                                                                                                                                                               |
+| Archivar  | El código deja de aparecer en el panel de carga en vivo y ya no se puede cargar. Las entradas ya cargadas lo siguen mostrando en la grilla. **Restaurar** lo devuelve al panel. Las referencias de la planilla listan solo los códigos activos.                                   |
+| Borrar    | No existe. Los códigos nunca se borran, solo se archivan, para que ninguna entrada vieja quede sin su código.                                                                                                                                                                      |
+
+**Quién lo edita.** El administrador y los entrenadores principales (permiso `MANAGE_CHART_CATALOG`). El servidor rechaza los cambios del catálogo que llegan de cualquier otro rol. El asistente planillero ve la lista en modo lectura.
+
+**Sincronización.** Cada código editado o agregado viaja como un registro de tipo `chartCode`, con la misma cola de salida que las divisiones y los jugadores: funciona sin conexión y llega a todas las tablets. Al cargar una entrada en vivo, la consola la valida contra los códigos activos del club.
+
+### Planteles rivales
+
+El club puede cargar el plantel de cada rival, por división, en la pantalla [Rivales](#rivales-rivales) o directamente en el formulario del partido (sección **Plantel rival**, ver [Partidos](#partidos-matches)); los dos lugares editan los mismos planteles. Con ese plantel, una entrada de **Puntos recibidos** puede guardar quién convirtió y una **Acción ofensiva** quién defendió (ver el paso **Rival (opcional)** en [Cargar la planilla durante el partido](#cargar-la-planilla-durante-el-partido)).
+
+**Cómo encuentra la consola el plantel.** El partido no se vincula a mano: la consola usa el rival de la **misma división** del partido cuyo nombre es **igual al nombre del rival del partido**, sin importar mayúsculas, acentos ni espacios al principio o al final. Por ejemplo, el partido de Primera División contra "Obras Sanitarias" usa el rival "obras sanitarias" de Primera División, pero no el de Sub-19 ni uno llamado "Obras". Si el nombre no coincide, la consola no ofrece el paso del rival; para arreglarlo se renombra el rival (o el partido) hasta que coincidan.
+
+**Qué se guarda.** La entrada guarda el id del jugador rival. La planilla y **Últimas entradas** muestran su dorsal y su nombre tomados del plantel actual: si después se corrige el nombre, las entradas se ven con el nombre nuevo; si se quita al jugador o se elimina el rival, las entradas se conservan y muestran `#?` en lugar del jugador rival. La canasta del rival que suma al marcador (ver [Qué no cambia la planilla](#qué-no-cambia-la-planilla)) no queda a nombre de ningún jugador rival.
+
+### Leer la planilla táctica
+
+**Dónde está.** En la página del partido (`/matches/[id]/stats`), sección **Planilla**, la primera debajo del resultado. Desde la consola, el botón **Planilla** de la barra de herramientas abre esa página. Dentro de la consola, la grilla se ve junto al panel de carga (o en la pestaña **Ver planilla** en pantallas angostas), sin el resumen por jugador ni las referencias.
+
+| Parte               | Cómo se lee                                                                                                                                                                                                                                                                                                                       |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Grilla              | Una fila por categoría y una columna por período: 1C a 4C siempre, más los suplementarios que tengan entradas. Cada entrada aparece como dorsal y símbolo (por ejemplo `#7 P`, o `EQ P` si es del equipo), en azul o rojo según el tono. Al apoyar el puntero sobre una entrada se ven la acción completa, el jugador, el jugador rival si se cargó (por ejemplo "convirtió #7 Lautaro Domínguez") y el reloj. |
+| Totales por período | Debajo de las entradas de cada celda: la cantidad de entradas; en **Puntos recibidos**, además, los puntos recibidos (por ejemplo `7 pts`). En **Acciones ofensivas**, los puntos convertidos y el conteo por código, por ejemplo `A=1 F=4`. Una celda sin entradas muestra `-`.                                                                   |
+| Mitades y total     | Columnas **1.ª mitad** (1C y 2C), **2.ª mitad** (3C, 4C y suplementarios) y **Total** del partido, con la cantidad de entradas y, en **Puntos recibidos**, los puntos.                                                                                                                                                            |
+| Resumen por jugador | Una fila por jugador con entradas y una de **Equipo**: cantidad de **Pérdidas**, **Puntos recibidos** (con los puntos), **Ofensivas**, **Defensivas** y el total de acciones positivas (`+`) y negativas (`−`).                                                                                                                   |
+| Referencias         | Los códigos activos del catálogo del club en cada categoría, con su símbolo y su color. Los archivados no figuran, pero sus entradas viejas siguen en la grilla.                                                                                                                                                                  |
+
+Debajo de la planilla, en la misma página, siguen los parciales por período, el box score y el mapa de tiros.
+
+### Qué no cambia la planilla
+
+- **Excepción: los puntos sí van al marcador.** Una entrada de **Puntos recibidos** suma sus puntos al rival y una **Acción ofensiva** que convirtió los suma al equipo propio, del lado que le toca en el tablero (local a la izquierda, visitante a la derecha). Para eso la entrada registra también la jugada de puntos: 1 = tiro libre convertido, 2 = doble convertido, 3 = triple convertido. La del equipo propio queda a nombre del mismo jugador, así los parciales y el box score coinciden con el marcador. En la consola es la única forma de sumar puntos: la barra de herramientas no suma puntos al rival (ver [Faltas del rival](#faltas-del-rival)).
+- Fuera de los puntos, las entradas de la planilla no cambian las faltas (de jugador ni de equipo), el box score, los tiros, el mapa de tiros ni la analítica de temporada. Anotar **Pase malo** en la planilla no suma una pérdida al box score. La consola no registra rebotes, asistencias, robos, tapas, pérdidas, faltas propias ni tiros con ubicación: en el box score y el mapa de tiros de la página del partido solo figuran las jugadas ya guardadas que los traen (por ejemplo, las de los datos de demostración) y los puntos que suman las entradas.
+- El **Deshacer** de la planilla quita la última entrada y, si sumó puntos, también su jugada de puntos. Las demás entradas no se tocan. **Deshacer falta**, en la barra de herramientas, quita solo la última falta del rival y no toca ninguna entrada.
+- Las entradas viajan como jugadas de tipo `CHART`: se guardan al instante en la tablet, se envían con la misma cola de salida y solo se agregan; deshacer una entrada la marca como eliminada en todas las tablets (ver [Sincronización](#sincronización)).
+
+### Fuentes
+
+No existe un estándar universal; se basa en la planilla del entrenador, los tipos de pérdida del FIBA Statisticians' Manual 2024 (Anexo B) y las planillas de coaching: turnover chart, defensive breakdown chart, hustle stats.
+
+- Planilla del entrenador: la planilla de papel "Sistemas", con sus cuatro bloques y su leyenda de códigos, es la base del catálogo.
+- FIBA Statisticians' Manual 2024, Anexo B: nombres de los tipos de pérdida (pase malo, caminos, doble dribling, manejo de balón, falta ofensiva, violaciones de tiempo, pelota afuera).
+- Turnover chart: cada pérdida con su jugador y su tipo.
+- Defensive breakdown chart: una entrada por canasta recibida, con la falla que la permitió, el jugador y los puntos.
+- Hustle stats (como las de NBA.com): desvíos, tiros contestados, bloqueos de rebote y otras acciones de esfuerzo defensivo.
+
+---
+
+## 3. Inicio rápido
 
 ### Requisitos
 
@@ -72,21 +231,22 @@ Control de tipos (no tiene script propio): `npx tsc --noEmit`.
 
 ---
 
-## 3. Roles y permisos
+## 4. Roles y permisos
 
 Hay tres roles. Cada usuario tiene uno, asignado en el servidor. Cada pantalla oculta o deshabilita lo que el rol no puede hacer, usando la matriz de `src/core/domain/rules/permissions.ts` (función `can(role, permission)`). El servidor aplica la misma matriz a cada cambio que recibe, así que un permiso no se puede saltear desde el navegador.
 
 ### Matriz de permisos
 
-| Permiso            | Qué habilita                                                                           | Administrador | Entrenador principal | Asistente planillero |
-| ------------------ | -------------------------------------------------------------------------------------- | :-----------: | :------------------: | :------------------: |
-| `MANAGE_DIVISIONS` | Crear, editar y eliminar divisiones; asignar entrenador                                |      Sí       |          No          |          No          |
-| `MANAGE_PLAYERS`   | Crear, editar y eliminar jugadores; convocar juveniles a Primera                       |      Sí       |          Sí          |          No          |
-| `MANAGE_MATCHES`   | Crear, editar y eliminar partidos programados                                          |      Sí       |          Sí          |          No          |
-| `MANAGE_LINEUP`    | Armar convocatoria y quinteto; iniciar el partido                                      |      Sí       |          Sí          |          No          |
-| `RECORD_LIVE`      | Usar la consola en vivo: reloj, períodos, jugadas, cambios, tiempos muertos, finalizar |      Sí       |          Sí          |          Sí          |
+| Permiso                | Qué habilita                                                                           | Administrador | Entrenador principal | Asistente planillero |
+| ---------------------- | -------------------------------------------------------------------------------------- | :-----------: | :------------------: | :------------------: |
+| `MANAGE_DIVISIONS`     | Crear, editar y eliminar divisiones; asignar entrenador                                |      Sí       |          No          |          No          |
+| `MANAGE_PLAYERS`       | Crear, editar y eliminar jugadores; convocar juveniles a Primera                       |      Sí       |          Sí          |          No          |
+| `MANAGE_MATCHES`       | Crear, editar y eliminar partidos programados; cargar y editar los planteles rivales   |      Sí       |          Sí          |          No          |
+| `MANAGE_LINEUP`        | Armar convocatoria y quinteto; iniciar el partido                                      |      Sí       |          Sí          |          No          |
+| `RECORD_LIVE`          | Usar la consola en vivo: reloj, períodos, jugadas, cambios, tiempos muertos, finalizar |      Sí       |          Sí          |          Sí          |
+| `MANAGE_CHART_CATALOG` | Editar el catálogo de códigos de la planilla: renombrar, agregar, archivar y restaurar |      Sí       |          Sí          |          No          |
 
-Lo que cualquier rol puede ver: dashboard, listado de divisiones y su plantel ("Ver plantel"), jugadores, calendario, convocatorias (en modo lectura) y planillas estadísticas. Sin `RECORD_LIVE` la consola se abre en modo lectura con un aviso.
+Lo que cualquier rol puede ver: dashboard, listado de divisiones y su plantel ("Ver plantel"), jugadores, calendario, convocatorias (en modo lectura), planillas estadísticas, los códigos de la planilla y los planteles rivales (en modo lectura). Sin `RECORD_LIVE` la consola se abre en modo lectura con un aviso.
 
 ### Cuentas de demostración
 
@@ -106,17 +266,17 @@ Para usar otro rol hay que cerrar sesión y entrar con otra cuenta. Si el rol de
 
 ---
 
-## 4. Guía por pantalla
+## 5. Guía por pantalla
 
 ### Navegación general
 
-| Elemento                   | Dónde                  | Función                                                                                                                                                                                                                                                     |
-| -------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Riel lateral (tablet)      | Izquierda              | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, botón **Partido en vivo** y, al pie, el menú de usuario: nombre, rol, botón de tema claro/oscuro, [estado de sincronización](#estado-de-sincronización) y **Cerrar sesión**. |
-| Barra superior (teléfono)  | Arriba                 | Escudo y marca (vuelve al inicio) y el estado de sincronización compacto.                                                                                                                                                                                   |
-| Barra inferior (teléfono)  | Abajo                  | Inicio, Equipos, botón central de partido en vivo (icono `Radio`), Plantel y Fechas.                                                                                                                                                                        |
-| Menú de usuario (teléfono) | Cabecera del Dashboard | Nombre, rol, estado de sincronización y **Cerrar sesión**.                                                                                                                                                                                                  |
-| Diálogos                   | Sobre la pantalla      | Modales propios: avisos (`notify`, botón "Entendido") y confirmaciones (`confirm`, botones "Cancelar" y la acción). Se muestran de a uno, en cola.                                                                                                          |
+| Elemento                   | Dónde                  | Función                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Riel lateral (tablet)      | Izquierda              | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, Rivales ([planteles rivales](#rivales-rivales), icono `Swords`), Planilla ([códigos de la planilla](#códigos-de-la-planilla-planilla)), Ayuda, botón **Partido en vivo** y, al pie, el menú de usuario: nombre, rol, botón de tema claro/oscuro, [estado de sincronización](#estado-de-sincronización) y **Cerrar sesión**. |
+| Barra superior (teléfono)  | Arriba                 | Escudo y marca (vuelve al inicio), el estado de sincronización compacto y los iconos de Planilla (`ClipboardList`, códigos de la planilla) y Ayuda (`LifeBuoy`).                                                                                                                                                                          |
+| Barra inferior (teléfono)  | Abajo                  | Inicio, Equipos, botón central de partido en vivo (icono `Radio`), Plantel y Fechas.                                                                                                                                                                                                                                                      |
+| Menú de usuario (teléfono) | Cabecera del Dashboard | Nombre, rol, estado de sincronización y **Cerrar sesión**.                                                                                                                                                                                                                                                                                |
+| Diálogos                   | Sobre la pantalla      | Modales propios: avisos (`notify`, botón "Entendido") y confirmaciones (`confirm`, botones "Cancelar" y la acción). Se muestran de a uno, en cola.                                                                                                                                                                                        |
 
 ### Inicio de sesión (`/login`)
 
@@ -151,8 +311,8 @@ Este manual, dentro de la aplicación. Se abre desde **Ayuda** en el menú later
 
 La primera vez que inicias sesión, Hoop muestra un recorrido de bienvenida: la pantalla se oscurece, se resalta un elemento por vez y una tarjeta con una flecha explica para qué sirve, muchas veces con un ejemplo concreto (por ejemplo, "toca #7 Campagna y después +2").
 
-- **Bienvenida**: presenta el menú (Dashboard, Divisiones, Jugadores, Partidos, Modo partido en vivo), el estado de sincronización, tu menú de usuario y la Ayuda. Cuando la terminas o la saltas, el recorrido de la pantalla en la que estás no empieza enseguida: aparece la próxima vez que abras esa pantalla.
-- **Recorridos por pantalla**: la primera vez que abres Dashboard, Divisiones, Jugadores, Partidos, Quinteto y convocatoria, Consola en vivo, Planilla o Ayuda, se muestra un recorrido corto de esa pantalla.
+- **Bienvenida**: presenta el menú (Dashboard, Divisiones, Jugadores, Partidos, Modo partido en vivo, Códigos de la planilla), el estado de sincronización, tu menú de usuario y la Ayuda. Cuando la terminas o la saltas, el recorrido de la pantalla en la que estás no empieza enseguida: aparece la próxima vez que abras esa pantalla.
+- **Recorridos por pantalla**: la primera vez que abres Dashboard, Divisiones, Jugadores, Partidos, Quinteto y convocatoria, Consola en vivo, Planilla, Códigos de la planilla, Rivales o Ayuda, se muestra un recorrido corto de esa pantalla.
 - **Según tu rol**: los pasos de acciones que tu rol no puede realizar (por ejemplo, crear divisiones) no se muestran.
 - **Controles**: Siguiente, Atrás y Saltar tutorial (Finalizar en el último paso). Con teclado: Enter o flecha derecha avanza, flecha izquierda retrocede y Escape salta el tutorial. Tocar la zona oscura no cierra el recorrido y el elemento resaltado no se puede tocar mientras dura.
 - **Consola en vivo**: el recorrido nunca empieza solo con el reloj de juego en marcha; espera a que lo pauses.
@@ -208,6 +368,7 @@ Orden fijo: primero los partidos en juego, después los programados (el más pr�
 | Chips **Estado**   | Todos, En vivo, Programados, Finalizados.                                                       |
 | Chips **División** | Filtra por división. Los partidos de una división eliminada aparecen como "División eliminada". |
 | **Nuevo partido**  | Abre el formulario (requiere `MANAGE_MATCHES`).                                                 |
+| **Rivales**        | Abre los [planteles rivales](#rivales-rivales). En el teléfono es el acceso a esa pantalla.     |
 
 Acciones de cada tarjeta según su estado:
 
@@ -218,6 +379,22 @@ Acciones de cada tarjeta según su estado:
 | Finalizado | **Planilla box score**.                                                              |
 
 Campos del formulario: **División** (el equipo propio se deduce de ella), **Equipo rival**, **Fecha y hora**, **Condición** (Local o Visitante), **Torneo o competencia** y **Estadio o cancha** (opcional). Si al editar se cambia la división, se vacían la convocatoria y el quinteto del partido.
+
+**Rivales de esta división.** Debajo de **Equipo rival** aparece un chip por cada rival cargado en la división elegida, ordenados por nombre. Tocar un chip escribe ese nombre en el campo; también se puede escribir cualquier otro nombre. Si la división no tiene rivales cargados, la fila no aparece.
+
+**Plantel rival.** Al final del formulario, en crear y en editar, una sección muestra el plantel del rival escrito, buscado igual que en la consola: el rival de la **misma división** con el mismo nombre, sin importar mayúsculas, acentos ni espacios (ver [Planteles rivales](#planteles-rivales)). Son los mismos planteles de la pantalla [Rivales](#rivales-rivales): lo que se cambia acá se ve allá y al revés.
+
+| Situación                                  | Qué muestra la sección                                                                                                                                       |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Equipo rival vacío                         | Nada.                                                                                                                                                           |
+| El rival tiene plantel en la división      | Sus jugadores ordenados por dorsal (dorsal, nombre y apellido), con lápiz y papelera por jugador y el botón **Agregar jugador**.                                |
+| El rival no tiene plantel en la división   | El texto "Boca Juniors no tiene plantel en Primera División." (con el nombre y la división elegidos) y el botón **Agregar jugador**.                            |
+
+**Agregar jugador** y el lápiz abren el mismo formulario del jugador de [Rivales](#rivales-rivales) (**Dorsal**, **Nombre** y **Apellido**, con los mismos mensajes, incluido "Ya hay un jugador con ese dorsal en este equipo."). La papelera quita al jugador sin confirmación, porque nada se guarda todavía.
+
+**Cuándo se guarda.** Los cambios del plantel quedan en el formulario (un aviso en amarillo lo recuerda) y se guardan recién al pulsar **Crear partido** o **Guardar cambios**, después de guardar el partido. Si el rival no tenía plantel, se crea con el nombre escrito y la división elegida y se le agregan los jugadores. **Cancelar**, la cruz, Escape o tocar fuera del formulario descartan los cambios del plantel. Sin cambios en el plantel, el formulario no toca los rivales. Si algún cambio del plantel es rechazado (por ejemplo, otra tablet ya usó ese dorsal), el partido queda guardado igual y un aviso "El partido se guardó, pero no todo el plantel rival" lista cada jugador rechazado con su motivo.
+
+Solo quien tiene `MANAGE_MATCHES` abre este formulario, así que solo el administrador y los entrenadores principales editan el plantel desde acá.
 
 ### Quinteto y convocatoria (`/matches/[id]/lineup`)
 
@@ -238,18 +415,16 @@ La pantalla tiene tres modos según el estado del partido:
 
 Pantalla de registro del partido en cancha, a altura completa y sin desplazamiento general.
 
-**Distribución.** Desde 900 px de ancho: a la izquierda quinteto y banca, al centro la media cancha y las últimas jugadas, a la derecha el pad de acciones. En pantallas más angostas, tres pestañas: **Quinteto**, **Cancha** y **Acciones**. Al elegir un jugador en el teléfono se pasa sola a **Acciones**.
+**Planilla.** La consola es la planilla táctica (ver [Cargar la planilla durante el partido](#cargar-la-planilla-durante-el-partido)). Desde 900 px de ancho, el panel de carga a la izquierda y la grilla de la planilla a la derecha. En pantallas más angostas, dos pestañas: **Cargar** y **Ver planilla**.
 
 **Accesos.** Si el partido está programado, la consola muestra un aviso con el botón para armar el quinteto. Si está finalizado, muestra el resultado y un enlace a la planilla.
 
 | Zona                  | Controles                                                                                                                                                                                                                                                                                                                                       |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Tablero (arriba)      | Por equipo (local a la izquierda, visitante a la derecha): nombre, marcador, cuatro luces de faltas de equipo con el contador `N F`, indicador **Bonus** y botón **TM** con los tiempos muertos que quedan. Al centro: selector de período (`1C` a `4C`, y `S1` a `S4` para suplementarios), reloj con **-10s**, **+10s** y **Iniciar/Pausar**. |
-| Barra de herramientas | **Partidos** (volver), acciones del rival (**+1**, **+2**, **+3**, **Falta**), estado de sincronización (compacto), **Planilla** y **Finalizar**.                                                                                                                                                                                               |
-| En cancha / Banca     | Tarjetas de jugador con puntos y faltas. Tocar un jugador en cancha lo selecciona. Botón **Cambio** para sustituciones. Los excluidos por faltas aparecen en la banca marcados "Excluido".                                                                                                                                                      |
-| Media cancha          | Tocar la posición registra un tiro del jugador seleccionado. Muestra los tiros con ubicación (círculo: convertido; cruz: fallado).                                                                                                                                                                                                              |
-| Últimas jugadas       | Las 6 jugadas más recientes, de la más nueva a la más vieja, con el botón **Deshacer**.                                                                                                                                                                                                                                                         |
-| Acciones rápidas      | Grupos **Convertidos** (`+1 TL`, `+2`, `+3`), **Fallados** (`TL`, `2P`, `3P`), **Rebotes y juego** (Reb. ofensivo, Reb. defensivo, Asistencia, Robo, Tapa, Pérdida) y **Faltas** (Personal, Técnica, Antidep.).                                                                                                                                 |
+| Barra de herramientas | **Partidos** (volver), estado de sincronización (compacto), faltas del rival (**Falta** y **Deshacer falta**, ver [Faltas del rival](#faltas-del-rival)), **Planilla** y **Finalizar**.                                                                                                                                                                                               |
+| Panel de carga        | Pestañas de categoría, paso 1 con toda la convocatoria y **Equipo**, **2. Acción**, **3. Resultado** (solo Acciones ofensivas), el paso **Rival (opcional)** cuando el rival tiene plantel, y **Últimas entradas** con **Deshacer**. |
+| Planilla              | Grilla compacta por categoría y período, con los totales por período, por mitad y del partido (ver [Leer la planilla táctica](#leer-la-planilla-táctica)). |
 
 **Entretiempo.** Al terminar el 2.º cuarto el partido pasa a **Entretiempo**: el tablero muestra "Entretiempo" en lugar del reloj, un aviso indica que no se registran jugadas ni tiempos muertos y el botón **Comenzar 3.er cuarto** reanuda el partido (3.er cuarto, reloj en 10:00, En vivo). Cualquier salto desde el 1.º o el 2.º cuarto a la segunda mitad o a un suplementario pasa primero por el entretiempo. Desde el entretiempo también se puede finalizar el partido; el reloj queda guardado en 00:00.
 
@@ -264,15 +439,58 @@ Atajo del botón **Partido en vivo**. Si hay un partido en juego, redirige a su 
 | Bloque                | Contenido                                                                                                                                                                                                                                                                                    |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Resultado             | Marcador propio y rival. Si terminó: Victoria, Derrota o Empate. Si está en juego: estado y período, con acceso a la **Consola en vivo**.                                                                                                                                                    |
+| Planilla              | Planilla táctica cargada en vivo: grilla por categoría y período con totales por mitad y del partido, resumen por jugador y referencias de los códigos (ver [Leer la planilla táctica](#leer-la-planilla-táctica)).                                                                          |
 | Parciales por período | Puntos por cuarto (1C a 4C) más los suplementarios que tuvieron jugadas.                                                                                                                                                                                                                     |
 | Box score             | Una fila por convocado y una de totales: PTS, T2, T3, TL, TC (convertidos/intentados y %), REB (ofensivos-defensivos-totales), AST, ROB, TAP, PER, FAL, +/- y VAL (PIR). Los excluidos por faltas llevan el icono `Ban`. La tabla se desplaza en horizontal con la columna del jugador fija. |
 | Mapa de tiros         | Filtros **Período** (Todos o un período) y **Jugador** (Todo el equipo o cada lanzador). Efectividad de dobles, triples y total de campo para el filtro elegido. Una nota indica cuántos tiros se cargaron desde el pad y no tienen ubicación en el mapa.                                    |
 
 Un partido programado muestra "El partido todavía no comenzó".
 
+### Códigos de la planilla (`/planilla`)
+
+El catálogo de códigos de la planilla táctica del club (ver [Catálogo del club](#catálogo-del-club)). Se abre desde **Planilla** en el riel lateral o desde el icono `ClipboardList` de la barra superior en el teléfono.
+
+Hay una sección por categoría (**Pérdidas**, **Puntos recibidos**, **Acciones ofensivas** y **Acciones defensivas**) con la cantidad de códigos activos y archivados. Cada código se lista en el orden del panel de carga en vivo, con su símbolo en su color (azul positiva, rojo negativa), su nombre y su tono. **Propio** marca los códigos que agregó el club y **Archivado** los que ya no se cargan.
+
+| Control                      | Qué hace                                                                                                               | Permiso                |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| **Nuevo código**             | Abre el formulario para agregar un código propio a la categoría.                                                       | `MANAGE_CHART_CATALOG` |
+| Lápiz (`Pencil`)             | Edita el símbolo, el nombre o el tono del código. Las entradas ya cargadas se ven con el cambio.                        | `MANAGE_CHART_CATALOG` |
+| Archivar (`Archive`)         | Pide confirmación y archiva el código: sale del panel de carga en vivo y las entradas ya cargadas lo siguen mostrando. | `MANAGE_CHART_CATALOG` |
+| Restaurar (`ArchiveRestore`) | Devuelve un código archivado al panel de carga en vivo.                                                                | `MANAGE_CHART_CATALOG` |
+
+Campos del formulario: **Símbolo** (1 a 3 caracteres), **Tono** (Azul (positiva) o Rojo (negativa)) y **Nombre** (1 a 40 caracteres). Un código nuevo empieza en rojo en **Pérdidas** y **Puntos recibidos** y en azul en las otras dos categorías. Sin el permiso `MANAGE_CHART_CATALOG` la pantalla muestra la lista en modo lectura con el aviso "Solo el administrador y los entrenadores principales pueden editar los códigos."
+
+### Rivales (`/rivales`)
+
+Los planteles de los equipos rivales, por división (ver [Planteles rivales](#planteles-rivales)). Se abre desde **Rivales** en el riel lateral o, en el teléfono, desde el botón **Rivales** de la cabecera de [Partidos](#partidos-matches); la barra superior del teléfono no cambia.
+
+Los chips **División** filtran los rivales (Todas o una división; los de una división eliminada aparecen como "División eliminada"). Cada rival es una tarjeta con su nombre, su división, la cantidad de jugadores, la cantidad de partidos de la división con ese mismo nombre de rival (icono `Link2`; "Ningún partido con este nombre" en amarillo si no coincide ninguno) y el plantel ordenado por dorsal, con nombre y apellido.
+
+| Control                         | Qué hace                                                                                                         | Permiso          |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------- |
+| **Nuevo rival**                 | Abre el formulario: **División** y **Nombre del equipo** (1 a 60 caracteres). El rival empieza sin jugadores.   | `MANAGE_MATCHES` |
+| Lápiz (`Pencil`) de la tarjeta | Renombra el rival. La división no se cambia.                                                                     | `MANAGE_MATCHES` |
+| Papelera (`Trash2`) de la tarjeta | Elimina el rival con su plantel, con confirmación. Las entradas ya cargadas se conservan.                      | `MANAGE_MATCHES` |
+| **Agregar jugador**             | Abre el formulario del jugador: **Dorsal**, **Nombre** y **Apellido**.                                           | `MANAGE_MATCHES` |
+| Lápiz y papelera del jugador    | Editan o quitan al jugador (quitar pide confirmación).                                                           | `MANAGE_MATCHES` |
+
+Validaciones del formulario del jugador, con su mensaje:
+
+| Caso                                  | Mensaje                                              |
+| ------------------------------------- | ---------------------------------------------------- |
+| Dorsal vacío, con decimales o fuera de 0 a 99 | "El dorsal debe ser un número entero de 0 a 99." |
+| Dorsal que ya usa otro jugador del rival | "Ya hay un jugador con ese dorsal en este equipo." |
+| Nombre vacío o de más de 40 caracteres | "El nombre debe tener de 1 a 40 caracteres."        |
+| Apellido vacío o de más de 40 caracteres | "El apellido debe tener de 1 a 40 caracteres."    |
+
+**Quién edita.** El administrador y los entrenadores principales (permiso `MANAGE_MATCHES`). El servidor rechaza los cambios de planteles rivales que llegan de cualquier otro rol. Sin ese permiso la pantalla se ve en modo lectura con el aviso "Solo el administrador y los entrenadores principales pueden editar los planteles rivales."
+
+**Sincronización.** Cada rival viaja con todo su plantel como un registro de tipo `rivalTeam`, con la misma cola de salida que las divisiones y los jugadores: funciona sin conexión y llega a todas las tablets. Si dos tablets cambian el mismo rival, queda el último cambio que llega al servidor.
+
 ---
 
-## 5. Flujos paso a paso
+## 6. Flujos paso a paso
 
 ### Iniciar sesión
 
@@ -322,8 +540,9 @@ Renombrar la división también renombra su equipo.
 ### Crear un partido
 
 1. Rol Administrador o Entrenador principal. Ir a **Partidos** y pulsar **Nuevo partido**.
-2. Elegir la división (viene preseleccionada la del filtro de división, o la división activa del Dashboard), el rival, la fecha y hora, la condición, el torneo y el estadio.
-3. Pulsar **Crear partido**. El partido queda **Programado** y se ordena por fecha.
+2. Elegir la división (viene preseleccionada la del filtro de división, o la división activa del Dashboard), el rival (escrito o tocando un chip de **Rivales de esta división**), la fecha y hora, la condición, el torneo y el estadio.
+3. Opcional: en **Plantel rival**, revisar los jugadores del rival y agregar, corregir o quitar los que haga falta (ver [Partidos](#partidos-matches)).
+4. Pulsar **Crear partido**. El partido queda **Programado** y se ordena por fecha; los cambios del plantel rival se guardan en ese momento.
 
 ### Armar la convocatoria y el quinteto, e iniciar el partido
 
@@ -332,34 +551,6 @@ Renombrar la división también renombra su equipo.
 3. En **Quinteto inicial**, tocar exactamente 5 convocados para marcarlos como titulares (el resto queda en "Banco").
 4. Revisar los mensajes del panel de estado hasta ver "Convocatoria y quinteto listos para el salto inicial".
 5. Pulsar **Iniciar partido**. Si algo no cumple las reglas, un modal lista los problemas. Si todo es válido, el partido pasa a **En vivo** y se abre la consola.
-
-### Registrar jugadas en la consola
-
-El reloj arranca en pausa al entrar. Pulsar **Iniciar** (icono `Play`) para que corra.
-
-**Tiro desde la media cancha (dos toques con el jugador ya seleccionado):**
-
-1. Tocar el jugador en **En cancha** (queda seleccionado; el encabezado de la cancha muestra "Tiro para #dorsal apellido").
-2. Tocar la posición del tiro. El sistema decide si es doble o triple por la ubicación.
-3. Tocar **Convertido +2/+3** o **Fallado 2P/3P** en el menú emergente (la `X` lo cancela).
-
-Si no hay jugador seleccionado, un modal pide elegirlo primero.
-
-**Acción desde el pad (dos toques):** tocar el jugador en cancha y luego la acción (por ejemplo `+3`, `Reb. defensivo` o `Personal`). Los tiros cargados desde el pad cuentan en el box score pero no tienen ubicación en el mapa.
-
-Cada jugada guarda el período, el reloj real y el marcador resultante. El marcador, las faltas de equipo y el box score se recalculan al instante.
-
-### Quinta falta y sustitución
-
-**Exclusión.** Cuando un jugador llega a 5 faltas, el pad muestra "5 faltas: jugador excluido", deshabilita sus acciones y ofrece **Realizar sustitución**, que abre el modo cambio con ese jugador como saliente.
-
-**Cambio.**
-
-1. Pulsar **Cambio** en la columna de quinteto (o tocar directamente un jugador de la banca).
-2. Tocar el jugador en cancha que sale y el de la banca que entra, en cualquier orden. Una pista indica qué falta elegir.
-3. Con ambos elegidos, el cambio se registra solo. **Cancelar** sale del modo cambio.
-
-Un jugador excluido no puede volver a entrar. Si el cambio no es válido, un modal explica el motivo.
 
 ### Tiempos muertos
 
@@ -371,6 +562,7 @@ Un jugador excluido no puede volver a entrar. Si el cambio no es válido, un mod
 
 ### Reloj y cambio de período
 
+- El reloj arranca en pausa al entrar. Pulsar **Iniciar** (icono `Play`) para que corra.
 - **-10s** y **+10s** corrigen el reloj, siempre dentro de la duración del período.
 - Tocar otro período en el selector pide confirmación, reinicia el reloj (10:00 o 05:00) e informa si las faltas de equipo vuelven a cero o se mantienen. Pasar de la primera mitad (1.º o 2.º cuarto) a cualquier período posterior lleva primero al entretiempo, con el 2.º cuarto en 00:00; desde ahí solo se puede seguir con **Comenzar 3.er cuarto**.
 - Los suplementarios se habilitan de a uno desde el 4.º cuarto.
@@ -380,15 +572,17 @@ Un jugador excluido no puede volver a entrar. Si el cambio no es válido, un mod
   - Al final del 4.º cuarto o de un suplementario, sin empate: ofrece finalizar el partido.
   - Con empate: ofrece el siguiente suplementario. Si el empate llega al final del 4.º suplementario, solo muestra un aviso.
 
-### Puntos y faltas del rival
+### Faltas del rival
 
-El rival no tiene jugadores cargados. En la barra de herramientas, **+1**, **+2** y **+3** suman puntos al rival, y **Falta** registra una falta de equipo del rival (enciende sus luces y su **Bonus**).
+En la barra de herramientas, **Falta** registra una falta personal del rival, sin jugador: enciende sus luces de faltas y su **Bonus**. **Deshacer falta**, al lado, quita la última falta del rival, aunque sea de un período anterior, y recalcula las luces y el bonus. Está deshabilitado mientras el rival no tiene faltas; si otra tablet quitó la última mientras tanto, el aviso dice "No hay faltas del rival para deshacer." Los dos botones no aparecen en el entretiempo ni en modo lectura.
+
+La barra no suma puntos al rival: sus puntos llegan con cada entrada de **Puntos recibidos** (ver [Qué no cambia la planilla](#qué-no-cambia-la-planilla)).
 
 ### Deshacer
 
-**Deshacer** (en Últimas jugadas) elimina la última jugada registrada, sea propia o del rival. Si era un cambio, revierte el quinteto en cancha. El marcador y las faltas se recalculan desde las jugadas, así que deshacer funciona aunque la jugada sea de un período anterior. Los tiempos muertos y los cambios de período no son jugadas y no se deshacen con este botón.
+**Deshacer**, en **Últimas entradas**, quita la última entrada de la planilla y, si sumó puntos, también su jugada de puntos. **Deshacer falta** quita la última falta del rival. El marcador y las faltas se recalculan desde las jugadas, así que deshacer funciona aunque sea de un período anterior. Los tiempos muertos y los cambios de período no se deshacen.
 
-Con varias tablets en el mismo partido, **Deshacer** quita la última jugada de la lista, que puede haber cargado otra tablet. La jugada no se borra del servidor: queda marcada como eliminada y desaparece también en las demás tablets (ver [Sincronización](#sincronización)).
+Con varias tablets en el mismo partido, cada **Deshacer** quita la última de la lista, que puede haber cargado otra tablet. No se borra del servidor: queda marcada como eliminada y desaparece también en las demás tablets (ver [Sincronización](#sincronización)).
 
 ### Finalizar el partido
 
@@ -399,48 +593,65 @@ Con varias tablets en el mismo partido, **Deshacer** quita la última jugada de 
 ### Leer la planilla y el mapa de tiros
 
 1. Abrir **Planilla box score** desde Partidos, **Planilla** desde la consola o un resultado del Dashboard.
-2. Revisar los parciales por período y el box score.
+2. Revisar la sección **Planilla** (ver [Leer la planilla táctica](#leer-la-planilla-táctica)), los parciales por período y el box score.
 3. En **Mapa de tiros**, combinar los filtros de período y jugador. Los indicadores de dobles, triples y total de campo se actualizan con el filtro.
+
+### Editar los códigos de la planilla
+
+1. Abrir **Planilla** en el menú (pantalla [Códigos de la planilla](#códigos-de-la-planilla-planilla)). Hace falta el permiso `MANAGE_CHART_CATALOG`.
+2. Para renombrar, tocar el lápiz del código, cambiar el símbolo, el nombre o el tono y pulsar **Guardar cambios**.
+3. Para agregar, pulsar **Nuevo código** en la categoría, completar el formulario y pulsar **Agregar código**. El código aparece al final de la categoría en el panel de carga en vivo.
+4. Para dejar de usar un código, tocar **Archivar** y confirmar. Las entradas ya cargadas lo siguen mostrando; **Restaurar** lo devuelve al panel.
+
+### Cargar el plantel de un rival
+
+1. Abrir **Rivales** en el menú o, en el teléfono, el botón **Rivales** de Partidos (pantalla [Rivales](#rivales-rivales)). Hace falta el permiso `MANAGE_MATCHES`.
+2. Pulsar **Nuevo rival**, elegir la división y escribir el nombre igual que en los partidos (por ejemplo, "Obras Sanitarias"). Pulsar **Crear rival**.
+3. En la tarjeta del rival, pulsar **Agregar jugador**, completar dorsal, nombre y apellido y pulsar **Agregar jugador**. Repetir por cada jugador.
+4. Revisar la línea del enlace: debe decir "1 partido con este nombre" (o más). Si dice "Ningún partido con este nombre", renombrar el rival con el lápiz.
+5. En la consola en vivo de ese partido, en **Puntos recibidos** y **Acciones ofensivas**, aparece el paso **Rival (opcional)** con los jugadores cargados.
+
+También se puede cargar desde el formulario del partido (crear o editar): con la división elegida y el nombre del rival escrito, la sección **Plantel rival** muestra el plantel o permite armarlo, y el rival se crea al guardar el partido (ver [Partidos](#partidos-matches)). Como el nombre es el mismo del partido, el enlace queda hecho.
 
 ---
 
-## 6. Reglas FIBA aplicadas
+## 7. Reglas FIBA aplicadas
 
 | Regla                | Implementación                                                                                                                                                                                                                                                                            | Código                                                                                                                           |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | Exclusión por faltas | 5 faltas (personales, técnicas y antideportivas) excluyen al jugador. Con 4 se marca como advertencia.                                                                                                                                                                                    | `basketball-rules.ts` (`FIBA_MAX_PLAYER_FOULS`)                                                                                  |
 | Bonus de equipo      | Con 4 o más faltas de equipo en el período se enciende **Bonus**. Las faltas de cualquier suplementario cuentan como parte del 4.º cuarto.                                                                                                                                                | `basketball-rules.ts`, `event-rules.ts` (`isSameTeamFoulPeriod`)                                                                 |
 | Tiempos muertos      | 2 en la primera mitad, 3 en la segunda y 1 por cada suplementario. Los no usados no pasan a la mitad siguiente. Al entrar a un suplementario nuevo se repone 1. Con el reloj del 4.º cuarto en 2:00 o menos, como máximo 2 (Art. 18.2.5): si quedaban 3, uno se pierde.                   | `timeouts.ts` (`isLastTwoMinutesOfFourthQuarter`)                                                                                |
-| Entretiempo          | Al terminar el 2.º cuarto el partido pasa a `HALFTIME`: no se registran jugadas, cambios ni tiempos muertos hasta comenzar el 3.er cuarto. Cualquier salto de la primera mitad a un período posterior pasa por el entretiempo, y finalizar desde el entretiempo guarda el reloj en 00:00. | `match-use-cases.ts` (`startHalftime`, `startThirdQuarter`, `changeQuarter`, `finishMatch`), `game-clock.ts` (`crossesHalftime`) |
+| Entretiempo          | Al terminar el 2.º cuarto el partido pasa a `HALFTIME`: no se registran jugadas ni tiempos muertos hasta comenzar el 3.er cuarto. Cualquier salto de la primera mitad a un período posterior pasa por el entretiempo, y finalizar desde el entretiempo guarda el reloj en 00:00. | `match-use-cases.ts` (`startHalftime`, `startThirdQuarter`, `changeQuarter`, `finishMatch`), `game-clock.ts` (`crossesHalftime`) |
 | Duración de períodos | 10 minutos por cuarto, 5 por suplementario, hasta 4 suplementarios.                                                                                                                                                                                                                       | `game-clock.ts`                                                                                                                  |
 | Convocatoria         | Entre 5 y 12 jugadores, exactamente 5 titulares y todos ellos convocados.                                                                                                                                                                                                                 | `lineup-rules.ts`                                                                                                                |
 | Valoración (PIR)     | `(PTS + REB + AST + ROB + TAP) - (tiros de campo fallados + tiros libres fallados + PER + faltas cometidas)`. Cuenta todas las faltas del jugador.                                                                                                                                        | `calculateFibaPir`                                                                                                               |
 | +/-                  | Diferencia de puntos mientras el jugador estuvo en cancha. Parte del quinteto inicial (`startingLineupOwn`) y sigue cada cambio propio en orden.                                                                                                                                          | `calculatePlayerPlusMinus`, `getStartingLineup`                                                                                  |
 | Doble o triple       | Arco de triple a 6,75 m del aro (radio de 235 unidades sobre una media cancha SVG de 500 x 470). En las esquinas, la zona de triple es la franja junto a la línea lateral cerca de la línea de fondo.                                                                                     | `HalfCourtShotChart.tsx` (`isThreePointSpot`)                                                                                    |
 
-Fuente única de verdad: el marcador, las faltas de equipo, los parciales y el box score se derivan siempre de la lista de jugadas del partido (`match-derivations.ts`). Los campos guardados en el partido son una copia que se recalcula en cada cambio.
+Fuente única de verdad: el marcador, las faltas de equipo, los parciales y el box score se derivan siempre de la lista de jugadas del partido (`match-derivations.ts`). Los campos guardados en el partido son una copia que se recalcula en cada cambio. Las entradas de la planilla táctica (`CHART`) no suman puntos ni faltas por sí mismas: cuando una entrada lleva puntos (Puntos recibidos o una acción ofensiva convertida), registra además la jugada de puntos correspondiente, enlazada con `chart.scoreEventId`, y esa jugada es la que suma.
 
 ---
 
-## 7. Datos, persistencia y sincronización
+## 8. Datos, persistencia y sincronización
 
 ### Dónde se guardan
 
-| Dato                                                                                                                                   | Ubicación                                                                                                         |
-| -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Divisiones, equipos, jugadores, partidos y jugadas (copia del servidor)                                                                | PostgreSQL: tablas `sync_records` y `match_events` (ver [Servidor y base de datos](#8-servidor-y-base-de-datos)). |
-| Usuarios y sesiones                                                                                                                    | PostgreSQL: tablas `users` (contraseñas con hash scrypt) y `sessions` (solo el hash del token).                   |
-| Copia local del club: divisiones, equipos, jugadores, partidos y jugadas, usuario actual, división y partido activos                   | `localStorage`, clave `hoop-club-storage` (Zustand con el middleware `persist`).                                  |
-| Cola de cambios pendientes (outbox), usuario dueño de esa cola, cursor de sincronización, versiones y hora de la última sincronización | `localStorage`, clave `hoop-sync-storage`.                                                                        |
-| Perfil del último usuario (id, correo, nombre, rol)                                                                                    | `localStorage`, clave `hoop-auth-storage`. Nunca la contraseña ni el token.                                       |
-| Sesión                                                                                                                                 | Cookie `hoop_session` (httpOnly: el JavaScript de la página no puede leerla), 30 días.                            |
-| Tema claro u oscuro                                                                                                                    | `localStorage`, clave `hoop-theme`.                                                                               |
-| Tutoriales vistos o saltados, por usuario                                                                                              | `localStorage`, clave `hoop-tour-storage`.                                                                        |
-| Pestaña principal cuando el navegador no tiene Web Locks (http en la red local)                                                        | `localStorage`, clave `hoop-sync-leader-lease` (id de la pestaña y vencimiento).                                  |
-| Cambios de una pestaña secundaria que la principal todavía no confirmó                                                                 | `localStorage`, una clave por pestaña: `hoop-sync-handoff:<id de pestaña>`.                                       |
-| Cola de diálogos, estado del reloj en marcha, estado de la sincronización en curso                                                     | Memoria (no se guarda).                                                                                           |
+| Dato                                                                                                                                         | Ubicación                                                                                                         |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Divisiones, equipos, jugadores, partidos, jugadas y códigos de la planilla del club (copia del servidor)                                     | PostgreSQL: tablas `sync_records` y `match_events` (ver [Servidor y base de datos](#9-servidor-y-base-de-datos)). |
+| Usuarios y sesiones                                                                                                                          | PostgreSQL: tablas `users` (contraseñas con hash scrypt) y `sessions` (solo el hash del token).                   |
+| Copia local del club: divisiones, equipos, jugadores, partidos y jugadas, códigos de la planilla, usuario actual, división y partido activos | `localStorage`, clave `hoop-club-storage` (Zustand con el middleware `persist`).                                  |
+| Cola de cambios pendientes (outbox), usuario dueño de esa cola, cursor de sincronización, versiones y hora de la última sincronización       | `localStorage`, clave `hoop-sync-storage`.                                                                        |
+| Perfil del último usuario (id, correo, nombre, rol)                                                                                          | `localStorage`, clave `hoop-auth-storage`. Nunca la contraseña ni el token.                                       |
+| Sesión                                                                                                                                       | Cookie `hoop_session` (httpOnly: el JavaScript de la página no puede leerla), 30 días.                            |
+| Tema claro u oscuro                                                                                                                          | `localStorage`, clave `hoop-theme`.                                                                               |
+| Tutoriales vistos o saltados, por usuario                                                                                                    | `localStorage`, clave `hoop-tour-storage`.                                                                        |
+| Pestaña principal cuando el navegador no tiene Web Locks (http en la red local)                                                              | `localStorage`, clave `hoop-sync-leader-lease` (id de la pestaña y vencimiento).                                  |
+| Cambios de una pestaña secundaria que la principal todavía no confirmó                                                                       | `localStorage`, una clave por pestaña: `hoop-sync-handoff:<id de pestaña>`.                                       |
+| Cola de diálogos, estado del reloj en marcha, estado de la sincronización en curso                                                           | Memoria (no se guarda).                                                                                           |
 
-El reloj de juego se guarda en el partido al pausar, al corregirlo, al llegar a 00:00, con cada jugada, cambio, tiempo muerto o finalización, al ocultarse la página y al salir de la consola.
+El reloj de juego se guarda en el partido al pausar, al corregirlo, al llegar a 00:00, con cada jugada o entrada de la planilla, tiempo muerto o finalización, al ocultarse la página y al salir de la consola.
 
 ### Versión y migración
 
@@ -452,15 +663,18 @@ La cola de sincronización (`SYNC_STORE_VERSION`, en `useSyncStore.ts`) y el per
 
 Se generan en `src/core/infrastructure/mocks/seed-data.ts`, de forma determinística. Las fechas se calculan a partir del momento de la primera carga.
 
-| Elemento             | Contenido                                                                                                                                                                                 |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Club                 | Club Atlético Monte Grande (`club-camg`), temporada 2025/2026.                                                                                                                            |
-| Usuarios             | 5, con correos `@camg.com.ar`: Federico Balbi, Sergio Hernández y Julio Lamas (entrenadores principales), Mariano Ginóbili (asistente planillero) y Alejandro Montecchia (administrador). |
-| Divisiones y equipos | Primera División, Sub-19 (U19) y Sub-17 (U17), cada una con su equipo `Club Atlético Monte Grande - <división>` y su entrenador.                                                          |
-| Jugadores            | 17: 12 de Primera (uno lesionado, con parte médico), 3 de Sub-19 y 2 de Sub-17.                                                                                                           |
-| Partidos finalizados | 3, con jugada a jugada completa: contra Peñarol de Mar del Plata (local), Quimsa (visitante) y Ferro Carril Oeste (local), hace 20, 13 y 6 días.                                          |
-| Partido en vivo      | Contra Obras Sanitarias, hoy, en el Estadio CAMG: 2.º cuarto con 07:08 en el reloj y el rival en bonus.                                                                                   |
-| Partido programado   | Contra Boca Juniors como visitante, dentro de 7 días, con convocatoria precargada.                                                                                                        |
+| Elemento                | Contenido                                                                                                                                                                                     |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Club                    | Club Atlético Monte Grande (`club-camg`), temporada 2025/2026.                                                                                                                                |
+| Usuarios                | 5, con correos `@camg.com.ar`: Federico Balbi, Sergio Hernández y Julio Lamas (entrenadores principales), Mariano Ginóbili (asistente planillero) y Alejandro Montecchia (administrador).     |
+| Divisiones y equipos    | Primera División, Sub-19 (U19) y Sub-17 (U17), cada una con su equipo `Club Atlético Monte Grande - <división>` y su entrenador.                                                              |
+| Jugadores               | 17: 12 de Primera (uno lesionado, con parte médico), 3 de Sub-19 y 2 de Sub-17.                                                                                                               |
+| Partidos finalizados    | 3, con jugada a jugada completa: contra Peñarol de Mar del Plata (local), Quimsa (visitante) y Ferro Carril Oeste (local), hace 20, 13 y 6 días.                                              |
+| Partido en vivo         | Contra Obras Sanitarias, hoy, en el Estadio CAMG: 2.º cuarto con 07:08 en el reloj y el rival en bonus.                                                                                       |
+| Planilla táctica        | Los partidos finalizados y el partido en vivo traen entradas de la planilla en cada cuarto jugado (entre 6 y 14 por cuarto completo, de las cuatro categorías), atadas a jugadas del partido. |
+| Catálogo de la planilla | Sin cambios: los códigos de fábrica, sin códigos propios ni archivados.                                                                                                                       |
+| Planteles rivales       | En Primera División: Obras Sanitarias (12 jugadores, el rival del partido en vivo) y Ferro Carril Oeste (10 jugadores, el rival del último partido finalizado).                               |
+| Partido programado      | Contra Boca Juniors como visitante, dentro de 7 días, con convocatoria precargada.                                                                                                            |
 
 Los mismos datos cargan el servidor con `npm run db:seed`. El navegador los usa solo hasta el primer ingreso: en la primera sincronización de una tablet, la copia del servidor reemplaza los datos locales de demostración (nunca se envían al servidor). Los cambios que alguien haya hecho antes de esa primera sincronización no se pierden: se vuelven a aplicar sobre la copia del servidor y se envían.
 
@@ -484,11 +698,11 @@ Cómo funciona para quien usa la aplicación:
 | Cambios antes de la primera sincronización (tablet nueva o sin conexión desde el primer ingreso) | También entran en la cola y el estado los cuenta como pendientes. Cuando llega la primera copia completa del servidor, reemplaza los datos locales y los cambios pendientes se vuelven a aplicar encima; después se envían.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | Vuelve la conexión                                                                               | La cola se envía sola y la tablet descarga lo que cambiaron las demás. Si el servidor no responde, reintenta cada vez más espaciado (1 s, 2 s, 4 s... hasta 60 s).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Otra tablet guarda un cambio                                                                     | El servidor avisa en vivo (Server-Sent Events) y esta tablet lo descarga en segundos.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Dos tablets editan el mismo jugador o división                                                   | Gana el cambio más reciente según la hora en que se hizo (last-write-wins) y el registro se reemplaza completo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Dos tablets editan el mismo jugador, división o código de la planilla                            | Gana el cambio más reciente según la hora en que se hizo (last-write-wins) y el registro se reemplaza completo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | Dos tablets editan el mismo partido                                                              | Se combinan campo por campo: cada dato del partido (tiempos muertos, quinteto, estadio, etc.) guarda la hora de su último cambio y gana el más reciente; con la misma hora queda el del servidor. Si una tablet maneja el reloj y otra corrige el estadio, se conservan los dos cambios. El estado, el período y el reloj forman un solo grupo (el estado de juego): gana completo el de la tablet que lo cambió último, así que nunca se mezcla el período de una tablet con el reloj de otra (por ejemplo, "2.º cuarto con 0:20" cuando una tablet pasó al 2.º cuarto y otra pausó el 1.º en 0:20). Los tiempos muertos de cada equipo también son un solo dato: si dos tablets piden a la vez un tiempo muerto del mismo equipo, queda el pedido más reciente. Eliminar un partido gana solo si es posterior a todos sus cambios. |
 | Varias pestañas abiertas en el mismo navegador                                                   | Solo una pestaña (la principal) sincroniza y guarda los datos en el navegador, también por http en la red local. Las demás muestran lo que guarda la principal y le envían sus cambios al instante. Si se cierra la principal, otra pestaña toma su lugar sola, sin perder cambios: lo que una pestaña secundaria cambió y la principal no llegó a confirmar queda guardado en el navegador, y la próxima pestaña principal lo envía aunque la secundaria ya se haya cerrado.                                                                                                                                                                                                                                                                                                                                                        |
 | Jugadas                                                                                          | Nunca se pisan: cada jugada tiene su propio ID y se suma a la lista, ordenada por hora y luego por ID. Dos tablets pueden cargar jugadas del mismo partido a la vez sin perder ninguna. El marcador y las faltas se recalculan con todas.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| **Deshacer** una jugada                                                                          | La jugada queda marcada como eliminada en el servidor (no se borra) y desaparece en todas las tablets. Una jugada eliminada no vuelve.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| **Deshacer** una entrada o una falta                                                                  | La jugada queda marcada como eliminada en el servidor (no se borra) y desaparece en todas las tablets. Una jugada eliminada no vuelve.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | El servidor rechaza un cambio                                                                    | Si el rol no tiene permiso o el dato no es válido, el cambio se descarta y el estado muestra **Error** con la cantidad de cambios rechazados. Si el servidor tiene una versión más nueva, se descarta el cambio local y se descarga la del servidor.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Jugadas de un partido que el servidor no tiene                                                   | El servidor las rechaza: una jugada solo se acepta si su partido existe (o llega en el mismo envío) y no está eliminado. La tablet envía siempre el partido antes que sus jugadas.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | La sesión venció                                                                                 | La aplicación pide iniciar sesión de nuevo. Si vuelve a entrar la misma cuenta, la cola se conserva y se envía después del ingreso.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -508,7 +722,7 @@ Detalle técnico:
 
 ---
 
-## 8. Servidor y base de datos
+## 9. Servidor y base de datos
 
 El servidor es la propia aplicación Next.js: las rutas `src/app/api/**` atienden el inicio de sesión y la sincronización, y el código de servidor vive en `src/server/**` (nunca llega al navegador). Los datos están en PostgreSQL 17.
 
@@ -536,7 +750,7 @@ Se definen en `.env.local` (no se sube al repositorio; `.env.example` documenta 
 
 ### Datos de demostración en el servidor
 
-`npm run db:seed` carga el mismo club de demostración de la [sección 7](#datos-de-demostración) y las [cuentas de demostración](#cuentas-de-demostración). Con los datos del club solo inserta: nunca sobrescribe ni revive registros o jugadas que ya existen (tampoco los que alguien eliminó), así que se puede correr varias veces sin pisar lo cargado por los usuarios. Al terminar informa cuántos registros y jugadas nuevos insertó (`recordsInserted`, `eventsInserted`) y lista las cuentas. Las cuentas de demostración, en cambio, se actualizan por ID: cada corrida restablece su nombre, correo y rol, y su contraseña a la de `SEED_DEMO_PASSWORD`.
+`npm run db:seed` carga el mismo club de demostración de la [sección 8](#datos-de-demostración) y las [cuentas de demostración](#cuentas-de-demostración). Con los datos del club solo inserta: nunca sobrescribe ni revive registros o jugadas que ya existen (tampoco los que alguien eliminó), así que se puede correr varias veces sin pisar lo cargado por los usuarios. Al terminar informa cuántos registros y jugadas nuevos insertó (`recordsInserted`, `eventsInserted`) y lista las cuentas. Las cuentas de demostración, en cambio, se actualizan por ID: cada corrida restablece su nombre, correo y rol, y su contraseña a la de `SEED_DEMO_PASSWORD`.
 
 ### API
 
@@ -576,7 +790,7 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 
 ---
 
-## 9. Identidad visual
+## 10. Identidad visual
 
 ### Paleta (tokens de `src/app/globals.css`)
 
@@ -616,7 +830,7 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 
 ### Movimiento
 
-- Animaciones con GSAP (`gsap` y `@gsap/react`), sobre `transform` y `opacity`: entrada de páginas, rebote del marcador, luces de faltas, indicador de bonus, marcadores de tiro, entrada de jugadores en un cambio y modales.
+- Animaciones con GSAP (`gsap` y `@gsap/react`), sobre `transform` y `opacity`: entrada de páginas, rebote del marcador, luces de faltas, indicador de bonus, marcadores de tiro, entradas de la planilla y modales.
 - Con `prefers-reduced-motion: reduce`, las animaciones GSAP no se ejecutan (`useMotion` usa `gsap.matchMedia`) y las transiciones CSS se reducen al mínimo.
 
 ### Tamaños
@@ -628,7 +842,7 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 
 ---
 
-## 10. Limitaciones conocidas
+## 11. Limitaciones conocidas
 
 Resueltas en esta versión: los partidos se combinan campo por campo entre tablets (con el estado, el período y el reloj como un solo grupo), el servidor rechaza jugadas de partidos inexistentes, una sola pestaña sincroniza por navegador (también por http en la red local), la consola en vivo muestra el estado de sincronización, y el entretiempo y la regla de tiempos muertos de los últimos 2 minutos del 4.º cuarto están implementados.
 
@@ -637,7 +851,7 @@ Resueltas en esta versión: los partidos se combinan campo por campo entre table
 | Sin pruebas E2E de navegador         | Las pruebas cubren el núcleo (dominio, casos de uso, hooks puros, sincronización, coordinación de pestañas, datos de demostración) y el servidor. La interfaz no tiene pruebas automatizadas en navegador. |
 | Reinicio de la base                  | La tablet detecta un reinicio de la base del servidor recién con su próximo envío o aviso en vivo.                                                                                                         |
 | Cambios rechazados                   | Un cambio que el servidor rechaza por permiso o validez se descarta y solo se informa la cantidad, no cuál fue.                                                                                            |
-| Correcciones en el entretiempo       | Durante el entretiempo no se puede deshacer la última jugada del 2.º cuarto: hay que comenzar el 3.er cuarto primero.                                                                                      |
+| Correcciones en el entretiempo       | Durante el entretiempo no se puede deshacer la última entrada ni la última falta del rival del 2.º cuarto: hay que comenzar el 3.er cuarto primero.                                                                                      |
 | Empate tras el 4.º suplementario     | Si el reloj llega a 00:00 con empate al final del 4.º suplementario, solo se muestra un aviso.                                                                                                             |
 | Dorsal repetido                      | No se impide que dos jugadores del mismo equipo usen el mismo dorsal.                                                                                                                                      |
 | Usuarios sin pantalla de gestión     | Las cuentas se crean con `npm run db:seed`. No hay pantalla para crear usuarios ni cambiar contraseñas.                                                                                                    |
@@ -647,7 +861,7 @@ Resueltas en esta versión: los partidos se combinan campo por campo entre table
 
 ---
 
-## 11. Arquitectura
+## 12. Arquitectura
 
 ### Capas (Clean Architecture)
 
@@ -670,7 +884,8 @@ El motor de sincronización (`createSyncEngine`) no conoce el navegador: recibe 
 ```text
 src/
   app/                      rutas: /, /divisions, /players, /matches,
-                            /matches/live, /matches/[id]/{lineup,live,stats}
+                            /matches/live, /matches/[id]/{lineup,live,stats},
+                            /planilla, /ayuda
                             /login, /api/auth/*, /api/sync/*
   core/
     domain/                 entities/, rules/, value-objects/
@@ -695,9 +910,17 @@ public/brand/               escudo del club
 1. Agregar el valor a `PlayByPlayEventTypeSchema` y su etiqueta a `PLAY_BY_PLAY_EVENT_LABELS` (`src/core/domain/entities/match.types.ts`).
 2. Si suma puntos o cuenta como falta, actualizar `EVENT_POINTS` o `isFoulEvent` (`src/core/domain/rules/event-rules.ts`).
 3. Si aparece en el box score, contarlo en `calculatePlayerBoxScore` y `calculateTeamBoxScore` (`basketball-rules.ts`).
-4. Exponerlo en la interfaz: botón en `PAD_GROUPS` (`QuickActionPad.tsx`) o en la barra de la consola.
+4. Exponerlo en la interfaz: botón en la barra de la consola (`ConsoleToolbar.tsx`).
 5. Pruebas en `src/core/domain/rules/*.test.ts` y, si cambia un caso de uso, en `src/core/application/use-cases/match-use-cases.test.ts`.
 6. Si cambia la forma de los datos guardados, subir `CLUB_STORE_VERSION`.
+
+### Cómo agregar un código de la planilla
+
+Un club agrega sus propios códigos desde la pantalla [Códigos de la planilla](#códigos-de-la-planilla-planilla), sin tocar el código fuente. Para sumar un código de fábrica, para todos los clubes:
+
+1. Agregarlo a `CHART_CATALOG` (`src/core/domain/entities/chart.types.ts`) con su símbolo, su etiqueta y su tono. El id (`code`) se guarda en cada entrada: no se renombra ni se reutiliza. El símbolo y la etiqueta sí pueden cambiar.
+2. La consola, la grilla y las referencias leen el catálogo del club (`resolveChartCatalog`, en `src/core/domain/rules/chart-catalog.ts`: los códigos de fábrica con los cambios del club, más sus códigos propios), así que lo toman sin más cambios.
+3. Agregarlo a la tabla de [Códigos de la planilla](#códigos-de-la-planilla) de este manual.
 
 ### Cómo agregar o cambiar una regla
 
@@ -709,7 +932,7 @@ public/brand/               escudo del club
 ### Estrategia de pruebas
 
 - Runner: `node:test` con `node:assert`, ejecutado por `tsx` (`npm test`). Los archivos `*.test.ts` viven junto al código que prueban.
-- Cubren: reglas FIBA (faltas, bonus, PIR, +/-, box score), reloj y períodos, tiempos muertos, convocatoria, permisos, clasificación de jugadas, esquemas, derivación del marcador y parciales, analítica de temporada, casos de uso de club y de partido, estado del store y migración, reducer del reloj, reglas de la consola, efectividad de tiros, integridad e identidad de los datos de demostración.
+- Cubren: reglas FIBA (faltas, bonus, PIR, +/-, box score), reloj y períodos, tiempos muertos, convocatoria, permisos, clasificación de jugadas, esquemas, derivación del marcador y parciales, analítica de temporada, casos de uso de club y de partido, estado del store y migración, reducer del reloj, reglas de la consola, efectividad de tiros, planilla táctica (catálogo, carga, deshacer y grilla), integridad e identidad de los datos de demostración.
 - Sincronización del cliente: diferencias entre estados, coalescencia de la cola, límites del envío, resultado del envío (aceptado, `STALE`, `FORBIDDEN`, `INVALID`), fusión last-write-wins, eliminaciones, orden de jugadas, primera sincronización, cambios hechos antes de la primera sincronización, cola reaplicada sobre la copia completa, reinicio del cursor, dueño de la cola al cambiar de usuario, motor (debounce, reintentos con espera creciente, 401, sin conexión, SSE), cierre de sesión sin conexión, destino seguro tras el ingreso, adaptador HTTP y textos del indicador.
 - Servidor: hash de contraseñas, sesiones, RBAC, esquemas de la API, reglas de fusión, SSE y, con `npm run test:db`, integración contra PostgreSQL.
 - No cubren: componentes React ni flujos en navegador.
@@ -717,11 +940,11 @@ public/brand/               escudo del club
 
 ---
 
-## 12. Glosario
+## 13. Glosario
 
 | Término                          | Significado                                                                                                        |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| PIR / VAL                        | Valoración FIBA (Performance Index Rating). Fórmula en la [sección 6](#6-reglas-fiba-aplicadas).                   |
+| PIR / VAL                        | Valoración FIBA (Performance Index Rating). Fórmula en la [sección 7](#7-reglas-fiba-aplicadas).                   |
 | +/-                              | Diferencia de puntos del equipo mientras el jugador estuvo en cancha.                                              |
 | Bonus                            | Situación de penalización del equipo con 4 o más faltas de equipo en el período.                                   |
 | TL                               | Tiro libre (1 punto).                                                                                              |
@@ -746,3 +969,5 @@ public/brand/               escudo del club
 | Versión por campo                | Hora del último cambio de cada dato de un partido; permite combinar ediciones de distintas tablets sin pisarse.    |
 | Pestaña principal                | La única pestaña del navegador que sincroniza y guarda los datos; las demás le envían sus cambios.                 |
 | Entretiempo                      | Descanso tras el 2.º cuarto (`HALFTIME`): sin jugadas ni tiempos muertos hasta comenzar el 3.er cuarto.            |
+| Planilla táctica                 | Planilla del entrenador cargada en vivo: pérdidas, puntos recibidos, acciones ofensivas y defensivas, con jugador, período y reloj. |
+| EQ                               | En la grilla de la planilla, entrada del equipo (sin jugador).                                                     |

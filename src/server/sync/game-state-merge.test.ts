@@ -28,6 +28,8 @@ const club = (match: Match): SyncableClubData => ({
   teams: [makeTeam()],
   players: [makePlayer({ id: 'p1' })],
   matches: [match],
+  chartCodes: [],
+  rivalTeams: [],
 });
 
 /** A tablet that knew `base` at T0 and edited it at `at`: its state and its pending outbox entry. */

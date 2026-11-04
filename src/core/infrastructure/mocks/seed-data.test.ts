@@ -9,6 +9,9 @@ import {
   getQuarterPartials,
 } from '@/core/domain/rules/match-derivations';
 import { getPlayerFoulsFromEvents } from '@/core/domain/rules/basketball-rules';
+import { CHART_CATEGORIES, findChartCode } from '@/core/domain/entities/chart.types';
+import { RivalTeamSchema } from '@/core/domain/entities/rival.types';
+import { findRivalTeam } from '@/core/domain/rules/rival-teams';
 
 const NOW = new Date('2026-10-30T18:00:00.000Z');
 
@@ -146,6 +149,51 @@ describe('seed data', () => {
     }
   });
 
+  it('charts every quarter of the finished matches with valid tactical entries', () => {
+    const finished = state.matches.filter((m) => m.status === 'FINISHED');
+    for (const match of finished) {
+      for (const quarter of ['Q1', 'Q2', 'Q3', 'Q4'] as const) {
+        const entries = match.events.filter((e) => e.type === 'CHART' && e.quarter === quarter);
+        assert.ok(entries.length >= 6 && entries.length <= 14, `${match.id} ${quarter}: ${entries.length}`);
+      }
+      const categories = new Set(match.events.filter((e) => e.type === 'CHART').map((e) => e.chart?.category));
+      assert.deepStrictEqual([...categories].sort(), [...CHART_CATEGORIES].sort(), match.id);
+    }
+    const live = state.matches.find((m) => m.id === SEED_LIVE_MATCH_ID);
+    assert.ok(live?.events.some((e) => e.type === 'CHART'), 'live match has chart entries');
+  });
+
+  it('stores chart entries like the live sheet does (own team, catalog codes, points only when allowed)', () => {
+    for (const match of state.matches) {
+      let lineup = [...match.startingLineupOwn];
+      for (const event of match.events) {
+        if (event.type === 'SUBSTITUTION' && event.substitution) {
+          const { playerInId, playerOutId } = event.substitution;
+          lineup = lineup.map((id) => (id === playerOutId ? playerInId : id));
+        }
+        if (event.type !== 'CHART') {
+          assert.strictEqual(event.chart, undefined, event.id);
+          continue;
+        }
+        assert.ok(event.chart, `${event.id} has a chart entry`);
+        const { category, code, points, made } = event.chart;
+        assert.ok(findChartCode(category, code), `${event.id} ${category}/${code}`);
+        assert.strictEqual(event.isOwnTeam, true, event.id);
+        assert.strictEqual(event.teamId, match.ownTeamId, event.id);
+        if (event.playerId) assert.ok(lineup.includes(event.playerId), `${event.id} player on court`);
+        if (category === 'POINTS_ALLOWED') {
+          assert.ok(points === 1 || points === 2 || points === 3, `${event.id} points ${points}`);
+        } else if (category === 'OFFENSE') {
+          assert.strictEqual(typeof made, 'boolean', `${event.id} offensive result (S11)`);
+          if (made) assert.ok(points === 2 || points === 3, `${event.id} made points ${points}`);
+          else assert.strictEqual(points, undefined, `${event.id} missed without points`);
+        } else {
+          assert.strictEqual(points, undefined, `${event.id} points only on POINTS_ALLOWED`);
+        }
+      }
+    }
+  });
+
   it('keeps events chronological within each match', () => {
     const order = ['Q1', 'Q2', 'Q3', 'Q4', 'OT1', 'OT2', 'OT3', 'OT4'];
     for (const match of state.matches) {
@@ -175,5 +223,67 @@ describe('club identity', () => {
     for (const user of state.users) {
       assert.ok(!user.email.includes('hoop'), user.email);
     }
+  });
+});
+
+describe('seed free-throw trips in the chart', () => {
+  it('charts a rival free-throw trip with exactly the free throws made, never zero', () => {
+    const state = createSeedState(NOW);
+    let checked = 0;
+    for (const match of state.matches) {
+      match.events.forEach((event, index) => {
+        if (event.type !== 'CHART' || event.chart?.code !== 'UNNECESSARY_FOUL') return;
+        if (event.chart.category !== 'POINTS_ALLOWED') return;
+        let start = index;
+        const isRivalFt = (i: number) =>
+          !match.events[i].isOwnTeam && (match.events[i].type === 'FT_MADE' || match.events[i].type === 'FT_MISS');
+        while (start > 0 && isRivalFt(start - 1)) start--;
+        const made = match.events.slice(start, index).filter((e) => e.type === 'FT_MADE').length;
+        assert.ok(made > 0, `${event.id} charted a trip without made free throws`);
+        assert.strictEqual(event.chart.points, made, event.id);
+        checked++;
+      });
+    }
+    assert.ok(checked > 0, 'the seed charts at least one free-throw trip');
+  });
+});
+
+describe('seed rival rosters (S14)', () => {
+  const state = createSeedState(NOW);
+
+  it('validates every rival team against the domain schema, unchanged by parsing', () => {
+    assert.ok(state.rivalTeams.length >= 2);
+    for (const team of state.rivalTeams) {
+      assert.deepStrictEqual(RivalTeamSchema.parse(team), team, team.id);
+      assert.strictEqual(team.clubId, CLUB_PROFILE.id, team.id);
+    }
+  });
+
+  it('resolves Obras Sanitarias with 12 players for the live Primera match', () => {
+    const live = state.matches.find((m) => m.id === SEED_LIVE_MATCH_ID);
+    assert.ok(live);
+    const team = findRivalTeam(state.rivalTeams, live.divisionId, live.rivalTeamName);
+    assert.ok(team, 'the live match rival has a roster');
+    assert.strictEqual(team.name, 'Obras Sanitarias');
+    assert.strictEqual(team.divisionId, 'div-primera');
+    assert.deepStrictEqual(
+      team.players.map((p) => p.id),
+      Array.from({ length: 12 }, (_, i) => `rival-obras-p${i + 1}`)
+    );
+    assert.strictEqual(new Set(team.players.map((p) => p.dorsal)).size, 12);
+  });
+
+  it('resolves a second roster for a finished Primera match', () => {
+    const resolved = state.matches.filter(
+      (m) => m.status === 'FINISHED' && findRivalTeam(state.rivalTeams, m.divisionId, m.rivalTeamName)
+    );
+    assert.ok(resolved.length >= 1, 'a finished match has its rival roster');
+    for (const match of resolved) {
+      assert.strictEqual(match.divisionId, 'div-primera', match.id);
+    }
+    const resolvedTeams = state.matches
+      .map((m) => findRivalTeam(state.rivalTeams, m.divisionId, m.rivalTeamName))
+      .filter((team) => team !== undefined);
+    assert.deepStrictEqual(new Set(resolvedTeams), new Set(state.rivalTeams), 'every seed roster belongs to a match');
   });
 });

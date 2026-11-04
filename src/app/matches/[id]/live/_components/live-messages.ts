@@ -1,17 +1,19 @@
 import type { Quarter } from '@/core/domain/entities/match.types';
 import { getTimeoutPeriod, isLastTwoMinutesOfFourthQuarter, type TimeoutPeriod } from '@/core/domain/rules/timeouts';
 import type {
+  RecordChartReason,
   RecordEventReason,
   RequestTimeoutResult,
-  SubstitutionReason,
-  UndoReason,
+  UndoChartReason,
+  UndoRivalFoulReason,
 } from '@/core/application/use-cases/match-use-cases';
 
 /** Every refusal the live console can receive from the store. */
 export type ConsoleRefusal =
   | RecordEventReason
-  | UndoReason
-  | SubstitutionReason
+  | UndoRivalFoulReason
+  | RecordChartReason
+  | UndoChartReason
   | Extract<RequestTimeoutResult, { ok: false }>['reason']
   | 'NOT_END_OF_FIRST_HALF'
   | 'NOT_HALFTIME'
@@ -24,11 +26,11 @@ export const REFUSAL_MESSAGES: Record<ConsoleRefusal, string> = {
   NOT_END_OF_FIRST_HALF: 'El entretiempo solo empieza al terminar el 2.º cuarto.',
   NOT_HALFTIME: 'El partido no está en el entretiempo.',
   INVALID_EVENT: 'La acción no es válida para este registro.',
-  NO_EVENTS: 'No hay jugadas para deshacer.',
-  PLAYER_NOT_ON_COURT: 'El jugador que sale no está en cancha.',
-  PLAYER_ALREADY_ON_COURT: 'El jugador que entra ya está en cancha.',
-  PLAYER_NOT_IN_ROSTER: 'El jugador no está en la convocatoria del partido.',
-  PLAYER_FOULED_OUT: 'El jugador está excluido por 5 faltas y no puede volver a cancha.',
+  NO_RIVAL_FOULS: 'No hay faltas del rival para deshacer.',
+  INVALID_CHART_CODE: 'El código no corresponde a esa categoría de la planilla.',
+  INVALID_CHART_RESULT: 'Elige si la acción ofensiva convirtió y cuántos puntos.',
+  INVALID_RIVAL_PLAYER: 'El jugador rival no pertenece al plantel de este rival.',
+  NO_CHART_ENTRIES: 'No hay entradas de la planilla para deshacer.',
   NO_TIMEOUTS_LEFT: 'No quedan tiempos muertos en este período.',
 };
 

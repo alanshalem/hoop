@@ -21,4 +21,15 @@ describe('REFUSAL_MESSAGES', () => {
       'Es el entretiempo: no se registran jugadas ni tiempos muertos hasta comenzar el 3.er cuarto.'
     );
   });
+
+  it('explains a rival player outside the rival roster (S14)', () => {
+    assert.strictEqual(
+      REFUSAL_MESSAGES.INVALID_RIVAL_PLAYER,
+      'El jugador rival no pertenece al plantel de este rival.'
+    );
+  });
+
+  it('explains that there is no rival foul to undo (S15)', () => {
+    assert.strictEqual(REFUSAL_MESSAGES.NO_RIVAL_FOULS, 'No hay faltas del rival para deshacer.');
+  });
 });

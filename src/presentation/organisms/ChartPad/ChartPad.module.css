@@ -1,0 +1,480 @@
+/* Live charting pad: blue = positive action, red = negative (paper sheet inks). */
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  height: 100%;
+  padding: var(--space-3);
+  background-color: var(--bg-surface-1);
+  overflow-y: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.categoryTabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-1-5);
+  flex-shrink: 0;
+}
+
+@media (min-width: 640px) {
+  .categoryTabs {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.categoryTab {
+  min-height: var(--touch-min);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-2);
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.categoryTabActive {
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary);
+  color: var(--text-on-brand);
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+
+.stepTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-display);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.playerGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+@media (min-width: 640px) {
+  .playerGrid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+.playerChip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-0-5);
+  min-width: 0;
+  min-height: var(--touch-lg);
+  padding: var(--space-1);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-2);
+  color: var(--text-primary);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.playerChip:disabled,
+.pointBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Codes stay readable while waiting for a player: only the border fades. */
+.codeBtn:disabled {
+  border-style: dashed;
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.stepTitleWaiting {
+  color: var(--color-warning);
+}
+
+.stepQuestion {
+  color: var(--text-muted);
+}
+
+/* Optional rival step (S14): one scrollable row on phones, wrapped on wider pads. */
+.rivalRow {
+  display: flex;
+  gap: var(--space-1-5);
+  overflow-x: auto;
+}
+
+@media (min-width: 640px) {
+  .rivalRow {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    overflow-x: visible;
+  }
+}
+
+.rivalChip {
+  flex-shrink: 0;
+  min-width: 0;
+  min-height: var(--touch-min);
+  padding: var(--space-1) var(--space-3);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-2);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.rivalChip.chipActive {
+  border-style: solid;
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-subtle);
+  color: var(--brand-primary-ink);
+}
+
+.rivalChip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.teamChip {
+  color: var(--text-secondary);
+}
+
+.chipActive {
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-subtle);
+  color: var(--brand-primary-ink);
+}
+
+.chipDorsal {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-display);
+  line-height: 1;
+}
+
+.chipName {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-2xs);
+}
+
+.pointsRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pointBtn {
+  flex: 1;
+  max-width: 96px;
+  min-height: var(--touch-min);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-2);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-display);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.codeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2);
+}
+
+@media (min-width: 640px) {
+  .codeGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.codeBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: var(--touch-lg);
+  padding: var(--space-1) var(--space-2);
+  border: 2px solid currentColor;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-2);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.positive {
+  color: var(--color-info);
+}
+
+.positive:not(:disabled):hover {
+  background-color: var(--color-info-subtle);
+}
+
+.negative {
+  color: var(--color-danger);
+}
+
+.negative:not(:disabled):hover {
+  background-color: var(--color-danger-subtle);
+}
+
+.codeSymbol {
+  flex-shrink: 0;
+  min-width: 2.25em;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-display);
+  text-align: center;
+}
+
+.codeLabel {
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--leading-snug);
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.recentHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.undoBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--touch-min);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-2);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.emptyText {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.recentList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Two-line entry (S14): symbol | who + code / clock, category, rival | result. */
+.recentItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1-5) var(--space-2);
+  border-left: 3px solid currentColor;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface-2);
+  color: var(--text-secondary);
+}
+
+.positiveText {
+  color: var(--color-info);
+}
+
+.negativeText {
+  color: var(--color-danger);
+}
+
+.recentSymbol {
+  flex-shrink: 0;
+  min-width: 2.5em;
+  padding: var(--space-1) var(--space-1-5);
+  border: 2px solid currentColor;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-display);
+  line-height: 1;
+  text-align: center;
+}
+
+.recentBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  flex: 1;
+  min-width: 0;
+}
+
+.recentMain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+
+.recentPlayer {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  white-space: nowrap;
+}
+
+.recentLabel {
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+.recentMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-1-5);
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+}
+
+.recentMeta > * + *::before {
+  content: '·';
+  margin-right: var(--space-1-5);
+  color: var(--text-muted);
+}
+
+.recentClock {
+  font-variant-numeric: tabular-nums;
+}
+
+.recentRival {
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.recentOutcome {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-display);
+  white-space: nowrap;
+}
+
+.outcomeMade {
+  color: var(--color-success);
+}
+
+.outcomeMissed {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.outcomeAllowed {
+  color: var(--color-danger);
+}
+
+/* Selected points: same red as a selected player. Declared after .pointBtn,
+   which would otherwise override .chipActive (same specificity). */
+.pointBtn.chipActive {
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-subtle);
+  color: var(--brand-primary-ink);
+}
+
+/* Touch screens have no hover: show the press itself. */
+.playerChip:not(:disabled):active,
+.rivalChip:not(:disabled):active,
+.pointBtn:not(:disabled):active,
+.codeBtn:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* OFFENSE: the action picked in step 2, waiting for its result. */
+.codeSelected {
+  background-color: var(--brand-primary-subtle);
+  box-shadow: 0 0 0 2px var(--brand-primary);
+}
+
+/* Step 3 (OFFENSE): result of the action (S11). */
+.resultGrid {
+  display: grid;
+  grid-template-columns: 1.6fr repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+.resultBtn {
+  min-height: var(--touch-lg);
+  padding: var(--space-1) var(--space-2);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-2);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-display);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.resultMade:not(:disabled) {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.resultMiss:not(:disabled) {
+  border-color: var(--text-muted);
+  color: var(--text-secondary);
+}
+
+.resultBtn:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.resultBtn:disabled {
+  border-style: dashed;
+  opacity: 0.6;
+  cursor: not-allowed;
+}

@@ -12,7 +12,7 @@ import type { MatchRecord, VersionMap } from './sync-types';
  * quarter and clock are the `game-state` group, so a merge never combines the
  * quarter of one tablet with the clock of another. Each team's timeouts are one
  * object field: two simultaneous timeout requests resolve to the newer one.
- * Divisions, teams and players keep whole-record last-write-wins.
+ * Divisions, teams, players, chart codes and rival teams keep whole-record last-write-wins.
  * =============================================================================
  */
 

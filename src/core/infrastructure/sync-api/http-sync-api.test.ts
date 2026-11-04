@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { createHttpAuthApi, createHttpSyncApi } from './http-sync-api';
 import { parseChangedEventData } from './sync-api-schemas';
 import { toMatchRecord } from '@/core/application/sync/sync-records';
-import { makeDivision, makeEvent, makeMatch } from '@/core/testing/fixtures';
+import { makeChartCode, makeDivision, makeEvent, makeMatch, makeRivalTeam } from '@/core/testing/fixtures';
 
 interface Call {
   url: string;
@@ -59,6 +59,55 @@ describe('http sync api', () => {
     assert.deepStrictEqual(result.value.events.map((e) => e.id), ['ev-1']);
     assert.strictEqual(result.value.cursor, '42');
     assert.strictEqual(result.value.hasMore, true);
+  });
+
+  it('accepts a valid chartCode record and drops an invalid one (S9)', async () => {
+    const valid = makeChartCode({ category: 'OFFENSE', code: 'CUSTOM_zone', symbol: 'Z', label: 'Zona', order: 4 });
+    const badSymbol = makeChartCode({ code: 'TRAVELLING', symbol: 'ABCD' });
+    const { fetchImpl } = fakeFetch(() =>
+      json({
+        records: [
+          { kind: 'chartCode', id: valid.id, data: valid, updatedAt: '2026-10-30T18:00:00.000Z', deleted: false },
+          { kind: 'chartCode', id: badSymbol.id, data: badSymbol, updatedAt: '2026-10-30T18:00:00.000Z', deleted: false },
+        ],
+        events: [],
+        cursor: '7',
+        hasMore: false,
+      })
+    );
+    const result = await createHttpSyncApi(fetchImpl).pull('1');
+    assert.ok(result.ok);
+    assert.deepStrictEqual(result.value.records, [
+      { kind: 'chartCode', id: valid.id, data: valid, updatedAt: '2026-10-30T18:00:00.000Z', deleted: false },
+    ]);
+  });
+
+  it('accepts a valid rivalTeam record and drops an invalid one (S14)', async () => {
+    const valid = makeRivalTeam();
+    const repeatedDorsal = makeRivalTeam({
+      id: 'rival-bad',
+      players: [
+        { id: 'rp-1', dorsal: 5, firstName: 'Juan', lastName: 'Pérez' },
+        { id: 'rp-2', dorsal: 5, firstName: 'Diego', lastName: 'García' },
+      ],
+    });
+    const T = '2026-10-30T18:00:00.000Z';
+    const { fetchImpl } = fakeFetch(() =>
+      json({
+        records: [
+          { kind: 'rivalTeam', id: valid.id, data: valid, updatedAt: T, deleted: false },
+          { kind: 'rivalTeam', id: repeatedDorsal.id, data: repeatedDorsal, updatedAt: T, deleted: false },
+        ],
+        events: [],
+        cursor: '8',
+        hasMore: false,
+      })
+    );
+    const result = await createHttpSyncApi(fetchImpl).pull('1');
+    assert.ok(result.ok);
+    assert.deepStrictEqual(result.value.records, [
+      { kind: 'rivalTeam', id: valid.id, data: valid, updatedAt: T, deleted: false },
+    ]);
   });
 
   it('keeps the known field versions of pulled match records (S13.1)', async () => {

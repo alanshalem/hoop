@@ -27,7 +27,18 @@ describe('tour catalog', () => {
       [...TOUR_IDS]
     );
     assert.deepStrictEqual(TOUR_IDS, [WELCOME_TOUR_ID, ...SCREEN_TOUR_IDS]);
-    assert.deepStrictEqual(SCREEN_TOUR_IDS, ['dashboard', 'divisions', 'players', 'matches', 'lineup', 'live', 'stats', 'help']);
+    assert.deepStrictEqual(SCREEN_TOUR_IDS, [
+      'dashboard',
+      'divisions',
+      'players',
+      'matches',
+      'lineup',
+      'live',
+      'stats',
+      'planilla',
+      'rivales',
+      'help',
+    ]);
     for (const id of TOUR_IDS) assert.strictEqual(getTour(id).id, id);
   });
 
@@ -43,14 +54,24 @@ describe('tour catalog', () => {
       getTour(WELCOME_TOUR_ID)
         .steps.map((step) => step.target)
         .filter((target) => target !== null),
-      ['nav-dashboard', 'nav-divisions', 'nav-players', 'nav-matches', 'nav-live', 'sync-status', 'user-menu', 'nav-help']
+      [
+        'nav-dashboard',
+        'nav-divisions',
+        'nav-players',
+        'nav-matches',
+        'nav-live',
+        'nav-planilla',
+        'sync-status',
+        'user-menu',
+        'nav-help',
+      ]
     );
   });
 
   it('teaches the 2-tap recording in the live console with a seed example', () => {
     const live = getTour('live');
     const targets = live.steps.map((step) => step.target);
-    for (const target of ['live-lineup', 'live-court', 'live-pad', 'live-rival', 'live-timeout', 'live-timeline', 'live-finish']) {
+    for (const target of ['live-chart-pad', 'live-chart-sheet', 'live-rival', 'live-timeout', 'live-finish']) {
       assert.ok(targets.includes(target), `live tour misses ${target}`);
     }
     assert.ok(live.steps.some((step) => step.example?.includes('#7 Campagna')));
@@ -92,8 +113,40 @@ describe('tour catalog', () => {
     assert.ok(targetsFor('matches', 'HEAD_COACH').includes('matches-create'));
     assert.ok(!targetsFor('matches', 'ASSISTANT_STATISTICIAN').includes('matches-create'));
     assert.ok(!targetsFor('lineup', 'ASSISTANT_STATISTICIAN').includes('lineup-start'));
-    for (const role of UserRoleSchema.options) {
-      assert.ok(targetsFor('live', role).includes('live-pad'), `${role} records live`);
+    for (const target of ['chart-catalog-create', 'chart-catalog-edit', 'chart-catalog-archive']) {
+      assert.ok(targetsFor('planilla', 'ADMIN').includes(target), `ADMIN sees ${target}`);
+      assert.ok(targetsFor('planilla', 'HEAD_COACH').includes(target), `HEAD_COACH sees ${target}`);
+      assert.ok(!targetsFor('planilla', 'ASSISTANT_STATISTICIAN').includes(target), `no ${target} for the assistant`);
     }
+    assert.ok(targetsFor('planilla', 'ASSISTANT_STATISTICIAN').includes('chart-catalog-code'));
+    for (const target of ['rivals-create', 'rival-add-player', 'rival-rename']) {
+      assert.ok(targetsFor('rivales', 'ADMIN').includes(target), `ADMIN sees ${target}`);
+      assert.ok(targetsFor('rivales', 'HEAD_COACH').includes(target), `HEAD_COACH sees ${target}`);
+      assert.ok(!targetsFor('rivales', 'ASSISTANT_STATISTICIAN').includes(target), `no ${target} for the assistant`);
+    }
+    assert.ok(targetsFor('rivales', 'ASSISTANT_STATISTICIAN').includes('rival-card'));
+    for (const role of UserRoleSchema.options) {
+      assert.ok(targetsFor('live', role).includes('live-chart-pad'), `${role} records live`);
+    }
+  });
+});
+
+describe('live tour', () => {
+  it('walks the Planilla only: no step points to the removed stats console (S15)', () => {
+    const targets = getTour('live').steps.map((step) => step.target);
+    for (const removed of ['live-mode', 'live-tabs', 'live-lineup', 'live-court', 'live-pad', 'live-timeline']) {
+      assert.ok(!targets.includes(removed), `live tour still points to ${removed}`);
+    }
+    assert.ok(targets.indexOf('live-chart-pad') < targets.indexOf('live-chart-sheet'), 'pad before sheet');
+  });
+
+  it('explains the rival toolbar as FALTA plus Deshacer falta, without rival points buttons (S15)', () => {
+    const rival = getTour('live').steps.find((step) => step.target === 'live-rival');
+    assert.ok(rival, 'live-rival step');
+    const copy = `${rival.title} ${rival.body} ${rival.example ?? ''}`;
+    assert.match(copy, /Falta/);
+    assert.match(copy, /Deshacer falta/);
+    assert.doesNotMatch(copy, /\+[123]/);
+    assert.match(copy, /Puntos recibidos/);
   });
 });

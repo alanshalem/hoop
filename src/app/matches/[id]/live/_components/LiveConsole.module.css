@@ -57,7 +57,7 @@
   flex-shrink: 0;
 }
 
-/* MOBILE PORTRAIT: SECTION TABS */
+/* MOBILE PORTRAIT: PAD OR SHEET TABS */
 .mobileTabs {
   display: flex;
   flex-shrink: 0;
@@ -89,37 +89,6 @@
   border-bottom-color: var(--brand-primary);
 }
 
-/* MAIN CONSOLE: lineup left, court + timeline center, action pad right */
-.mainConsole {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.columnSection {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.centerColumn {
-  display: flex;
-  flex-direction: column;
-  background-color: var(--color-court-floor);
-}
-
-.court {
-  flex: 1;
-  min-height: 0;
-}
-
-.timeline {
-  flex-shrink: 0;
-  max-height: 34%;
-  margin: 0 var(--space-3) var(--space-3);
-}
-
 @media (max-width: 899px) {
   .columnHidden {
     display: none;
@@ -130,10 +99,67 @@
   .mobileTabs {
     display: none;
   }
+}
 
-  .mainConsole {
+.sheetConsole {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Mobile: pad or sheet view (tabs). Desktop: pad left, sheet view right. */
+.sheetBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sheetPadSlot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sheetPad {
+  flex: 1;
+  min-height: 0;
+}
+
+.sheetView {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-3);
+  overflow-y: auto;
+  background-color: var(--bg-base);
+}
+
+@media (max-width: 899px) {
+  .sheetPadSlot.columnHidden {
+    display: none;
+  }
+}
+
+@media (min-width: 900px) {
+  .sheetBody {
     display: grid;
-    grid-template-columns: minmax(260px, 300px) 1fr minmax(300px, 340px);
+    grid-template-columns: minmax(380px, 560px) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
+  }
+
+  .sheetView {
+    border-left: 1px solid var(--border-subtle);
+  }
+}
+
+/* Wide screens: give the charting pad more room (three code columns, roomier chips). */
+@media (min-width: 1400px) {
+  .sheetBody {
+    grid-template-columns: minmax(480px, 680px) minmax(0, 1fr);
   }
 }

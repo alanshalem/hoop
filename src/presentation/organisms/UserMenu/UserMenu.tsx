@@ -25,6 +25,13 @@ export interface UserMenuProps {
  * Authenticated user (S10.8): name, role from the server, sync status, help and logout.
  * Replaces the simulated role switcher.
  */
+/** First letters of the first and last words: "Alejandro Martinez" -> "AM". */
+const initials = (name: string): string => {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const letters = words.length > 1 ? words[0][0] + words[words.length - 1][0] : name.slice(0, 2);
+  return letters.toUpperCase();
+};
+
 export const UserMenu: React.FC<UserMenuProps> = ({ variant = 'inline', className }) => {
   const router = useRouter();
   const currentUser = useClubStore((state) => state.currentUser);
@@ -48,7 +55,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ variant = 'inline', classNam
     >
       <div className={styles.userInfo}>
         <div className={styles.avatar} aria-hidden="true">
-          {currentUser.name.slice(0, 2).toUpperCase()}
+          {initials(currentUser.name)}
         </div>
         <div className={styles.userDetails}>
           <span className={styles.userName}>{currentUser.name}</span>

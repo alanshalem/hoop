@@ -1,7 +1,9 @@
 import 'server-only';
 import type { z } from 'zod';
+import { ChartCodeRecordSchema } from '@/core/domain/entities/chart.types';
 import { DivisionSchema, PlayerSchema, TeamSchema } from '@/core/domain/entities/club.types';
 import { MatchSchema, PlayByPlayEventSchema } from '@/core/domain/entities/match.types';
+import { RivalTeamSchema } from '@/core/domain/entities/rival.types';
 import type { SyncRecordKind } from './record-kinds';
 
 /**
@@ -15,6 +17,8 @@ export const RECORD_DATA_SCHEMAS = {
   team: TeamSchema,
   player: PlayerSchema,
   match: MatchRecordSchema,
+  chartCode: ChartCodeRecordSchema,
+  rivalTeam: RivalTeamSchema,
 } satisfies Record<SyncRecordKind, z.ZodType>;
 
 export type ParseResult<T> = { ok: true; value: T } | { ok: false; reason: string };

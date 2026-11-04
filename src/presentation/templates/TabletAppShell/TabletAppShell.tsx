@@ -5,10 +5,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   CalendarDays,
+  ClipboardList,
   LayoutDashboard,
   LifeBuoy,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Radio,
   Shield,
+  Swords,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -20,6 +25,7 @@ import { CLUB_BRAND } from '@/presentation/brand';
 import { usePageEnter, useStaggerReveal } from '@/presentation/motion/useMotion';
 import { useNavIndicator } from '@/presentation/motion/useNavIndicator';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { useNavCollapsed } from './useNavCollapsed';
 import styles from './TabletAppShell.module.css';
 
 export interface TabletAppShellProps {
@@ -51,8 +57,27 @@ const HELP_ITEM: NavItem = {
   tourTarget: 'nav-help',
 };
 
-// The rail closes with the manual; on phones it lives in the top bar so the bottom bar stays balanced.
-const RAIL_ITEMS: NavItem[] = [...NAV_ITEMS, HELP_ITEM];
+const CHART_CATALOG_ITEM: NavItem = {
+  label: 'Planilla',
+  shortLabel: 'Planilla',
+  href: '/planilla',
+  icon: ClipboardList,
+  tourTarget: 'nav-planilla',
+};
+
+// Rail only: on phones the rival rosters open from the Partidos header, so the top bar keeps its width.
+const RIVALS_ITEM: NavItem = {
+  label: 'Rivales',
+  shortLabel: 'Rivales',
+  href: '/rivales',
+  icon: Swords,
+  tourTarget: 'nav-rivales',
+};
+
+// The rail closes with the chart catalog and the manual; on phones both live in the top bar
+// so the bottom bar stays balanced around the live button.
+const TOP_BAR_ITEMS: NavItem[] = [CHART_CATALOG_ITEM, HELP_ITEM];
+const RAIL_ITEMS: NavItem[] = [...NAV_ITEMS, RIVALS_ITEM, ...TOP_BAR_ITEMS];
 
 // The mobile bottom bar places the live button between these two halves.
 const BOTTOM_LEFT_ITEMS = NAV_ITEMS.slice(0, 2);
@@ -71,8 +96,8 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
   const pathname = usePathname();
   const isLiveActive = isLivePath(pathname);
   const activeHref = RAIL_ITEMS.find((item) => isNavItemActive(pathname, item.href))?.href ?? null;
-  const isHelpActive = activeHref === HELP_ITEM.href;
 
+  const { collapsed: navCollapsed, setNavCollapsed } = useNavCollapsed();
   const mainRef = useRef<HTMLElement | null>(null);
   const navRef = useRef<HTMLElement | null>(null);
   const indicatorRef = useRef<HTMLSpanElement | null>(null);
@@ -98,10 +123,19 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
   };
 
   return (
-    <div className={styles.shellContainer}>
-      {/* Tablet navigation rail (left side) */}
+    <div className={clsx(styles.shellContainer, navCollapsed && styles.navCollapsed)}>
+      {/* Tablet navigation rail (left side); it can be hidden so wide tables get the full width. */}
       <aside className={styles.navRail}>
         <div className={styles.railTop}>
+          <button
+            type="button"
+            className={styles.railToggle}
+            onClick={() => setNavCollapsed(true)}
+            aria-label="Ocultar menú"
+            title="Ocultar menú"
+          >
+            <PanelLeftClose size={ICON_SIZE.md} aria-hidden="true" />
+          </button>
           <Link
             href="/"
             className={styles.brandSection}
@@ -157,21 +191,50 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
         </Link>
         <div className={styles.mobileTopActions}>
           <SyncStatusIndicator compact />
-          <Link
-            href={HELP_ITEM.href}
-            className={clsx(styles.mobileHelpLink, isHelpActive && styles.mobileHelpLinkActive)}
-            aria-label={HELP_ITEM.label}
-            aria-current={isHelpActive ? 'page' : undefined}
-            data-tour={HELP_ITEM.tourTarget}
+          <button
+            type="button"
+            className={clsx(styles.mobileTopLink, !navCollapsed && styles.mobileTopLinkActive)}
+            onClick={() => setNavCollapsed(!navCollapsed)}
+            aria-label={navCollapsed ? 'Mostrar menú' : 'Ocultar menú'}
+            aria-pressed={!navCollapsed}
           >
-            <LifeBuoy size={ICON_SIZE.lg} aria-hidden="true" />
-          </Link>
+            <Menu size={ICON_SIZE.lg} aria-hidden="true" />
+          </button>
+          {TOP_BAR_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeHref === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={clsx(styles.mobileTopLink, isActive && styles.mobileTopLinkActive)}
+                aria-label={item.label}
+                aria-current={isActive ? 'page' : undefined}
+                data-tour={item.tourTarget}
+              >
+                <Icon size={ICON_SIZE.lg} aria-hidden="true" />
+              </Link>
+            );
+          })}
         </div>
       </header>
 
       <main ref={mainRef} className={styles.mainContent}>
         {children}
       </main>
+
+      {/* Brings the hidden navigation back, on every screen size. */}
+      {navCollapsed && (
+        <button
+          type="button"
+          className={styles.floatingNavToggle}
+          onClick={() => setNavCollapsed(false)}
+          aria-label="Mostrar menú"
+        >
+          <PanelLeftOpen size={ICON_SIZE.md} aria-hidden="true" />
+          <span>Menú</span>
+        </button>
+      )}
 
       {/* Mobile bottom navigation (thumb zone) */}
       <nav className={styles.bottomBar} aria-label="Navegación móvil inferior">
