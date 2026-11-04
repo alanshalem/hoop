@@ -18,7 +18,7 @@ Branch: `refactor/cleanup` (from main 7b853e2), merged into main at the end. UI 
 - [x] T3 [S1,S3] Others: demo seed without coordinates/substitutions; drop `SUBSTITUTION` and `coordinates` from the event schema and derivations; `runCollectionUseCase` helper in the store; stale banners. Route: worker. Commit: a34d397
 - [x] T4 [S1] #2 #3: table-driven sync record-kind registry shared by client and server; one event-changes helper. Route: worker; independent verify (sync). Commit: bfade8e
 - T9b [S4] Hidden-leader polling gap + lock-count test filter (L8). Route: inline/worker. Commit: _pending_
-- T5 [S1] #6 #7: `FormModalSheet` template + `useModalForm`; `useEditModal`; division chips helper. Route: worker. Commit: _pending_
+- [x] T5 [S1] #6 #7: `FormModalSheet` template + `useModalForm`; `useEditModal`; division chips helper. Route: worker. Commit: 17304cb
 - T6 [S1] #8 + oversized files: domain rules out of presentation/pages (`isMatchInPlay`, roster helpers, season points); split `acta-parser.ts`, `app/page.tsx`, lineup page, `MatchFormModal`. Route: worker. Commit: _pending_
 - T7 [S2] Single-language routes. Route: worker. Commit: _pending_
 - [x] T9 [S4] Replace SSE/LISTEN with polling; serverless-friendly DB pool. Route: worker after T4; independent verify. Commit: f2fedce
