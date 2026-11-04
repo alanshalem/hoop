@@ -7,7 +7,12 @@ import {
 import { reconcileSelection } from '@/core/application/sync/pull-merge';
 import { pickSyncableClubData } from '@/core/application/sync/record-kinds';
 import { createEditHandoff } from '@/core/application/sync/edit-handoff';
-import { createSyncTabCoordinator, type SyncTabCoordinator } from '@/core/application/sync/tab-coordinator';
+import {
+  createSyncTabCoordinator,
+  type SyncTabCoordinator,
+  type TabChannelPort,
+} from '@/core/application/sync/tab-coordinator';
+import { createTabsVisibility, type TabsVisibility } from '@/core/application/sync/tab-visibility';
 import { useAuthStore } from '@/core/application/stores/useAuthStore';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { useSyncStore } from '@/core/application/stores/useSyncStore';
@@ -42,6 +47,22 @@ const syncStorePort: SyncStorePort = {
   setState: (patch) => useSyncStore.setState(patch),
 };
 
+let messageCount = 0;
+// crypto.randomUUID needs a secure context; tablets may use plain http on the LAN.
+const newMessageId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${++messageCount}`;
+
+/** This tab, its channel to the other tabs and the visibility of all of them (created on first use). */
+let tab: { id: string; channel: TabChannelPort | null; visibility: TabsVisibility } | null = null;
+
+function getTab(): NonNullable<typeof tab> {
+  if (!tab) {
+    const id = newMessageId();
+    const channel = createBrowserTabChannel();
+    tab = { id, channel, visibility: createTabsVisibility({ local: browserVisibility, channel, tabId: id }) };
+  }
+  return tab;
+}
+
 let engine: SyncEngine | null = null;
 
 export function getSyncEngine(): SyncEngine {
@@ -50,7 +71,8 @@ export function getSyncEngine(): SyncEngine {
     club: clubPort,
     store: syncStorePort,
     connectivity: browserConnectivity,
-    visibility: browserVisibility,
+    // Polls while any tab of this browser is visible, not only this one (S4, L8).
+    visibility: getTab().visibility,
     // The outbox stays persisted: it is pushed after the next login.
     onUnauthorized: () => useAuthStore.getState().clearUser(),
   });
@@ -64,14 +86,10 @@ async function rehydrateClub(): Promise<void> {
   useClubStore.setState(reconcileSelection({ activeDivisionId, activeMatchId }, useClubStore.getState()));
 }
 
-let messageCount = 0;
-// crypto.randomUUID needs a secure context; tablets may use plain http on the LAN.
-const newMessageId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${++messageCount}`;
-
 let coordinator: SyncTabCoordinator | null = null;
 
 function createCoordinator(): SyncTabCoordinator {
-  const tabId = newMessageId();
+  const { id: tabId, channel, visibility } = getTab();
   const storage = browserKeyValueStorage();
   return createSyncTabCoordinator({
     engine: getSyncEngine(),
@@ -85,7 +103,8 @@ function createCoordinator(): SyncTabCoordinator {
     },
     // Web Locks, or the localStorage lease on plain http (LAN tablets).
     lock: createBrowserLeaderElection(tabId, storage),
-    channel: createBrowserTabChannel(),
+    channel,
+    visibility,
     handoff: storage
       ? createEditHandoff({ storage, tabId, owner: () => useAuthStore.getState().user?.id ?? null, now: Date.now })
       : undefined,

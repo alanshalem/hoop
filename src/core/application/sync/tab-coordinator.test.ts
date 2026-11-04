@@ -6,6 +6,7 @@ import { createEmptyOutbox, enqueueChanges } from './outbox';
 import { createSyncEngine, SYNC_POLL_INTERVAL_MS, type SyncEngine, type SyncEngineDeps } from './sync-engine';
 import {
   createSyncTabCoordinator,
+  parseTabMessage,
   TAB_PROTOCOL_VERSION,
   type EditHandoffPort,
   type KeyValueStoragePort,
@@ -28,9 +29,19 @@ interface HarnessOptions {
   /** Replaces the scripted fake lock (e.g. a real lease lock). */
   lock?: LeaderLockPort;
   handoff?: EditHandoffPort;
+  /** Logs the shared visibility lifecycle (./tab-visibility.ts). */
+  withVisibility?: boolean;
 }
 
-function harness({ withLock = true, withChannel = true, realEngine = false, engineDeps, lock, handoff }: HarnessOptions = {}) {
+function harness({
+  withLock = true,
+  withChannel = true,
+  realEngine = false,
+  engineDeps,
+  lock,
+  handoff,
+  withVisibility = false,
+}: HarnessOptions = {}) {
   const log: string[] = [];
   let data: SyncableClubData = makeClubData({
     divisions: [makeDivision()],
@@ -157,6 +168,9 @@ function harness({ withLock = true, withChannel = true, realEngine = false, engi
       },
     },
     storageKeys: KEYS,
+    visibility: withVisibility
+      ? { start: () => log.push('visibility.start'), stop: () => log.push('visibility.stop') }
+      : undefined,
     onLeader: () => log.push('onLeader'),
     newId: () => `msg-${++ids}`,
   };
@@ -227,6 +241,29 @@ function harness({ withLock = true, withChannel = true, realEngine = false, engi
 const message = <T extends Omit<TabMessage, 'v'>>(body: T) => ({ v: TAB_PROTOCOL_VERSION, ...body });
 
 describe('sync tab coordinator (S13.3)', () => {
+  it('runs the tab visibility while it runs, as follower or leader (S4, L8)', async () => {
+    const follower = harness({ withVisibility: true });
+    follower.coordinator.start();
+    follower.queue();
+    assert.strictEqual(follower.coordinator.role(), 'follower');
+    assert.deepStrictEqual(follower.log.filter((entry) => entry.startsWith('visibility')), ['visibility.start']);
+    follower.coordinator.stop();
+    assert.deepStrictEqual(follower.log.slice(-2), ['visibility.stop', 'writable:true']);
+
+    const leader = harness({ withLock: false, withVisibility: true });
+    leader.coordinator.start();
+    await leader.flushMicrotasks();
+    assert.strictEqual(leader.log[0], 'visibility.start', 'before the engine starts polling');
+    leader.coordinator.stop();
+    assert.deepStrictEqual(leader.log.slice(-3), ['engine.stop', 'visibility.stop', 'writable:true']);
+  });
+
+  it('accepts visibility messages only with a tab id and a boolean', () => {
+    assert.ok(parseTabMessage(message({ type: 'visibility', tabId: 't', visible: false })));
+    assert.strictEqual(parseTabMessage(message({ type: 'visibility', tabId: 't' })), null);
+    assert.strictEqual(parseTabMessage(message({ type: 'visibility', visible: true })), null);
+  });
+
   it('leads at once without any leader lock (current behaviour)', async () => {
     const tab = harness({ withLock: false });
     tab.coordinator.start();

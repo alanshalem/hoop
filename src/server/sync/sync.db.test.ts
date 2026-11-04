@@ -13,7 +13,7 @@ import type { PushBody, PushEventInput, PushRecordInput } from './api-schema';
 import { readDataEpoch, rotateDataEpoch } from './epoch';
 import { pullChanges } from './pull';
 import { applyPush, type PushResult } from './push';
-import { lockSyncWrites, readCurrentCursor } from './repository';
+import { lockSyncWrites, readCurrentCursor, SYNC_WRITE_LOCK_KEY } from './repository';
 
 const ADMIN = { role: 'ADMIN' as UserRole };
 const COACH = { role: 'HEAD_COACH' as UserRole };
@@ -125,11 +125,23 @@ describe('sync push / pull (database)', () => {
     const id = uid('pooler');
     const result = await push(ADMIN, body([playerRecord(id, at(1))]));
     assert.deepStrictEqual(result.accepted, [id]);
-    const held = await connection.db.execute<{ n: number }>(sql`
+    // Only the sync write lock counts (a one-key advisory lock: classid/objid hold its high/low 32 bits),
+    // so other advisory locks on the server never break this check.
+    const syncLockHolders = sql`
       SELECT count(*)::int AS n FROM pg_locks
-      WHERE locktype = 'advisory' AND database = (SELECT oid FROM pg_database WHERE datname = current_database())
-    `);
-    assert.strictEqual(held.rows[0].n, 0, 'no advisory lock outlives the push transaction');
+      WHERE locktype = 'advisory' AND granted AND objsubid = 1
+        AND database = (SELECT oid FROM pg_database WHERE datname = current_database())
+        AND ((classid::bigint << 32) | objid::bigint) = ${SYNC_WRITE_LOCK_KEY}
+    `;
+    const held = await connection.db.execute<{ n: number }>(syncLockHolders);
+    assert.strictEqual(held.rows[0].n, 0, 'the sync write lock never outlives the push transaction');
+
+    // The filter does see the lock while a transaction holds it.
+    await connection.db.transaction(async (tx) => {
+      await lockSyncWrites(tx);
+      const during = await connection.db.execute<{ n: number }>(syncLockHolders);
+      assert.strictEqual(during.rows[0].n, 1);
+    });
   });
 
   it('deleting a match also deletes its plays, so none stay orphaned on the server', async () => {

@@ -148,7 +148,10 @@ export const browserConnectivity: ConnectivityPort = {
   },
 };
 
-/** `document.visibilityState` and its `visibilitychange` event. */
+/**
+ * `document.visibilityState` and its `visibilitychange` event: this tab only.
+ * The engine gets every tab's visibility (`createTabsVisibility`, S4, L8).
+ */
 export const browserVisibility: VisibilityPort = {
   isVisible: () => typeof document === 'undefined' || document.visibilityState === 'visible',
   subscribe: (listener) => {

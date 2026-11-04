@@ -24,7 +24,8 @@ import type { ApiResult, ClubDiff, PullPage, SyncApi, SyncStoreData } from './sy
  * long-lived connections): a pull on start, every SYNC_POLL_INTERVAL_MS while
  * the page is visible (paused while hidden), at once when the page becomes
  * visible again or the connection returns, and right after every push. Only
- * the leader tab runs the engine (./tab-coordinator.ts), so followers never poll.
+ * the leader tab runs the engine (./tab-coordinator.ts), so followers never poll;
+ * its "page" is every tab of the browser (./tab-visibility.ts).
  * Data epoch (S1, L5): pushes carry the epoch of the last pull. When a pull or
  * a refused push reveals another epoch (the server data was replaced), the
  * outbox, cursor, versions and local club data are dropped and a snapshot is

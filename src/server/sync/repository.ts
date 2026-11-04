@@ -22,7 +22,7 @@ import type { SyncRecordKind } from '@/core/application/sync/record-kinds';
  */
 
 // Arbitrary app-wide advisory lock key ("hoop" in ASCII).
-const SYNC_WRITE_LOCK_KEY = 0x686f6f70;
+export const SYNC_WRITE_LOCK_KEY = 0x686f6f70;
 
 /** Highest seq stored in either table, as text (seq is bigint). '0' when empty. */
 const CURRENT_CURSOR_SQL = `SELECT greatest(

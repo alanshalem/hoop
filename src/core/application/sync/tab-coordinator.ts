@@ -27,7 +27,9 @@ import type { ClubDiff, SyncStatus, SyncStoreData } from './sync-types';
  *   edits (also those made before the lock was decided) and the ones closed
  *   tabs left in the handoff;
  * - a leader that loses its lease (its tab was frozen past the lease) steps
- *   down to follower.
+ *   down to follower;
+ * - every tab announces its page visibility (./tab-visibility.ts), so the
+ *   leader keeps polling while any tab of the browser is visible.
  * Without any leader lock or without BroadcastChannel every tab leads
  * (behaviour before S13.3).
  * =============================================================================
@@ -41,7 +43,8 @@ export type TabMessage =
   | { v: number; type: 'ack'; id: string }
   | { v: number; type: 'status'; status: SyncStatus; lastError: string | null }
   | { v: number; type: 'sync-now' }
-  | { v: number; type: 'leader' };
+  | { v: number; type: 'leader' }
+  | { v: number; type: 'visibility'; tabId: string; visible: boolean };
 
 type TabMessageBody = TabMessage extends infer M ? (M extends TabMessage ? Omit<M, 'v'> : never) : never;
 
@@ -116,6 +119,8 @@ export interface SyncTabCoordinatorDeps {
   persistence: PersistenceGatePort;
   /** localStorage keys of the persisted club and sync stores. */
   storageKeys: { club: string; sync: string };
+  /** Visibility of every tab (./tab-visibility.ts): runs while the coordinator does. */
+  visibility?: { start(): void; stop(): void };
   /** Runs when this tab becomes the leader, right before the engine starts. */
   onLeader?: () => void;
   newId: () => string;
@@ -155,6 +160,8 @@ export function parseTabMessage(raw: unknown): TabMessage | null {
       const validError = raw.lastError === null || typeof raw.lastError === 'string';
       return validStatus && validError ? (raw as TabMessage) : null;
     }
+    case 'visibility':
+      return typeof raw.tabId === 'string' && typeof raw.visible === 'boolean' ? (raw as TabMessage) : null;
     case 'sync-now':
     case 'leader':
       return raw as TabMessage;
@@ -316,6 +323,7 @@ export function createSyncTabCoordinator(deps: SyncTabCoordinatorDeps): SyncTabC
       started = true;
       generation += 1;
       if (channel) channelCleanup = channel.subscribe(onMessage);
+      deps.visibility?.start();
       if (!deps.lock || !channel) {
         void lead(false);
         return;
@@ -338,6 +346,7 @@ export function createSyncTabCoordinator(deps: SyncTabCoordinatorDeps): SyncTabC
       clubCleanup = null;
       clearRoleListeners();
       if (currentRole === 'leader') engine.stop();
+      deps.visibility?.stop();
       // Out of the tab roles (logout): this tab writes again, e.g. the sync data reset.
       deps.persistence.setWritable(true);
       currentRole = 'idle';
