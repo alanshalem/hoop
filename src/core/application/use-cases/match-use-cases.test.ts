@@ -10,10 +10,9 @@ import {
   startHalftime,
   startMatch,
   startThirdQuarter,
-  substitutePlayer,
-  undoLastEvent,
   recordChartEntry,
   undoLastChartEntry,
+  undoLastRivalFoul,
 } from './match-use-cases';
 import type { Match } from '@/core/domain/entities/match.types';
 import { chartCodeRecordId, type ChartCodeRecord } from '@/core/domain/entities/chart.types';
@@ -75,7 +74,7 @@ describe('recordEvent', () => {
     });
   });
 
-  it('rejects substitutions (they go through substitutePlayer)', () => {
+  it('rejects substitutions (the live console records none)', () => {
     assert.deepStrictEqual(
       recordEvent(makeMatch(), { type: 'SUBSTITUTION', isOwnTeam: true }, ctx),
       { ok: false, reason: 'INVALID_EVENT' }
@@ -83,58 +82,58 @@ describe('recordEvent', () => {
   });
 });
 
-describe('undoLastEvent', () => {
-  it('removes the last event and re-derives score across quarters', () => {
+describe('undoLastRivalFoul (S15)', () => {
+  it('removes only the last rival foul, re-derives the scoreboard and keeps every other event', () => {
+    const firstFoul = makeEvent({ type: 'FOUL_PERSONAL', isOwnTeam: false });
+    const lastFoul = makeEvent({ type: 'FOUL_PERSONAL', isOwnTeam: false });
+    const ownFoul = makeEvent({ type: 'FOUL_PERSONAL', isOwnTeam: true, playerId: 'p1' });
+    const rivalBasket = makeEvent({ type: 'FG2_MADE', isOwnTeam: false });
+    const chartEntry = makeEvent({
+      type: 'CHART',
+      chart: { category: 'POINTS_ALLOWED', code: 'CUT', points: 2, scoreEventId: rivalBasket.id },
+    });
     const match = makeMatch({
-      currentQuarter: 'Q2',
+      events: [firstFoul, lastFoul, ownFoul, rivalBasket, chartEntry],
+      awayScore: 2,
+      homeFoulsQuarter: 1,
+      awayFoulsQuarter: 2,
+    });
+    const { match: next } = expectOk(undoLastRivalFoul(match));
+    assert.deepStrictEqual(next.events, [firstFoul, ownFoul, rivalBasket, chartEntry]);
+    assert.strictEqual(next.awayFoulsQuarter, 1, 'the rival bonus count drops by one');
+    assert.strictEqual(next.homeFoulsQuarter, 1);
+    assert.deepStrictEqual([next.homeScore, next.awayScore], [0, 2]);
+    assert.strictEqual(match.events.length, 5, 'input match is not mutated');
+  });
+
+  it('undoes technical and unsportsmanlike rival fouls too', () => {
+    for (const type of ['FOUL_TECHNICAL', 'FOUL_UNSPORTSMANLIKE'] as const) {
+      const personal = makeEvent({ type: 'FOUL_PERSONAL', isOwnTeam: false });
+      const match = makeMatch({ events: [personal, makeEvent({ type, isOwnTeam: false })] });
+      assert.deepStrictEqual(expectOk(undoLastRivalFoul(match)).match.events, [personal], type);
+    }
+  });
+
+  it('reports NO_RIVAL_FOULS when the rival has no foul, even with own fouls and rival points', () => {
+    assert.deepStrictEqual(undoLastRivalFoul(makeMatch()), { ok: false, reason: 'NO_RIVAL_FOULS' });
+    const match = makeMatch({
       events: [
-        makeEvent({ quarter: 'Q1', type: 'FOUL_PERSONAL', isOwnTeam: true }),
-        makeEvent({ quarter: 'Q1', type: 'FG2_MADE', isOwnTeam: true }),
-      ],
-      homeScore: 2,
-    });
-    const { match: next } = expectOk(undoLastEvent(match));
-    assert.strictEqual(next.events.length, 1);
-    assert.strictEqual(next.homeScore, 0);
-    assert.strictEqual(next.homeFoulsQuarter, 0, 'Q1 foul does not count in Q2');
-  });
-
-  it('reverts the lineup when the last event is a substitution', () => {
-    const match = makeMatch({
-      activeLineupOwn: ['p6', 'p2', 'p3', 'p4', 'p5'],
-      events: [
-        makeEvent({ type: 'SUBSTITUTION', substitution: { playerOutId: 'p1', playerInId: 'p6' } }),
+        makeEvent({ type: 'FOUL_PERSONAL', isOwnTeam: true, playerId: 'p1' }),
+        makeEvent({ type: 'FG3_MADE', isOwnTeam: false }),
       ],
     });
-    const { match: next } = expectOk(undoLastEvent(match));
-    assert.deepStrictEqual(next.activeLineupOwn, ['p1', 'p2', 'p3', 'p4', 'p5']);
+    assert.deepStrictEqual(undoLastRivalFoul(match), { ok: false, reason: 'NO_RIVAL_FOULS' });
   });
 
-  it('reports NO_EVENTS when there is nothing to undo', () => {
-    assert.deepStrictEqual(undoLastEvent(makeMatch()), { ok: false, reason: 'NO_EVENTS' });
-  });
-
-  it('reports MATCH_NOT_LIVE for finished matches', () => {
-    const match = makeMatch({ status: 'FINISHED', events: [makeEvent()] });
-    assert.deepStrictEqual(undoLastEvent(match), { ok: false, reason: 'MATCH_NOT_LIVE' });
-  });
-
-  it('skips chart entries and removes the last stat event', () => {
-    const chartEntry = makeEvent({ type: 'CHART', chart: { category: 'TURNOVER', code: 'BAD_PASS' } });
-    const match = makeMatch({
-      events: [makeEvent({ type: 'FG2_MADE', isOwnTeam: true }), chartEntry],
-      homeScore: 2,
+  it('refuses when the match is not live or at halftime', () => {
+    const events = [makeEvent({ type: 'FOUL_PERSONAL', isOwnTeam: false })];
+    for (const status of ['SCHEDULED', 'FINISHED'] as const) {
+      assert.deepStrictEqual(undoLastRivalFoul(makeMatch({ status, events })), { ok: false, reason: 'MATCH_NOT_LIVE' });
+    }
+    assert.deepStrictEqual(undoLastRivalFoul(makeMatch({ status: 'HALFTIME', events })), {
+      ok: false,
+      reason: 'HALFTIME',
     });
-    const { match: next } = expectOk(undoLastEvent(match));
-    assert.deepStrictEqual(next.events, [chartEntry]);
-    assert.strictEqual(next.homeScore, 0);
-  });
-
-  it('reports NO_EVENTS when only chart entries exist', () => {
-    const match = makeMatch({
-      events: [makeEvent({ type: 'CHART', chart: { category: 'TURNOVER', code: 'BAD_PASS' } })],
-    });
-    assert.deepStrictEqual(undoLastEvent(match), { ok: false, reason: 'NO_EVENTS' });
   });
 });
 
@@ -360,21 +359,6 @@ describe('scoring chart entries update the scoreboard (S12)', () => {
     assert.deepStrictEqual([next.homeScore, next.awayScore], [0, 0]);
   });
 
-  it('undoing the scoring play from the stats pad removes its chart entry too', () => {
-    const { match: scored } = expectOk(
-      recordChartEntry(makeMatch(), { category: 'OFFENSE', code: 'GOOD_SHOT', playerId: 'p1', made: true, points: 2 }, ctx)
-    );
-    const { match: next } = expectOk(undoLastEvent(scored));
-    assert.deepStrictEqual(next.events, []);
-    assert.strictEqual(next.homeScore, 0);
-  });
-
-  it('keeps unlinked chart entries when undoing a regular stat event', () => {
-    const entry = makeEvent({ type: 'CHART', chart: { category: 'TURNOVER', code: 'BAD_PASS' } });
-    const match = makeMatch({ events: [entry, makeEvent({ type: 'FG2_MADE', isOwnTeam: true })], homeScore: 2 });
-    const { match: next } = expectOk(undoLastEvent(match));
-    assert.deepStrictEqual(next.events, [entry]);
-  });
 });
 
 describe('rival player on chart entries (S14, L18)', () => {
@@ -504,47 +488,6 @@ describe('undoLastChartEntry', () => {
   });
 });
 
-describe('substitutePlayer', () => {
-  it('swaps the players in place and records a SUBSTITUTION event', () => {
-    const { match: next } = expectOk(substitutePlayer(makeMatch(), 'p2', 'p6', ctx));
-    assert.deepStrictEqual(next.activeLineupOwn, ['p1', 'p6', 'p3', 'p4', 'p5']);
-    const last = next.events[next.events.length - 1];
-    assert.strictEqual(last.type, 'SUBSTITUTION');
-    assert.deepStrictEqual(last.substitution, { playerOutId: 'p2', playerInId: 'p6' });
-  });
-
-  it('rejects a player that is already on court', () => {
-    assert.deepStrictEqual(substitutePlayer(makeMatch(), 'p2', 'p3', ctx), {
-      ok: false,
-      reason: 'PLAYER_ALREADY_ON_COURT',
-    });
-  });
-
-  it('rejects an outgoing player that is not on court', () => {
-    assert.deepStrictEqual(substitutePlayer(makeMatch(), 'p7', 'p6', ctx), {
-      ok: false,
-      reason: 'PLAYER_NOT_ON_COURT',
-    });
-  });
-
-  it('rejects a player outside the match roster', () => {
-    assert.deepStrictEqual(substitutePlayer(makeMatch(), 'p2', 'p99', ctx), {
-      ok: false,
-      reason: 'PLAYER_NOT_IN_ROSTER',
-    });
-  });
-
-  it('rejects a fouled-out player', () => {
-    const fouls = Array.from({ length: 5 }, () =>
-      makeEvent({ type: 'FOUL_PERSONAL', playerId: 'p6' })
-    );
-    assert.deepStrictEqual(substitutePlayer(makeMatch({ events: fouls }), 'p2', 'p6', ctx), {
-      ok: false,
-      reason: 'PLAYER_FOULED_OUT',
-    });
-  });
-});
-
 describe('requestTimeout', () => {
   it('consumes an own first-half timeout on the home side for a HOME match', () => {
     const result = requestTimeout(makeMatch({ currentQuarter: 'Q2' }), 'OWN');
@@ -671,12 +614,11 @@ describe('halftime (FIBA: interval after Q2)', () => {
     assert.strictEqual(resumed.currentQuarter, 'Q3');
   });
 
-  it('refuses events, substitutions, undo and timeouts during HALFTIME', () => {
+  it('refuses events, undo and timeouts during HALFTIME', () => {
     const halftime = expectOk(startHalftime(endOfQ2())).match;
     const refused = { ok: false, reason: 'HALFTIME' };
     assert.deepStrictEqual(recordEvent(halftime, { type: 'FG2_MADE', isOwnTeam: true, playerId: 'p1' }, ctx), refused);
-    assert.deepStrictEqual(substitutePlayer(halftime, 'p1', 'p6', ctx), refused);
-    assert.deepStrictEqual(undoLastEvent(halftime), refused);
+    assert.deepStrictEqual(undoLastChartEntry(halftime), refused);
     assert.deepStrictEqual(requestTimeout(halftime, 'OWN'), refused);
     assert.deepStrictEqual(requestTimeout(halftime, 'RIVAL'), refused);
   });

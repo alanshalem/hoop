@@ -28,4 +28,8 @@ describe('REFUSAL_MESSAGES', () => {
       'El jugador rival no pertenece al plantel de este rival.'
     );
   });
+
+  it('explains that there is no rival foul to undo (S15)', () => {
+    assert.strictEqual(REFUSAL_MESSAGES.NO_RIVAL_FOULS, 'No hay faltas del rival para deshacer.');
+  });
 });

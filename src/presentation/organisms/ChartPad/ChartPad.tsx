@@ -22,7 +22,7 @@ import { MOTION, gsap } from '@/presentation/motion/motion';
 import { useMotion } from '@/presentation/motion/useMotion';
 import { rivalPlayerTag } from '@/presentation/organisms/ChartSheetTable/chart-sheet-view';
 import { sortRivalPlayers } from '@/presentation/organisms/RivalTeamFormModal/rival-roster';
-import { buildRecentEntries, rivalStepTitle, type ChartOutcomeTone } from './recent-entry-view';
+import { buildRecentEntries, playerStepTitle, rivalStepTitle, type ChartOutcomeTone } from './recent-entry-view';
 import styles from './ChartPad.module.css';
 
 export interface ChartPadEntryInput {
@@ -37,8 +37,8 @@ export interface ChartPadEntryInput {
 }
 
 export interface ChartPadProps {
-  onCourtPlayers: Player[];
-  benchPlayers: Player[];
+  /** The match roster, shown as equal chips (no on-court distinction, S15). */
+  players: Player[];
   /** Full play-by-play; only chart entries are listed. */
   events: PlayByPlayEvent[];
   /** The club's catalog: the pad offers its active codes, old entries render archived ones too. */
@@ -71,8 +71,7 @@ const OUTCOME_CLASS: Record<ChartOutcomeTone, string> = {
 
 /** Courtside charting pad: pick the player (or the team), then tap the code. */
 export const ChartPad: React.FC<ChartPadProps> = ({
-  onCourtPlayers,
-  benchPlayers,
+  players,
   events,
   catalog,
   rivalRoster = NO_RIVAL_PLAYERS,
@@ -91,9 +90,8 @@ export const ChartPad: React.FC<ChartPadProps> = ({
   const [pickedRivalId, setPickedRivalId] = useState<string | null>(null);
   const listRef = useRef<HTMLOListElement | null>(null);
 
-  const allPlayers = [...onCourtPlayers, ...benchPlayers];
   const recent = buildRecentEntries(events, {
-    playersById: new Map(allPlayers.map((player) => [player.id, player])),
+    playersById: new Map(players.map((player) => [player.id, player])),
     rivalById: new Map(rivalRoster.map((player) => [player.id, player])),
     catalog,
     limit: RECENT_LIMIT,
@@ -179,11 +177,11 @@ export const ChartPad: React.FC<ChartPadProps> = ({
       </div>
     );
 
-  const renderPlayerChip = (player: Player, bench: boolean) => (
+  const renderPlayerChip = (player: Player) => (
     <button
       key={player.id}
       type="button"
-      className={clsx(styles.playerChip, bench && styles.playerChipBench, playerKey === player.id && styles.chipActive)}
+      className={clsx(styles.playerChip, playerKey === player.id && styles.chipActive)}
       aria-pressed={playerKey === player.id}
       aria-label={`#${player.dorsal} ${player.firstName} ${player.lastName}`}
       onClick={() => setPlayerKey(player.id)}
@@ -219,9 +217,9 @@ export const ChartPad: React.FC<ChartPadProps> = ({
       ) : (
         <>
           <div className={styles.step}>
-            <h3 className={styles.stepTitle}>1. Jugador</h3>
+            <h3 className={styles.stepTitle}>{playerStepTitle(category)}</h3>
             <div className={styles.playerGrid}>
-              {onCourtPlayers.map((player) => renderPlayerChip(player, false))}
+              {players.map(renderPlayerChip)}
               <button
                 type="button"
                 className={clsx(styles.playerChip, styles.teamChip, playerKey === TEAM_CHART_KEY && styles.chipActive)}
@@ -233,11 +231,6 @@ export const ChartPad: React.FC<ChartPadProps> = ({
                 <span className={styles.chipName}>Equipo</span>
               </button>
             </div>
-            {benchPlayers.length > 0 && (
-              <div className={styles.benchRow} aria-label="Banco">
-                {benchPlayers.map((player) => renderPlayerChip(player, true))}
-              </div>
-            )}
           </div>
 
           {category === 'POINTS_ALLOWED' && (

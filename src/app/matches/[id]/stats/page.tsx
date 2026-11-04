@@ -267,8 +267,8 @@ function MatchStats({ match }: { match: Match }) {
               {unplacedShots > 0 && (
                 <p className={styles.note}>
                   {unplacedShots === 1
-                    ? '1 tiro registrado desde el pad no tiene ubicación en el mapa.'
-                    : `${unplacedShots} tiros registrados desde el pad no tienen ubicación en el mapa.`}
+                    ? '1 tiro registrado sin ubicación no aparece en el mapa.'
+                    : `${unplacedShots} tiros registrados sin ubicación no aparecen en el mapa.`}
                 </p>
               )}
             </div>

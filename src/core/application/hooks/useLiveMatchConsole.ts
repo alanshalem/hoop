@@ -2,8 +2,7 @@ import { useMemo } from 'react';
 import type { Player } from '@/core/domain/entities/club.types';
 import type { Match, PlayByPlayEventType, Quarter } from '@/core/domain/entities/match.types';
 import type { RivalPlayer } from '@/core/domain/entities/rival.types';
-import type { CourtCoordinates } from '@/core/domain/value-objects/coordinates';
-import { calculateMatchBoxScore, deriveScoreboard } from '@/core/domain/rules/match-derivations';
+import { deriveScoreboard } from '@/core/domain/rules/match-derivations';
 import { can } from '@/core/domain/rules/permissions';
 import {
   FIBA_LAST_TWO_MINUTES_SECONDS,
@@ -12,14 +11,18 @@ import {
 } from '@/core/domain/rules/timeouts';
 import { selectRivalRoster } from '@/core/application/stores/club-state';
 import { useClubStore } from '@/core/application/stores/useClubStore';
-import type { RecordChartEntryInput, TeamSide } from '@/core/application/use-cases/match-use-cases';
+import {
+  isRivalFoul,
+  type RecordChartEntryInput,
+  type TeamSide,
+} from '@/core/application/use-cases/match-use-cases';
 import { useGameClock, type GameClock } from './useGameClock';
-import { getPeriodEndAction, getSelectableQuarters, type PeriodEndAction } from './live-console-rules';
-
-export interface PlayerLiveLine {
-  points: number;
-  fouls: number;
-}
+import {
+  getPeriodEndAction,
+  getRosterPlayers,
+  getSelectableQuarters,
+  type PeriodEndAction,
+} from './live-console-rules';
 
 export interface LiveTeamLine {
   side: TeamSide;
@@ -36,15 +39,8 @@ export interface UseLiveMatchConsoleOptions {
   onPeriodEnd?: (action: PeriodEndAction) => void;
 }
 
-const EMPTY_LINES: Record<string, PlayerLiveLine> = {};
 const EMPTY_PLAYERS: Player[] = [];
 const EMPTY_RIVAL_PLAYERS: readonly RivalPlayer[] = [];
-
-function resolvePlayers(ids: string[], players: Player[]): Player[] {
-  return ids
-    .map((id) => players.find((p) => p.id === id))
-    .filter((p): p is Player => p !== undefined);
-}
 
 /** `clockSeconds` enables the last-2-minutes rule of Q4; omit it outside that span. */
 function buildTeams(
@@ -83,10 +79,9 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
   const rivalRoster = useClubStore((state) => (match ? selectRivalRoster(state, match) : EMPTY_RIVAL_PLAYERS));
   const role = useClubStore((state) => state.currentUser.role);
   const recordEvent = useClubStore((state) => state.recordEvent);
-  const undoLastEvent = useClubStore((state) => state.undoLastEvent);
+  const undoLastRivalFoulInStore = useClubStore((state) => state.undoLastRivalFoul);
   const recordChartEntryInStore = useClubStore((state) => state.recordChartEntry);
   const undoLastChartEntryInStore = useClubStore((state) => state.undoLastChartEntry);
-  const substitutePlayer = useClubStore((state) => state.substitutePlayer);
   const requestTimeout = useClubStore((state) => state.requestTimeout);
   const changeQuarterInStore = useClubStore((state) => state.changeQuarter);
   const finishMatch = useClubStore((state) => state.finishMatch);
@@ -108,48 +103,28 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
     [match, inLastTwoMinutes]
   );
 
-  const lineup = useMemo(() => {
-    if (!match) {
-      return { onCourt: EMPTY_PLAYERS, bench: EMPTY_PLAYERS, lines: EMPTY_LINES, fouledOutIds: new Set<string>() };
-    }
-    const onCourtIds = match.activeLineupOwn;
-    const benchIds = match.rosterOwnPlayerIds.filter((id) => !onCourtIds.includes(id));
-    const box = calculateMatchBoxScore(match);
-    const lines: Record<string, PlayerLiveLine> = {};
-    const fouledOutIds = new Set<string>();
-    for (const [id, stats] of Object.entries(box.players)) {
-      lines[id] = { points: stats.points, fouls: stats.fouls.total };
-      if (stats.fouls.isFouledOut) fouledOutIds.add(id);
-    }
-    return {
-      onCourt: resolvePlayers(onCourtIds, players),
-      bench: resolvePlayers(benchIds, players),
-      lines,
-      fouledOutIds,
-    };
-  }, [match, players]);
+  const rosterIds = match?.rosterOwnPlayerIds;
+  const rosterPlayers = useMemo(
+    () => (rosterIds ? getRosterPlayers(rosterIds, players) : EMPTY_PLAYERS),
+    [rosterIds, players]
+  );
 
   const quarters = useMemo(
     () => getSelectableQuarters(match?.currentQuarter ?? 'Q1'),
     [match?.currentQuarter]
   );
 
-  const recordPlayerEvent = (playerId: string, type: PlayByPlayEventType, coordinates?: CourtCoordinates) =>
-    recordEvent(matchId, { type, isOwnTeam: true, playerId, coordinates, clockSeconds: clock.read() });
-
   const recordRivalEvent = (type: PlayByPlayEventType) =>
     recordEvent(matchId, { type, isOwnTeam: false, clockSeconds: clock.read() });
 
-  const undo = () => undoLastEvent(matchId);
+  /** Removes the last rival foul (S15). */
+  const undoRivalFoul = () => undoLastRivalFoulInStore(matchId);
 
   /** `rivalPlayerId` must come from `rivalRoster` (S14). */
   const recordChartEntry = (input: Omit<RecordChartEntryInput, 'clockSeconds'>) =>
     recordChartEntryInStore(matchId, { ...input, clockSeconds: clock.read() });
 
   const undoChartEntry = () => undoLastChartEntryInStore(matchId);
-
-  const substitute = (playerOutId: string, playerInId: string) =>
-    substitutePlayer(matchId, playerOutId, playerInId, clock.read());
 
   /** Consumes a timeout; on success the clock stops. */
   const callTimeout = (side: TeamSide) => {
@@ -183,21 +158,19 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
     teams,
     clock,
     quarters,
-    onCourtPlayers: lineup.onCourt,
-    benchPlayers: lineup.bench,
-    playerLines: lineup.lines,
-    fouledOutIds: lineup.fouledOutIds,
+    /** The whole match roster by dorsal, on court or not (S15). */
+    rosterPlayers,
+    /** Whether the rival has a foul that "Deshacer falta" can remove. */
+    hasRivalFoul: match?.events.some(isRivalFoul) ?? false,
     /** Players of the match rival team (S14); empty when the rival has no roster. */
     rivalRoster,
     role,
     canRecord: can(role, 'RECORD_LIVE'),
     isHalftime: match?.status === 'HALFTIME',
-    recordPlayerEvent,
     recordRivalEvent,
-    undo,
+    undoRivalFoul,
     recordChartEntry,
     undoChartEntry,
-    substitute,
     callTimeout,
     changeQuarter,
     finish,

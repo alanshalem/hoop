@@ -7,7 +7,6 @@ import type {
 } from '@/core/domain/entities/club.types';
 import type {
   Match,
-  PlayByPlayEvent,
   Quarter,
 } from '@/core/domain/entities/match.types';
 import { withDerivedScoreboard } from '@/core/domain/rules/match-derivations';
@@ -40,10 +39,9 @@ import type {
   RecordEventReason,
   RequestTimeoutResult,
   StartMatchResult,
-  SubstitutionReason,
   TeamSide,
   UndoChartReason,
-  UndoReason,
+  UndoRivalFoulReason,
 } from '@/core/application/use-cases/match-use-cases';
 import { CLUB_PROFILE } from '@/core/infrastructure/mocks/seed-data';
 import { reconcileSelection } from '@/core/application/sync/pull-merge';
@@ -114,7 +112,8 @@ export interface ClubStoreState extends ClubDataState {
     matchId: string,
     input: RecordEventInput
   ) => MatchResult<RecordEventReason> | MatchNotFound;
-  undoLastEvent: (matchId: string) => MatchResult<UndoReason> | MatchNotFound;
+  /** Removes the last rival foul (S15). */
+  undoLastRivalFoul: (matchId: string) => MatchResult<UndoRivalFoulReason> | MatchNotFound;
   recordChartEntry: (
     matchId: string,
     input: RecordChartEntryInput
@@ -161,12 +160,6 @@ export interface ClubStoreState extends ClubDataState {
     playerId: string
   ) => ActionResult<'PLAYER_NOT_FOUND' | 'RIVAL_TEAM_NOT_FOUND'>;
 
-  substitutePlayer: (
-    matchId: string,
-    playerOutId: string,
-    playerInId: string,
-    clockSeconds?: number
-  ) => MatchResult<SubstitutionReason> | MatchNotFound;
   /** Consumes a FIBA timeout; refusal comes back as NO_TIMEOUTS_LEFT. */
   requestTimeout: (
     matchId: string,
@@ -186,14 +179,6 @@ export interface ClubStoreState extends ClubDataState {
     matchId: string,
     clockSeconds?: number
   ) => MatchResult<'MATCH_NOT_LIVE'> | MatchNotFound;
-
-  /** @deprecated Use recordEvent. */
-  addPlayByPlayEvent: (
-    matchId: string,
-    event: Omit<PlayByPlayEvent, 'id' | 'timestamp' | 'scoreAtEvent'>
-  ) => void;
-  /** @deprecated Use undoLastEvent. */
-  undoLastPlayByPlayEvent: (matchId: string) => void;
 }
 
 type MatchOutcome = { ok: true; match: Match } | { ok: false; reason: string };
@@ -322,7 +307,7 @@ export const useClubStore = create<ClubStoreState>()(
         recordEvent: (matchId, input) =>
           runMatchUseCase(matchId, (m) => matchUseCases.recordEvent(m, input, eventContext())),
 
-        undoLastEvent: (matchId) => runMatchUseCase(matchId, matchUseCases.undoLastEvent),
+        undoLastRivalFoul: (matchId) => runMatchUseCase(matchId, matchUseCases.undoLastRivalFoul),
 
         recordChartEntry: (matchId, input) =>
           runMatchUseCase(matchId, (m) =>
@@ -404,16 +389,6 @@ export const useClubStore = create<ClubStoreState>()(
           return toActionResult(result);
         },
 
-        substitutePlayer: (matchId, playerOutId, playerInId, clockSeconds) =>
-          runMatchUseCase(matchId, (m) =>
-            matchUseCases.substitutePlayer(
-              withClock(m, clockSeconds),
-              playerOutId,
-              playerInId,
-              eventContext()
-            )
-          ),
-
         requestTimeout: (matchId, side, clockSeconds) =>
           runMatchUseCase(matchId, (m) =>
             matchUseCases.requestTimeout(withClock(m, clockSeconds), side)
@@ -431,21 +406,6 @@ export const useClubStore = create<ClubStoreState>()(
 
         finishMatch: (matchId, clockSeconds) =>
           runMatchUseCase(matchId, (m) => matchUseCases.finishMatch(withClock(m, clockSeconds))),
-
-        addPlayByPlayEvent: (matchId, event) => {
-          get().recordEvent(matchId, {
-            type: event.type,
-            isOwnTeam: event.isOwnTeam,
-            playerId: event.playerId,
-            assistedByPlayerId: event.assistedByPlayerId,
-            coordinates: event.coordinates,
-            clockSeconds: event.quarterTimeRemainingSeconds,
-          });
-        },
-
-        undoLastPlayByPlayEvent: (matchId) => {
-          get().undoLastEvent(matchId);
-        },
       };
     },
     {

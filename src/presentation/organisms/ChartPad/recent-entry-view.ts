@@ -69,6 +69,13 @@ export function chartOutcome(chart: ChartEntry): ChartOutcome | undefined {
   return undefined;
 }
 
+/** Step 1 of the live pad: the own player responsible, the shooter or just the player (S15). */
+export function playerStepTitle(category: ChartCategory): string {
+  if (category === 'POINTS_ALLOWED') return '1. Responsable (tu jugador)';
+  if (category === 'OFFENSE') return '1. Quién lanzó';
+  return '1. Jugador';
+}
+
 /** Question of the optional rival step of the live pad; null where no rival player is recorded. */
 export function rivalStepTitle(category: ChartCategory): string | null {
   if (category === 'POINTS_ALLOWED') return '¿Quién convirtió?';

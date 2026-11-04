@@ -51,7 +51,7 @@ const WELCOME: TourDefinition = {
       target: 'nav-live',
       placement: 'right',
       title: 'Modo partido en vivo',
-      body: 'Abre directo la consola del partido que se está jugando para cargar cada jugada desde la tablet.',
+      body: 'Abre directo la consola del partido que se está jugando para cargar la planilla desde la tablet.',
     },
     {
       target: 'nav-planilla',
@@ -100,7 +100,7 @@ const DASHBOARD: TourDefinition = {
       target: 'dashboard-hero',
       title: 'Partido en juego o próximo partido',
       body: 'Si hay un partido en vivo verás el marcador y el reloj; si no, el próximo partido programado con su convocatoria.',
-      example: 'Ejemplo: con el partido contra Obras Sanitarias en juego, "Abrir consola en vivo" te lleva a cargar jugadas.',
+      example: 'Ejemplo: con el partido contra Obras Sanitarias en juego, "Abrir consola en vivo" te lleva a cargar la planilla.',
     },
     {
       target: 'dashboard-kpis',
@@ -210,7 +210,7 @@ const MATCHES: TourDefinition = {
     {
       target: 'match-live',
       title: 'Consola en vivo',
-      body: 'Con el partido en juego, abre la consola para registrar cada jugada.',
+      body: 'Con el partido en juego, abre la consola para cargar la planilla en vivo.',
     },
     {
       target: 'match-stats',
@@ -256,7 +256,7 @@ const LIVE: TourDefinition = {
     {
       target: null,
       title: 'Consola en vivo',
-      body: 'La consola abre en la Planilla táctica: cada entrada se carga con 2 toques, primero el jugador y después el código.',
+      body: 'La consola es la Planilla táctica: cada entrada se carga con 2 toques, primero el jugador y después el código.',
     },
     {
       target: 'live-scoreboard',
@@ -270,15 +270,10 @@ const LIVE: TourDefinition = {
       body: 'Inicia y pausa el reloj; los botones de segundos lo corrigen. Al llegar a 00:00 se ofrece pasar al período siguiente.',
     },
     {
-      target: 'live-mode',
-      title: 'Planilla o Estadística',
-      body: 'Planilla es el modo principal: el porqué de cada jugada. Estadística registra tiros, rebotes y faltas para el box score.',
-    },
-    {
       target: 'live-chart-pad',
       roles: RECORD_LIVE,
       title: 'Cargar la planilla',
-      body: 'Elige la categoría, toca el jugador (o Equipo) y después el código. Azul es una acción buena, rojo un error. En Puntos recibidos elige 1, 2 o 3 puntos. Si el rival tiene plantel cargado, en Puntos recibidos y Acciones ofensivas puedes marcar también al jugador rival (es opcional).',
+      body: 'Elige la categoría, toca el jugador (o Equipo) y después el código. Aparece toda la convocatoria por dorsal. Azul es una acción buena, rojo un error. En Puntos recibidos el paso 1 es tu jugador responsable y eliges 1, 2 o 3 puntos, que se suman al rival. Si el rival tiene plantel cargado, en Puntos recibidos y Acciones ofensivas puedes marcar también al jugador rival (es opcional).',
       example: 'Ejemplo: Pérdidas, #7 Campagna y "Pase malo".',
     },
     {
@@ -287,35 +282,10 @@ const LIVE: TourDefinition = {
       body: 'La grilla por cuarto se arma sola, con los totales de cada cuarto y de cada mitad, como en el papel.',
     },
     {
-      target: 'live-tabs',
-      title: 'Secciones en el teléfono',
-      body: 'En pantallas chicas la consola se divide en Quinteto, Cancha y Acciones.',
-    },
-    {
-      target: 'live-lineup',
-      placement: 'right',
-      title: 'Estadística: elige el jugador',
-      body: 'En modo Estadística, toca un jugador en cancha para seleccionarlo. Con "Cambio" haces una sustitución desde la banca.',
-      example: 'Ejemplo: toca #7 Campagna.',
-    },
-    {
-      target: 'live-court',
-      title: '2a. Tiro en la cancha',
-      body: 'Toca el lugar del tiro y elige Convertido o Fallado: queda en el mapa de tiros.',
-      example: 'Ejemplo: toca #7 Campagna, después un punto detrás de la línea de 3 y "Convertido +3".',
-    },
-    {
-      target: 'live-pad',
-      placement: 'left',
-      title: '2b. Acción en el pad',
-      body: 'Puntos, rebotes, asistencias, robos, tapas, pérdidas y faltas del jugador seleccionado.',
-      example: 'Ejemplo: toca #7 Campagna y después +2: se suma un doble convertido.',
-    },
-    {
       target: 'live-rival',
-      title: 'Acciones del rival',
-      body: 'Puntos y faltas del rival con un solo toque; las faltas encienden su bonus.',
-      example: 'Ejemplo: Obras Sanitarias convierte un triple: toca +3.',
+      title: 'Faltas del rival',
+      body: 'Falta suma una falta del rival y enciende su bonus; Deshacer falta quita la última. Los puntos del rival se cargan desde Puntos recibidos.',
+      example: 'Ejemplo: Obras Sanitarias comete una falta: toca Falta.',
     },
     {
       target: 'live-timeout',
@@ -323,14 +293,9 @@ const LIVE: TourDefinition = {
       body: 'TM pide un tiempo muerto para ese equipo: detiene el reloj y descuenta los disponibles del período (FIBA).',
     },
     {
-      target: 'live-timeline',
-      title: 'Últimas jugadas',
-      body: 'Revisa lo registrado. "Deshacer" anula la última jugada si te equivocaste.',
-    },
-    {
       target: 'sync-status',
       title: 'Sincronización',
-      body: 'Cada jugada se guarda al instante en la tablet y se envía al servidor cuando hay conexión.',
+      body: 'Cada entrada se guarda al instante en la tablet y se envía al servidor cuando hay conexión.',
     },
     {
       target: 'live-finish',
@@ -456,7 +421,7 @@ const HELP: TourDefinition = {
       target: 'help-tour-button',
       title: 'Ver tutorial',
       body: 'Repite la bienvenida o el recorrido de cualquier pantalla, o reinícialos todos.',
-      example: 'Ejemplo: elige "Consola en vivo" para repasar cómo registrar jugadas.',
+      example: 'Ejemplo: elige "Consola en vivo" para repasar cómo cargar la planilla.',
     },
     {
       target: 'help-toc',

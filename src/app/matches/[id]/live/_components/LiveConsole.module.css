@@ -57,7 +57,7 @@
   flex-shrink: 0;
 }
 
-/* MOBILE PORTRAIT: SECTION TABS */
+/* MOBILE PORTRAIT: PAD OR SHEET TABS */
 .mobileTabs {
   display: flex;
   flex-shrink: 0;
@@ -89,37 +89,6 @@
   border-bottom-color: var(--brand-primary);
 }
 
-/* MAIN CONSOLE: lineup left, court + timeline center, action pad right */
-.mainConsole {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.columnSection {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.centerColumn {
-  display: flex;
-  flex-direction: column;
-  background-color: var(--color-court-floor);
-}
-
-.court {
-  flex: 1;
-  min-height: 0;
-}
-
-.timeline {
-  flex-shrink: 0;
-  max-height: 34%;
-  margin: 0 var(--space-3) var(--space-3);
-}
-
 @media (max-width: 899px) {
   .columnHidden {
     display: none;
@@ -130,47 +99,6 @@
   .mobileTabs {
     display: none;
   }
-
-  .mainConsole {
-    display: grid;
-    grid-template-columns: minmax(260px, 300px) 1fr minmax(300px, 340px);
-    grid-template-rows: minmax(0, 1fr);
-  }
-}
-
-/* CONSOLE MODE: Planilla (default, core) or Estadística */
-.modeSwitch {
-  display: flex;
-  flex-shrink: 0;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background-color: var(--bg-surface-2);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.modeBtn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1-5);
-  min-height: var(--touch-min);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  font-family: var(--font-display);
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-display);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.modeActive {
-  border-color: var(--brand-primary);
-  background-color: var(--brand-primary-subtle);
-  color: var(--brand-primary-ink);
 }
 
 .sheetConsole {
@@ -218,10 +146,6 @@
 }
 
 @media (min-width: 900px) {
-  .modeSwitch .modeBtn {
-    flex: 0 0 200px;
-  }
-
   .sheetBody {
     display: grid;
     grid-template-columns: minmax(380px, 560px) minmax(0, 1fr);

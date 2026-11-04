@@ -6,6 +6,7 @@ import {
   buildRecentEntries,
   chartOutcome,
   ownPlayerTag,
+  playerStepTitle,
   rivalStepTitle,
 } from './recent-entry-view';
 
@@ -56,6 +57,15 @@ describe('rivalStepTitle (S14)', () => {
     assert.strictEqual(rivalStepTitle('OFFENSE'), 'Defensor rival');
     assert.strictEqual(rivalStepTitle('TURNOVER'), null);
     assert.strictEqual(rivalStepTitle('DEFENSE'), null);
+  });
+});
+
+describe('playerStepTitle (S15)', () => {
+  it('names the own player responsible on points allowed, the shooter on offense, the player elsewhere', () => {
+    assert.strictEqual(playerStepTitle('POINTS_ALLOWED'), '1. Responsable (tu jugador)');
+    assert.strictEqual(playerStepTitle('OFFENSE'), '1. Quién lanzó');
+    assert.strictEqual(playerStepTitle('TURNOVER'), '1. Jugador');
+    assert.strictEqual(playerStepTitle('DEFENSE'), '1. Jugador');
   });
 });
 

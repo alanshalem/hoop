@@ -71,7 +71,7 @@ describe('tour catalog', () => {
   it('teaches the 2-tap recording in the live console with a seed example', () => {
     const live = getTour('live');
     const targets = live.steps.map((step) => step.target);
-    for (const target of ['live-lineup', 'live-court', 'live-pad', 'live-rival', 'live-timeout', 'live-timeline', 'live-finish']) {
+    for (const target of ['live-chart-pad', 'live-chart-sheet', 'live-rival', 'live-timeout', 'live-finish']) {
       assert.ok(targets.includes(target), `live tour misses ${target}`);
     }
     assert.ok(live.steps.some((step) => step.example?.includes('#7 Campagna')));
@@ -126,17 +126,27 @@ describe('tour catalog', () => {
     }
     assert.ok(targetsFor('rivales', 'ASSISTANT_STATISTICIAN').includes('rival-card'));
     for (const role of UserRoleSchema.options) {
-      assert.ok(targetsFor('live', role).includes('live-pad'), `${role} records live`);
+      assert.ok(targetsFor('live', role).includes('live-chart-pad'), `${role} records live`);
     }
   });
 });
 
 describe('live tour', () => {
-  it('walks the Planilla mode first: mode switch, chart pad and sheet, before the stats console', () => {
+  it('walks the Planilla only: no step points to the removed stats console (S15)', () => {
     const targets = getTour('live').steps.map((step) => step.target);
-    const sheetSteps = ['live-mode', 'live-chart-pad', 'live-chart-sheet'];
-    for (const target of sheetSteps) assert.ok(targets.includes(target), target);
-    const firstStats = targets.indexOf('live-lineup');
-    for (const target of sheetSteps) assert.ok(targets.indexOf(target) < firstStats, `${target} before stats steps`);
+    for (const removed of ['live-mode', 'live-tabs', 'live-lineup', 'live-court', 'live-pad', 'live-timeline']) {
+      assert.ok(!targets.includes(removed), `live tour still points to ${removed}`);
+    }
+    assert.ok(targets.indexOf('live-chart-pad') < targets.indexOf('live-chart-sheet'), 'pad before sheet');
+  });
+
+  it('explains the rival toolbar as FALTA plus Deshacer falta, without rival points buttons (S15)', () => {
+    const rival = getTour('live').steps.find((step) => step.target === 'live-rival');
+    assert.ok(rival, 'live-rival step');
+    const copy = `${rival.title} ${rival.body} ${rival.example ?? ''}`;
+    assert.match(copy, /Falta/);
+    assert.match(copy, /Deshacer falta/);
+    assert.doesNotMatch(copy, /\+[123]/);
+    assert.match(copy, /Puntos recibidos/);
   });
 });

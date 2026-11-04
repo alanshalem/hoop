@@ -15,8 +15,7 @@ import {
   type ChartPoints,
 } from '@/core/domain/entities/chart.types';
 import type { RivalPlayer } from '@/core/domain/entities/rival.types';
-import { getPlayerFoulsFromEvents } from '@/core/domain/rules/basketball-rules';
-import { RIVAL_TEAM_ID } from '@/core/domain/rules/event-rules';
+import { isFoulEvent, RIVAL_TEAM_ID } from '@/core/domain/rules/event-rules';
 import {
   clampGameClock,
   crossesHalftime,
@@ -65,7 +64,7 @@ export interface RecordEventInput {
 
 /** HALFTIME: the interval after Q2 (FIBA) accepts no plays and no timeouts. */
 export type RecordEventReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'INVALID_EVENT';
-export type UndoReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'NO_EVENTS';
+export type UndoRivalFoulReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'NO_RIVAL_FOULS';
 
 export interface RecordChartEntryInput {
   category: ChartCategory;
@@ -88,13 +87,6 @@ export type RecordChartReason =
   | 'INVALID_CHART_RESULT'
   | 'INVALID_RIVAL_PLAYER';
 export type UndoChartReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'NO_CHART_ENTRIES';
-export type SubstitutionReason =
-  | 'MATCH_NOT_LIVE'
-  | 'HALFTIME'
-  | 'PLAYER_NOT_ON_COURT'
-  | 'PLAYER_ALREADY_ON_COURT'
-  | 'PLAYER_NOT_IN_ROSTER'
-  | 'PLAYER_FOULED_OUT';
 
 export type RequestTimeoutResult =
   | { ok: true; match: Match; remaining: number }
@@ -207,21 +199,19 @@ export function recordEvent(
   return { ok: true, match: next };
 }
 
-/** Undoes the last stat event; tactical chart entries have their own undo. */
-export function undoLastEvent(match: Match): MatchResult<UndoReason> {
+/** Rival fouls feed the rival bonus; whether one can be undone drives the toolbar (S15). */
+export function isRivalFoul(event: PlayByPlayEvent): boolean {
+  return !event.isOwnTeam && isFoulEvent(event.type);
+}
+
+/** Removes the last rival foul (S15); every other event, chart entries included, stays. */
+export function undoLastRivalFoul(match: Match): MatchResult<UndoRivalFoulReason> {
   const refusal = notLiveReason(match);
   if (refusal) return { ok: false, reason: refusal };
-  const lastIndex = match.events.findLastIndex((event) => event.type !== 'CHART');
-  if (lastIndex === -1) return { ok: false, reason: 'NO_EVENTS' };
-  const last = match.events[lastIndex];
-
-  const sub = last.isOwnTeam ? last.substitution : undefined;
-  const activeLineupOwn = sub
-    ? match.activeLineupOwn.map((id) => (id === sub.playerInId ? sub.playerOutId : id))
-    : match.activeLineupOwn;
-
-  // A scoring play recorded by a chart entry takes that entry with it (S12).
-  return { ok: true, match: withoutLinked({ ...match, activeLineupOwn }, lastIndex) };
+  const lastIndex = match.events.findLastIndex(isRivalFoul);
+  if (lastIndex === -1) return { ok: false, reason: 'NO_RIVAL_FOULS' };
+  const events = match.events.filter((_, i) => i !== lastIndex);
+  return { ok: true, match: withDerivedScoreboard({ ...match, events }) };
 }
 
 /**
@@ -321,44 +311,6 @@ export function undoLastChartEntry(match: Match): MatchResult<UndoChartReason> {
   const lastIndex = match.events.findLastIndex((event) => event.type === 'CHART');
   if (lastIndex === -1) return { ok: false, reason: 'NO_CHART_ENTRIES' };
   return { ok: true, match: withoutLinked(match, lastIndex) };
-}
-
-export function substitutePlayer(
-  match: Match,
-  playerOutId: string,
-  playerInId: string,
-  ctx: UseCaseContext
-): MatchResult<SubstitutionReason> {
-  const refusal = notLiveReason(match);
-  if (refusal) return { ok: false, reason: refusal };
-  if (!match.activeLineupOwn.includes(playerOutId)) {
-    return { ok: false, reason: 'PLAYER_NOT_ON_COURT' };
-  }
-  if (match.activeLineupOwn.includes(playerInId)) {
-    return { ok: false, reason: 'PLAYER_ALREADY_ON_COURT' };
-  }
-  if (!match.rosterOwnPlayerIds.includes(playerInId)) {
-    return { ok: false, reason: 'PLAYER_NOT_IN_ROSTER' };
-  }
-  if (getPlayerFoulsFromEvents(playerInId, match.events).isFouledOut) {
-    return { ok: false, reason: 'PLAYER_FOULED_OUT' };
-  }
-
-  const withLineup: Match = {
-    ...match,
-    activeLineupOwn: match.activeLineupOwn.map((id) => (id === playerOutId ? playerInId : id)),
-  };
-  const next = appendEvent(
-    withLineup,
-    {
-      teamId: match.ownTeamId,
-      isOwnTeam: true,
-      type: 'SUBSTITUTION',
-      substitution: { playerInId, playerOutId },
-    },
-    ctx
-  );
-  return { ok: true, match: next };
 }
 
 /** Uses the match clock, so the last-2-minutes rule of Q4 applies (FIBA Art. 18.2.5). */
