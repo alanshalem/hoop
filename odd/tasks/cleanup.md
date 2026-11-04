@@ -14,8 +14,8 @@ Branch: `refactor/cleanup` (from main 7b853e2), merged into main at the end. UI 
 ## Tasks
 
 - [x] T1 [S1] #1 #5: shrink the box score to a scoring line; remove PIR, +/-, player/team foul helpers only used by tests, unused event helpers, `setStartingLineup`, unused `RecordEventInput` fields, `calculateNormalizedDistance`, `PLAY_BY_PLAY_EVENT_LABELS`; update tests and manual. Route: worker. Commit: 385671d
-- T2 [S1] #4 #9 #10: delete unused barrels; move `CLUB_PROFILE` out of infrastructure; `makeClubData()` test helper. Route: worker. Commit: _pending_
-- T3 [S1,S3] Others: demo seed without coordinates/substitutions; drop `SUBSTITUTION` and `coordinates` from the event schema and derivations; `runCollectionUseCase` helper in the store; stale banners. Route: worker. Commit: _pending_
+- [x] T2 [S1] #4 #9 #10: delete unused barrels; move `CLUB_PROFILE` out of infrastructure; `makeClubData()` test helper. Route: worker. Commit: a34d397
+- [x] T3 [S1,S3] Others: demo seed without coordinates/substitutions; drop `SUBSTITUTION` and `coordinates` from the event schema and derivations; `runCollectionUseCase` helper in the store; stale banners. Route: worker. Commit: a34d397
 - T4 [S1] #2 #3: table-driven sync record-kind registry shared by client and server; one event-changes helper. Route: worker; independent verify (sync). Commit: _pending_
 - T5 [S1] #6 #7: `FormModalSheet` template + `useModalForm`; `useEditModal`; division chips helper. Route: worker. Commit: _pending_
 - T6 [S1] #8 + oversized files: domain rules out of presentation/pages (`isMatchInPlay`, roster helpers, season points); split `acta-parser.ts`, `app/page.tsx`, lineup page, `MatchFormModal`. Route: worker. Commit: _pending_
