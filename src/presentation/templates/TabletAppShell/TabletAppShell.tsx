@@ -13,6 +13,7 @@ import {
   PanelLeftOpen,
   Radio,
   Shield,
+  Swords,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -64,10 +65,19 @@ const CHART_CATALOG_ITEM: NavItem = {
   tourTarget: 'nav-planilla',
 };
 
+// Rail only: on phones the rival rosters open from the Partidos header, so the top bar keeps its width.
+const RIVALS_ITEM: NavItem = {
+  label: 'Rivales',
+  shortLabel: 'Rivales',
+  href: '/rivales',
+  icon: Swords,
+  tourTarget: 'nav-rivales',
+};
+
 // The rail closes with the chart catalog and the manual; on phones both live in the top bar
 // so the bottom bar stays balanced around the live button.
 const TOP_BAR_ITEMS: NavItem[] = [CHART_CATALOG_ITEM, HELP_ITEM];
-const RAIL_ITEMS: NavItem[] = [...NAV_ITEMS, ...TOP_BAR_ITEMS];
+const RAIL_ITEMS: NavItem[] = [...NAV_ITEMS, RIVALS_ITEM, ...TOP_BAR_ITEMS];
 
 // The mobile bottom bar places the live button between these two halves.
 const BOTTOM_LEFT_ITEMS = NAV_ITEMS.slice(0, 2);

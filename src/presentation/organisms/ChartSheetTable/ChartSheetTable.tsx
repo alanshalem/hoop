@@ -10,6 +10,7 @@ import {
   type ChartTone,
 } from '@/core/domain/entities/chart.types';
 import type { PlayByPlayEvent } from '@/core/domain/entities/match.types';
+import type { RivalPlayer } from '@/core/domain/entities/rival.types';
 import { activeChartCodes } from '@/core/domain/rules/chart-catalog';
 import { buildChartSheet, type ChartSheetCell, type ChartTotals } from '@/core/domain/rules/chart-sheet';
 import { QUARTER_LABELS, QUARTER_SHORT_LABELS } from '@/presentation/organisms/ScoreboardHeader/quarter-labels';
@@ -20,6 +21,7 @@ import {
   chartEntryResult,
   formatChartPoints,
   formatCodeCounts,
+  rivalPlayerIdsByEvent,
 } from './chart-sheet-view';
 import styles from './ChartSheetTable.module.css';
 
@@ -30,6 +32,8 @@ export interface ChartSheetTableProps {
   players: Player[];
   /** The club's catalog: archived codes still render old entries; the legend lists active codes. */
   catalog: ChartCatalog;
+  /** Match rival roster (S14): names the rival player in the entry titles. */
+  rivalPlayers?: readonly RivalPlayer[];
   /** Grid only: hides the legend and the per-player summary (live console). */
   compact?: boolean;
   className?: string;
@@ -54,11 +58,14 @@ export const ChartSheetTable: React.FC<ChartSheetTableProps> = ({
   events,
   players,
   catalog,
+  rivalPlayers = [],
   compact = false,
   className,
 }) => {
   const sheet = buildChartSheet(events);
   const playersById = new Map(players.map((p) => [p.id, p]));
+  const rivalById = new Map(rivalPlayers.map((p) => [p.id, p]));
+  const rivalIdByEvent = rivalPlayerIdsByEvent(events);
   const hasEntries = sheet.rows.some((row) => row.total.count > 0);
 
   const renderCell = (category: ChartCategory, cell: ChartSheetCell) => {
@@ -69,7 +76,13 @@ export const ChartSheetTable: React.FC<ChartSheetTableProps> = ({
           <ul className={styles.chips}>
             {cell.entries.map((entry) => {
               const code = findChartCode(category, entry.code, catalog);
-              const title = chartEntryTitle(category, entry, playersById, catalog);
+              const title = chartEntryTitle(
+                category,
+                { ...entry, rivalPlayerId: rivalIdByEvent.get(entry.eventId) },
+                playersById,
+                catalog,
+                rivalById
+              );
               return (
                 <li
                   key={entry.eventId}

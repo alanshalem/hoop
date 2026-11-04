@@ -6,8 +6,10 @@ import {
   type ChartCategory,
 } from '@/core/domain/entities/chart.types';
 import type { PlayByPlayEvent } from '@/core/domain/entities/match.types';
+import type { RivalPlayer } from '@/core/domain/entities/rival.types';
 import {
   TEAM_CHART_KEY,
+  isChartEvent,
   summarizeChartByPlayer,
   type ChartSheetEntry,
   type PlayerChartSummary,
@@ -48,12 +50,32 @@ function describePoints(entry: ChartSheetEntry): string | undefined {
   return entry.points !== undefined ? formatChartPoints(entry.points) : undefined;
 }
 
-/** Full description for the chip tooltip and accessible name. */
+/** Rival player as written next to an entry: "#7 Pérez", or "#?" when no longer in the roster (S14). */
+export function rivalPlayerTag(player: RivalPlayer | undefined): string {
+  return player ? `#${player.dorsal} ${player.lastName}` : '#?';
+}
+
+/** How the rival player took part: the scorer of points allowed, the defender of an offensive action. */
+export function rivalInvolvement(category: ChartCategory, rival: string): string {
+  return category === 'POINTS_ALLOWED' ? `convirtió ${rival}` : `vs ${rival}`;
+}
+
+/** Rival player recorded on each chart event (S14); sheet entries carry only the event id. */
+export function rivalPlayerIdsByEvent(events: readonly PlayByPlayEvent[]): Map<string, string> {
+  const ids = new Map<string, string>();
+  for (const event of events) {
+    if (isChartEvent(event) && event.chart.rivalPlayerId) ids.set(event.id, event.chart.rivalPlayerId);
+  }
+  return ids;
+}
+
+/** Full description for the chip tooltip and accessible name; names the rival player when recorded. */
 export function chartEntryTitle(
   category: ChartCategory,
-  entry: ChartSheetEntry,
+  entry: ChartSheetEntry & { rivalPlayerId?: string },
   playersById: ReadonlyMap<string, Player>,
-  catalog: ChartCatalog = CHART_CATALOG
+  catalog: ChartCatalog = CHART_CATALOG,
+  rivalById: ReadonlyMap<string, RivalPlayer> = new Map()
 ): string {
   const label = findChartCode(category, entry.code, catalog)?.label ?? entry.code;
   const detail = describePoints(entry);
@@ -64,7 +86,16 @@ export function chartEntryTitle(
     : player
       ? `#${player.dorsal} ${player.firstName} ${player.lastName}`
       : 'Jugador desconocido';
-  return [code, who, entry.gameClockFormatted].filter(Boolean).join(' · ');
+  const rivalPlayer = entry.rivalPlayerId ? rivalById.get(entry.rivalPlayerId) : undefined;
+  const rival = !entry.rivalPlayerId
+    ? undefined
+    : rivalInvolvement(
+        category,
+        rivalPlayer
+          ? `#${rivalPlayer.dorsal} ${rivalPlayer.firstName} ${rivalPlayer.lastName}`
+          : 'jugador rival desconocido'
+      );
+  return [code, who, rival, entry.gameClockFormatted].filter(Boolean).join(' · ');
 }
 
 export interface ChartSummaryRow {

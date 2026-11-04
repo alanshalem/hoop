@@ -8,18 +8,21 @@ import {
   CHART_CATEGORIES,
   CHART_CATEGORY_LABELS,
   DEFAULT_CHART_POINTS,
-  findChartCode,
   type ChartCatalog,
   type ChartCategory,
   type ChartPoints,
+  type ChartTone,
 } from '@/core/domain/entities/chart.types';
 import type { PlayByPlayEvent } from '@/core/domain/entities/match.types';
+import type { RivalPlayer } from '@/core/domain/entities/rival.types';
 import { activeChartCodes } from '@/core/domain/rules/chart-catalog';
-import { TEAM_CHART_KEY, isChartEvent } from '@/core/domain/rules/chart-sheet';
+import { TEAM_CHART_KEY } from '@/core/domain/rules/chart-sheet';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { MOTION, gsap } from '@/presentation/motion/motion';
 import { useMotion } from '@/presentation/motion/useMotion';
-import { QUARTER_SHORT_LABELS } from '@/presentation/organisms/ScoreboardHeader/quarter-labels';
+import { rivalPlayerTag } from '@/presentation/organisms/ChartSheetTable/chart-sheet-view';
+import { sortRivalPlayers } from '@/presentation/organisms/RivalTeamFormModal/rival-roster';
+import { buildRecentEntries, rivalStepTitle, type ChartOutcomeTone } from './recent-entry-view';
 import styles from './ChartPad.module.css';
 
 export interface ChartPadEntryInput {
@@ -29,6 +32,8 @@ export interface ChartPadEntryInput {
   points?: ChartPoints;
   /** OFFENSE only: whether the action ended in a basket. */
   made?: boolean;
+  /** POINTS_ALLOWED and OFFENSE only: rival player picked in the optional step (S14). */
+  rivalPlayerId?: string;
 }
 
 export interface ChartPadProps {
@@ -38,6 +43,8 @@ export interface ChartPadProps {
   events: PlayByPlayEvent[];
   /** The club's catalog: the pad offers its active codes, old entries render archived ones too. */
   catalog: ChartCatalog;
+  /** Match rival roster (S14): offered as an optional step and named in the last entries. */
+  rivalRoster?: readonly RivalPlayer[];
   readOnly?: boolean;
   /** Recording paused (halftime). */
   locked?: boolean;
@@ -49,6 +56,18 @@ export interface ChartPadProps {
 
 const POINT_OPTIONS: readonly ChartPoints[] = [1, 2, 3];
 const RECENT_LIMIT = 5;
+const NO_RIVAL_PLAYERS: readonly RivalPlayer[] = [];
+
+const TONE_CLASS: Record<ChartTone, string> = {
+  POSITIVE: styles.positiveText,
+  NEGATIVE: styles.negativeText,
+};
+
+const OUTCOME_CLASS: Record<ChartOutcomeTone, string> = {
+  made: styles.outcomeMade,
+  missed: styles.outcomeMissed,
+  allowed: styles.outcomeAllowed,
+};
 
 /** Courtside charting pad: pick the player (or the team), then tap the code. */
 export const ChartPad: React.FC<ChartPadProps> = ({
@@ -56,6 +75,7 @@ export const ChartPad: React.FC<ChartPadProps> = ({
   benchPlayers,
   events,
   catalog,
+  rivalRoster = NO_RIVAL_PLAYERS,
   readOnly = false,
   locked = false,
   onRecord,
@@ -67,12 +87,22 @@ export const ChartPad: React.FC<ChartPadProps> = ({
   const [points, setPoints] = useState<ChartPoints>(DEFAULT_CHART_POINTS);
   /** OFFENSE: the action picked in step 2, waiting for its result in step 3 (S11). */
   const [pendingCode, setPendingCode] = useState<string | null>(null);
+  /** Optional rival player (S14); never required to save the entry. */
+  const [pickedRivalId, setPickedRivalId] = useState<string | null>(null);
   const listRef = useRef<HTMLOListElement | null>(null);
 
   const allPlayers = [...onCourtPlayers, ...benchPlayers];
-  const recent = events.filter(isChartEvent).slice(-RECENT_LIMIT).reverse();
+  const recent = buildRecentEntries(events, {
+    playersById: new Map(allPlayers.map((player) => [player.id, player])),
+    rivalById: new Map(rivalRoster.map((player) => [player.id, player])),
+    catalog,
+    limit: RECENT_LIMIT,
+  });
   const latestId = recent[0]?.id;
   const disabled = readOnly || locked;
+  const rivalTitle = rivalRoster.length > 0 ? rivalStepTitle(category) : null;
+  // A player removed from the roster meanwhile is dropped instead of being refused on save.
+  const rivalPlayerId = rivalTitle && rivalRoster.some((p) => p.id === pickedRivalId) ? pickedRivalId : null;
 
   useMotion(
     () => {
@@ -86,23 +116,19 @@ export const ChartPad: React.FC<ChartPadProps> = ({
     { dependencies: [latestId], scope: listRef }
   );
 
-  const playerLabel = (playerId: string | undefined) => {
-    if (!playerId) return 'Equipo';
-    const player = allPlayers.find((p) => p.id === playerId);
-    return player ? `#${player.dorsal}` : '#?';
-  };
-
   const record = (input: Omit<ChartPadEntryInput, 'category' | 'playerId'>) => {
     if (disabled || playerKey === null) return;
     const recorded = onRecord({
       category,
       playerId: playerKey === TEAM_CHART_KEY ? undefined : playerKey,
+      ...(rivalPlayerId ? { rivalPlayerId } : {}),
       ...input,
     });
     if (!recorded) return;
     setPlayerKey(null);
     setPoints(DEFAULT_CHART_POINTS);
     setPendingCode(null);
+    setPickedRivalId(null);
   };
 
   const handleCode = (code: string) => {
@@ -123,7 +149,35 @@ export const ChartPad: React.FC<ChartPadProps> = ({
   const handleCategory = (value: ChartCategory) => {
     setCategory(value);
     setPendingCode(null);
+    setPickedRivalId(null);
   };
+
+  // Tapping the picked rival again clears it.
+  const toggleRival = (id: string) => setPickedRivalId((current) => (current === id ? null : id));
+
+  const renderRivalStep = () =>
+    rivalTitle && (
+      <div className={styles.step} data-tour="live-chart-rival">
+        <h3 className={styles.stepTitle}>
+          Rival (opcional) <span className={styles.stepQuestion}>· {rivalTitle}</span>
+        </h3>
+        <div className={clsx(styles.rivalRow, 'no-scrollbar')} role="group" aria-label={`Rival (opcional): ${rivalTitle}`}>
+          {sortRivalPlayers(rivalRoster).map((player) => (
+            <button
+              key={player.id}
+              type="button"
+              className={clsx(styles.rivalChip, rivalPlayerId === player.id && styles.chipActive)}
+              aria-pressed={rivalPlayerId === player.id}
+              aria-label={`#${player.dorsal} ${player.firstName} ${player.lastName}`}
+              onClick={() => toggleRival(player.id)}
+              disabled={disabled}
+            >
+              {rivalPlayerTag(player)}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
 
   const renderPlayerChip = (player: Player, bench: boolean) => (
     <button
@@ -205,6 +259,9 @@ export const ChartPad: React.FC<ChartPadProps> = ({
             </div>
           )}
 
+          {/* The rival step sits right before the tap that saves the entry. */}
+          {category === 'POINTS_ALLOWED' && renderRivalStep()}
+
           <div className={styles.step}>
             <h3 className={clsx(styles.stepTitle, playerKey === null && styles.stepTitleWaiting)}>
               {playerKey === null ? '2. Acción: primero elige un jugador o Equipo' : '2. Acción'}
@@ -229,6 +286,8 @@ export const ChartPad: React.FC<ChartPadProps> = ({
               ))}
             </div>
           </div>
+
+          {category === 'OFFENSE' && renderRivalStep()}
 
           {category === 'OFFENSE' && (
             <div className={styles.step}>
@@ -275,28 +334,31 @@ export const ChartPad: React.FC<ChartPadProps> = ({
         <p className={styles.emptyText}>Todavía no hay entradas en la planilla.</p>
       ) : (
         <ol ref={listRef} className={styles.recentList}>
-          {recent.map((event) => {
-            const code = findChartCode(event.chart.category, event.chart.code, catalog);
-            return (
-              <li
-                key={event.id}
-                data-chart-id={event.id}
-                className={clsx(styles.recentItem, code?.tone === 'POSITIVE' ? styles.positiveText : styles.negativeText)}
-              >
-                <span className={styles.recentClock}>
-                  {QUARTER_SHORT_LABELS[event.quarter]} {event.gameClockFormatted}
+          {recent.map((entry) => (
+            <li
+              key={entry.id}
+              data-chart-id={entry.id}
+              className={clsx(styles.recentItem, entry.tone && TONE_CLASS[entry.tone])}
+            >
+              <span className={styles.recentSymbol}>{entry.symbol}</span>
+              <span className={styles.recentBody}>
+                <span className={styles.recentMain}>
+                  <span className={styles.recentPlayer}>{entry.player}</span>
+                  <span className={styles.recentLabel}>{entry.label}</span>
                 </span>
-                <span className={styles.recentPlayer}>{playerLabel(event.playerId)}</span>
-                <span className={styles.recentCode}>
-                  {code?.label ?? event.chart.code}
-                  {event.chart.made === false && ' (no convirtió)'}
-                  {event.chart.made === true && ` (+${event.chart.points ?? 0})`}
-                  {event.chart.made === undefined && event.chart.points !== undefined && ` (${event.chart.points})`}
+                <span className={styles.recentMeta}>
+                  <span className={styles.recentClock}>{entry.clock}</span>
+                  <span>{entry.category}</span>
+                  {entry.rival && <span className={styles.recentRival}>{entry.rival}</span>}
                 </span>
-                <span className={styles.recentCategory}>{CHART_CATEGORY_LABELS[event.chart.category]}</span>
-              </li>
-            );
-          })}
+              </span>
+              {entry.outcome && (
+                <span className={clsx(styles.recentOutcome, OUTCOME_CLASS[entry.outcome.tone])}>
+                  {entry.outcome.text}
+                </span>
+              )}
+            </li>
+          ))}
         </ol>
       )}
     </section>

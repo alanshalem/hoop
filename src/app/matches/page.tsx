@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BarChart3, CalendarDays, ClipboardList, Pencil, Plus, Radio, Trash2, Users } from 'lucide-react';
+import { BarChart3, CalendarDays, ClipboardList, Pencil, Plus, Radio, Swords, Trash2, Users } from 'lucide-react';
 import type { Match, MatchStatus } from '@/core/domain/entities/match.types';
 import { can } from '@/core/domain/rules/permissions';
 import { useClubStore } from '@/core/application/stores/useClubStore';
@@ -167,15 +167,26 @@ export default function MatchesPage() {
           title="Partidos"
           subtitle="Partidos en juego primero, luego los próximos por fecha y al final los finalizados, del más reciente al más antiguo."
           actions={
-            canManageMatches && (
-              <TouchButton
-                leftIcon={<Plus size={ICON_SIZE.md} />}
-                onClick={() => openForm(null)}
-                data-tour="matches-create"
+            <>
+              {/* Rival rosters: the phone top bar has no room for them (S14). */}
+              <LinkButton
+                href="/rivales"
+                variant="secondary"
+                leftIcon={<Swords size={ICON_SIZE.md} />}
+                data-tour="matches-rivals"
               >
-                Nuevo partido
-              </TouchButton>
-            )
+                Rivales
+              </LinkButton>
+              {canManageMatches && (
+                <TouchButton
+                  leftIcon={<Plus size={ICON_SIZE.md} />}
+                  onClick={() => openForm(null)}
+                  data-tour="matches-create"
+                >
+                  Nuevo partido
+                </TouchButton>
+              )}
+            </>
           }
         />
 

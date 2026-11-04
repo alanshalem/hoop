@@ -367,6 +367,7 @@ export function LiveConsole({ matchId }: { matchId: string }) {
                 benchPlayers={live.benchPlayers}
                 events={match.events}
                 catalog={chartCatalog}
+                rivalRoster={live.rivalRoster}
                 readOnly={readOnly}
                 locked={live.isHalftime}
                 onRecord={handleChartEntry}
@@ -374,7 +375,13 @@ export function LiveConsole({ matchId }: { matchId: string }) {
               />
             </div>
             <div className={clsx(styles.sheetView, sheetTab !== 'view' && styles.columnHidden)} data-tour="live-chart-sheet">
-              <ChartSheetTable compact events={match.events} players={players} catalog={chartCatalog} />
+              <ChartSheetTable
+                compact
+                events={match.events}
+                players={players}
+                catalog={chartCatalog}
+                rivalPlayers={live.rivalRoster}
+              />
             </div>
           </div>
         </div>

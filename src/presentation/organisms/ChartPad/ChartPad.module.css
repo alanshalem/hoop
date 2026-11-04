@@ -107,6 +107,55 @@
   color: var(--color-warning);
 }
 
+.stepQuestion {
+  color: var(--text-muted);
+}
+
+/* Optional rival step (S14): one scrollable row on phones, wrapped on wider pads. */
+.rivalRow {
+  display: flex;
+  gap: var(--space-1-5);
+  overflow-x: auto;
+}
+
+@media (min-width: 640px) {
+  .rivalRow {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    overflow-x: visible;
+  }
+}
+
+.rivalChip {
+  flex-shrink: 0;
+  min-width: 0;
+  min-height: var(--touch-min);
+  padding: var(--space-1) var(--space-3);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-2);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.rivalChip.chipActive {
+  border-style: solid;
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-subtle);
+  color: var(--brand-primary-ink);
+}
+
+.rivalChip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .playerChipBench {
   min-height: var(--touch-min);
   flex-direction: row;
@@ -281,16 +330,16 @@
   gap: var(--space-1);
 }
 
+/* Two-line entry (S14): symbol | who + code / clock, category, rival | result. */
 .recentItem {
-  display: grid;
-  grid-template-columns: auto auto 1fr;
-  align-items: baseline;
-  gap: var(--space-0-5) var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   padding: var(--space-1-5) var(--space-2);
   border-left: 3px solid currentColor;
   border-radius: var(--radius-sm);
   background-color: var(--bg-surface-2);
-  font-size: var(--text-sm);
+  color: var(--text-secondary);
 }
 
 .positiveText {
@@ -301,25 +350,91 @@
   color: var(--color-danger);
 }
 
-.recentClock {
-  color: var(--text-muted);
-  font-size: var(--text-2xs);
-  font-variant-numeric: tabular-nums;
+.recentSymbol {
+  flex-shrink: 0;
+  min-width: 2.5em;
+  padding: var(--space-1) var(--space-1-5);
+  border: 2px solid currentColor;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-display);
+  line-height: 1;
+  text-align: center;
+}
+
+.recentBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  flex: 1;
+  min-width: 0;
+}
+
+.recentMain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
 }
 
 .recentPlayer {
+  color: var(--text-primary);
   font-family: var(--font-display);
   font-weight: var(--font-weight-display);
+  white-space: nowrap;
 }
 
-.recentCode {
+.recentLabel {
+  min-width: 0;
   color: var(--text-primary);
 }
 
-.recentCategory {
-  grid-column: 2 / -1;
+.recentMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-1-5);
   color: var(--text-muted);
   font-size: var(--text-2xs);
+}
+
+.recentMeta > * + *::before {
+  content: '·';
+  margin-right: var(--space-1-5);
+  color: var(--text-muted);
+}
+
+.recentClock {
+  font-variant-numeric: tabular-nums;
+}
+
+.recentRival {
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.recentOutcome {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-display);
+  white-space: nowrap;
+}
+
+.outcomeMade {
+  color: var(--color-success);
+}
+
+.outcomeMissed {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.outcomeAllowed {
+  color: var(--color-danger);
 }
 
 /* Selected points: same red as a selected player. Declared after .pointBtn,
@@ -332,6 +447,7 @@
 
 /* Touch screens have no hover: show the press itself. */
 .playerChip:not(:disabled):active,
+.rivalChip:not(:disabled):active,
 .pointBtn:not(:disabled):active,
 .codeBtn:not(:disabled):active {
   transform: scale(0.97);

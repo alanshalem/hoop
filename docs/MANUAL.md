@@ -53,7 +53,18 @@ Cada entrada guarda la categoría, el código, el jugador propio (o **Equipo** s
 
 Son dos toques por entrada (jugador y código), y tres en Acciones ofensivas (jugador, código y resultado). Después de cada entrada la selección de jugador se limpia, así la siguiente empieza de cero. El período y el reloj se toman de la consola; no hace falta escribirlos.
 
-**Últimas entradas** muestra las 5 más recientes (período, reloj, dorsal o Equipo, acción y puntos), en azul o rojo según el tono. **Deshacer**, al lado, elimina la última entrada de la planilla.
+**Jugador rival (opcional).** Si el rival del partido tiene plantel cargado (ver [Planteles rivales](#planteles-rivales)), en **Puntos recibidos** y **Acciones ofensivas** aparece el paso **Rival (opcional)** con un botón por jugador rival (`#7 Domínguez`, ordenados por dorsal). En Puntos recibidos pregunta **¿Quién convirtió?** y está justo antes de **2. Acción**; en Acciones ofensivas indica el **Defensor rival** y está justo antes de **3. Resultado**. No agrega un toque obligatorio: la entrada se sigue guardando con el toque del código (Puntos recibidos) o del resultado (Acciones ofensivas), con el jugador rival si se eligió y sin él si no. Tocar de nuevo el jugador rival elegido lo quita. La elección se limpia después de cada entrada y al cambiar de categoría. Si el rival no tiene plantel, el paso no aparece.
+
+**Últimas entradas** muestra las 5 más recientes, cada una en una tarjeta de dos líneas con el borde y el símbolo en azul o rojo según el tono:
+
+| Parte | Ejemplo | Qué muestra |
+| ----- | ------- | ----------- |
+| Símbolo | `R` | El símbolo del código, en su color. |
+| Primera línea | `#29 Garino` Mal lanzamiento | El jugador propio con dorsal y apellido completo (**Equipo** si la entrada es del equipo) y el nombre del código. |
+| Segunda línea | `2C 05:32 · Acciones ofensivas · vs #7 Domínguez` | Período y reloj, la categoría y, solo si se cargó, el jugador rival: `vs #7 Domínguez` en Acciones ofensivas y `convirtió #7 Domínguez` en Puntos recibidos. Si no se cargó el jugador rival, no se muestra nada. |
+| Resultado, a la derecha | `+2`, `no convirtió`, `3 pts` | En Acciones ofensivas, los puntos convertidos en verde o **no convirtió**; en Puntos recibidos, los puntos recibidos en rojo. Pérdidas y Acciones defensivas no tienen resultado. |
+
+**Deshacer**, al lado del título, elimina la última entrada de la planilla.
 
 **Cuándo se puede cargar.** Solo con el partido **En vivo**. En el entretiempo el panel queda bloqueado (no se cargan ni se deshacen entradas) hasta **Comenzar 3.er cuarto**. Un partido programado o finalizado no admite entradas. Sin el permiso `RECORD_LIVE` el panel muestra "Tu rol no puede cargar la planilla en vivo."
 
@@ -138,13 +149,21 @@ Cada club tiene su propio catálogo de códigos. Mientras nadie lo edite, es el 
 
 **Sincronización.** Cada código editado o agregado viaja como un registro de tipo `chartCode`, con la misma cola de salida que las divisiones y los jugadores: funciona sin conexión y llega a todas las tablets. Al cargar una entrada en vivo, la consola la valida contra los códigos activos del club.
 
+### Planteles rivales
+
+El club puede cargar el plantel de cada rival, por división, en la pantalla [Rivales](#rivales-rivales). Con ese plantel, una entrada de **Puntos recibidos** puede guardar quién convirtió y una **Acción ofensiva** quién defendió (ver el paso **Rival (opcional)** en [Cargar la planilla durante el partido](#cargar-la-planilla-durante-el-partido)).
+
+**Cómo encuentra la consola el plantel.** El partido no se vincula a mano: la consola usa el rival de la **misma división** del partido cuyo nombre es **igual al nombre del rival del partido**, sin importar mayúsculas, acentos ni espacios al principio o al final. Por ejemplo, el partido de Primera División contra "Obras Sanitarias" usa el rival "obras sanitarias" de Primera División, pero no el de Sub-19 ni uno llamado "Obras". Si el nombre no coincide, la consola no ofrece el paso del rival; para arreglarlo se renombra el rival (o el partido) hasta que coincidan.
+
+**Qué se guarda.** La entrada guarda el id del jugador rival. La planilla y **Últimas entradas** muestran su dorsal y su nombre tomados del plantel actual: si después se corrige el nombre, las entradas se ven con el nombre nuevo; si se quita al jugador o se elimina el rival, las entradas se conservan y muestran `#?` en lugar del jugador rival. La canasta del rival que suma al marcador (ver [Qué no cambia la planilla](#qué-no-cambia-la-planilla)) no queda a nombre de ningún jugador rival.
+
 ### Leer la planilla táctica
 
 **Dónde está.** En la página del partido (`/matches/[id]/stats`), sección **Planilla**, la primera debajo del resultado. Desde la consola, el botón **Planilla** de la barra de herramientas abre esa página. Dentro de la consola, en modo **Planilla**, la grilla se ve junto al panel de carga (o en la pestaña **Ver planilla** en pantallas angostas), sin el resumen por jugador ni las referencias.
 
 | Parte               | Cómo se lee                                                                                                                                                                                                                                                                                                                       |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Grilla              | Una fila por categoría y una columna por período: 1C a 4C siempre, más los suplementarios que tengan entradas. Cada entrada aparece como dorsal y símbolo (por ejemplo `#7 P`, o `EQ P` si es del equipo), en azul o rojo según el tono. Al apoyar el puntero sobre una entrada se ven la acción completa, el jugador y el reloj. |
+| Grilla              | Una fila por categoría y una columna por período: 1C a 4C siempre, más los suplementarios que tengan entradas. Cada entrada aparece como dorsal y símbolo (por ejemplo `#7 P`, o `EQ P` si es del equipo), en azul o rojo según el tono. Al apoyar el puntero sobre una entrada se ven la acción completa, el jugador, el jugador rival si se cargó (por ejemplo "convirtió #7 Lautaro Domínguez") y el reloj. |
 | Totales por período | Debajo de las entradas de cada celda: la cantidad de entradas; en **Puntos recibidos**, además, los puntos recibidos (por ejemplo `7 pts`). En **Acciones ofensivas**, los puntos convertidos y el conteo por código, por ejemplo `A=1 F=4`. Una celda sin entradas muestra `-`.                                                                   |
 | Mitades y total     | Columnas **1.ª mitad** (1C y 2C), **2.ª mitad** (3C, 4C y suplementarios) y **Total** del partido, con la cantidad de entradas y, en **Puntos recibidos**, los puntos.                                                                                                                                                            |
 | Resumen por jugador | Una fila por jugador con entradas y una de **Equipo**: cantidad de **Pérdidas**, **Puntos recibidos** (con los puntos), **Ofensivas**, **Defensivas** y el total de acciones positivas (`+`) y negativas (`−`).                                                                                                                   |
@@ -219,12 +238,12 @@ Hay tres roles. Cada usuario tiene uno, asignado en el servidor. Cada pantalla o
 | ---------------------- | -------------------------------------------------------------------------------------- | :-----------: | :------------------: | :------------------: |
 | `MANAGE_DIVISIONS`     | Crear, editar y eliminar divisiones; asignar entrenador                                |      Sí       |          No          |          No          |
 | `MANAGE_PLAYERS`       | Crear, editar y eliminar jugadores; convocar juveniles a Primera                       |      Sí       |          Sí          |          No          |
-| `MANAGE_MATCHES`       | Crear, editar y eliminar partidos programados                                          |      Sí       |          Sí          |          No          |
+| `MANAGE_MATCHES`       | Crear, editar y eliminar partidos programados; cargar y editar los planteles rivales   |      Sí       |          Sí          |          No          |
 | `MANAGE_LINEUP`        | Armar convocatoria y quinteto; iniciar el partido                                      |      Sí       |          Sí          |          No          |
 | `RECORD_LIVE`          | Usar la consola en vivo: reloj, períodos, jugadas, cambios, tiempos muertos, finalizar |      Sí       |          Sí          |          Sí          |
 | `MANAGE_CHART_CATALOG` | Editar el catálogo de códigos de la planilla: renombrar, agregar, archivar y restaurar |      Sí       |          Sí          |          No          |
 
-Lo que cualquier rol puede ver: dashboard, listado de divisiones y su plantel ("Ver plantel"), jugadores, calendario, convocatorias (en modo lectura), planillas estadísticas y los códigos de la planilla (en modo lectura). Sin `RECORD_LIVE` la consola se abre en modo lectura con un aviso.
+Lo que cualquier rol puede ver: dashboard, listado de divisiones y su plantel ("Ver plantel"), jugadores, calendario, convocatorias (en modo lectura), planillas estadísticas, los códigos de la planilla y los planteles rivales (en modo lectura). Sin `RECORD_LIVE` la consola se abre en modo lectura con un aviso.
 
 ### Cuentas de demostración
 
@@ -250,7 +269,7 @@ Para usar otro rol hay que cerrar sesión y entrar con otra cuenta. Si el rol de
 
 | Elemento                   | Dónde                  | Función                                                                                                                                                                                                                                                                                                                                   |
 | -------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Riel lateral (tablet)      | Izquierda              | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, Planilla ([códigos de la planilla](#códigos-de-la-planilla-planilla)), Ayuda, botón **Partido en vivo** y, al pie, el menú de usuario: nombre, rol, botón de tema claro/oscuro, [estado de sincronización](#estado-de-sincronización) y **Cerrar sesión**. |
+| Riel lateral (tablet)      | Izquierda              | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, Rivales ([planteles rivales](#rivales-rivales), icono `Swords`), Planilla ([códigos de la planilla](#códigos-de-la-planilla-planilla)), Ayuda, botón **Partido en vivo** y, al pie, el menú de usuario: nombre, rol, botón de tema claro/oscuro, [estado de sincronización](#estado-de-sincronización) y **Cerrar sesión**. |
 | Barra superior (teléfono)  | Arriba                 | Escudo y marca (vuelve al inicio), el estado de sincronización compacto y los iconos de Planilla (`ClipboardList`, códigos de la planilla) y Ayuda (`LifeBuoy`).                                                                                                                                                                          |
 | Barra inferior (teléfono)  | Abajo                  | Inicio, Equipos, botón central de partido en vivo (icono `Radio`), Plantel y Fechas.                                                                                                                                                                                                                                                      |
 | Menú de usuario (teléfono) | Cabecera del Dashboard | Nombre, rol, estado de sincronización y **Cerrar sesión**.                                                                                                                                                                                                                                                                                |
@@ -290,7 +309,7 @@ Este manual, dentro de la aplicación. Se abre desde **Ayuda** en el menú later
 La primera vez que inicias sesión, Hoop muestra un recorrido de bienvenida: la pantalla se oscurece, se resalta un elemento por vez y una tarjeta con una flecha explica para qué sirve, muchas veces con un ejemplo concreto (por ejemplo, "toca #7 Campagna y después +2").
 
 - **Bienvenida**: presenta el menú (Dashboard, Divisiones, Jugadores, Partidos, Modo partido en vivo, Códigos de la planilla), el estado de sincronización, tu menú de usuario y la Ayuda. Cuando la terminas o la saltas, el recorrido de la pantalla en la que estás no empieza enseguida: aparece la próxima vez que abras esa pantalla.
-- **Recorridos por pantalla**: la primera vez que abres Dashboard, Divisiones, Jugadores, Partidos, Quinteto y convocatoria, Consola en vivo, Planilla, Códigos de la planilla o Ayuda, se muestra un recorrido corto de esa pantalla.
+- **Recorridos por pantalla**: la primera vez que abres Dashboard, Divisiones, Jugadores, Partidos, Quinteto y convocatoria, Consola en vivo, Planilla, Códigos de la planilla, Rivales o Ayuda, se muestra un recorrido corto de esa pantalla.
 - **Según tu rol**: los pasos de acciones que tu rol no puede realizar (por ejemplo, crear divisiones) no se muestran.
 - **Controles**: Siguiente, Atrás y Saltar tutorial (Finalizar en el último paso). Con teclado: Enter o flecha derecha avanza, flecha izquierda retrocede y Escape salta el tutorial. Tocar la zona oscura no cierra el recorrido y el elemento resaltado no se puede tocar mientras dura.
 - **Consola en vivo**: el recorrido nunca empieza solo con el reloj de juego en marcha; espera a que lo pauses.
@@ -346,6 +365,7 @@ Orden fijo: primero los partidos en juego, después los programados (el más pr�
 | Chips **Estado**   | Todos, En vivo, Programados, Finalizados.                                                       |
 | Chips **División** | Filtra por división. Los partidos de una división eliminada aparecen como "División eliminada". |
 | **Nuevo partido**  | Abre el formulario (requiere `MANAGE_MATCHES`).                                                 |
+| **Rivales**        | Abre los [planteles rivales](#rivales-rivales). En el teléfono es el acceso a esa pantalla.     |
 
 Acciones de cada tarjeta según su estado:
 
@@ -425,6 +445,33 @@ Hay una sección por categoría (**Pérdidas**, **Puntos recibidos**, **Acciones
 | Restaurar (`ArchiveRestore`) | Devuelve un código archivado al panel de carga en vivo.                                                                | `MANAGE_CHART_CATALOG` |
 
 Campos del formulario: **Símbolo** (1 a 3 caracteres), **Tono** (Azul (positiva) o Rojo (negativa)) y **Nombre** (1 a 40 caracteres). Un código nuevo empieza en rojo en **Pérdidas** y **Puntos recibidos** y en azul en las otras dos categorías. Sin el permiso `MANAGE_CHART_CATALOG` la pantalla muestra la lista en modo lectura con el aviso "Solo el administrador y los entrenadores principales pueden editar los códigos."
+
+### Rivales (`/rivales`)
+
+Los planteles de los equipos rivales, por división (ver [Planteles rivales](#planteles-rivales)). Se abre desde **Rivales** en el riel lateral o, en el teléfono, desde el botón **Rivales** de la cabecera de [Partidos](#partidos-matches); la barra superior del teléfono no cambia.
+
+Los chips **División** filtran los rivales (Todas o una división; los de una división eliminada aparecen como "División eliminada"). Cada rival es una tarjeta con su nombre, su división, la cantidad de jugadores, la cantidad de partidos de la división con ese mismo nombre de rival (icono `Link2`; "Ningún partido con este nombre" en amarillo si no coincide ninguno) y el plantel ordenado por dorsal, con nombre y apellido.
+
+| Control                         | Qué hace                                                                                                         | Permiso          |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------- |
+| **Nuevo rival**                 | Abre el formulario: **División** y **Nombre del equipo** (1 a 60 caracteres). El rival empieza sin jugadores.   | `MANAGE_MATCHES` |
+| Lápiz (`Pencil`) de la tarjeta | Renombra el rival. La división no se cambia.                                                                     | `MANAGE_MATCHES` |
+| Papelera (`Trash2`) de la tarjeta | Elimina el rival con su plantel, con confirmación. Las entradas ya cargadas se conservan.                      | `MANAGE_MATCHES` |
+| **Agregar jugador**             | Abre el formulario del jugador: **Dorsal**, **Nombre** y **Apellido**.                                           | `MANAGE_MATCHES` |
+| Lápiz y papelera del jugador    | Editan o quitan al jugador (quitar pide confirmación).                                                           | `MANAGE_MATCHES` |
+
+Validaciones del formulario del jugador, con su mensaje:
+
+| Caso                                  | Mensaje                                              |
+| ------------------------------------- | ---------------------------------------------------- |
+| Dorsal vacío, con decimales o fuera de 0 a 99 | "El dorsal debe ser un número entero de 0 a 99." |
+| Dorsal que ya usa otro jugador del rival | "Ya hay un jugador con ese dorsal en este equipo." |
+| Nombre vacío o de más de 40 caracteres | "El nombre debe tener de 1 a 40 caracteres."        |
+| Apellido vacío o de más de 40 caracteres | "El apellido debe tener de 1 a 40 caracteres."    |
+
+**Quién edita.** El administrador y los entrenadores principales (permiso `MANAGE_MATCHES`). El servidor rechaza los cambios de planteles rivales que llegan de cualquier otro rol. Sin ese permiso la pantalla se ve en modo lectura con el aviso "Solo el administrador y los entrenadores principales pueden editar los planteles rivales."
+
+**Sincronización.** Cada rival viaja con todo su plantel como un registro de tipo `rivalTeam`, con la misma cola de salida que las divisiones y los jugadores: funciona sin conexión y llega a todas las tablets. Si dos tablets cambian el mismo rival, queda el último cambio que llega al servidor.
 
 ---
 
@@ -567,6 +614,14 @@ Con varias tablets en el mismo partido, **Deshacer** quita la última jugada de 
 3. Para agregar, pulsar **Nuevo código** en la categoría, completar el formulario y pulsar **Agregar código**. El código aparece al final de la categoría en el panel de carga en vivo.
 4. Para dejar de usar un código, tocar **Archivar** y confirmar. Las entradas ya cargadas lo siguen mostrando; **Restaurar** lo devuelve al panel.
 
+### Cargar el plantel de un rival
+
+1. Abrir **Rivales** en el menú o, en el teléfono, el botón **Rivales** de Partidos (pantalla [Rivales](#rivales-rivales)). Hace falta el permiso `MANAGE_MATCHES`.
+2. Pulsar **Nuevo rival**, elegir la división y escribir el nombre igual que en los partidos (por ejemplo, "Obras Sanitarias"). Pulsar **Crear rival**.
+3. En la tarjeta del rival, pulsar **Agregar jugador**, completar dorsal, nombre y apellido y pulsar **Agregar jugador**. Repetir por cada jugador.
+4. Revisar la línea del enlace: debe decir "1 partido con este nombre" (o más). Si dice "Ningún partido con este nombre", renombrar el rival con el lápiz.
+5. En la consola en vivo de ese partido, en **Puntos recibidos** y **Acciones ofensivas**, aparece el paso **Rival (opcional)** con los jugadores cargados.
+
 ---
 
 ## 7. Reglas FIBA aplicadas
@@ -627,6 +682,7 @@ Se generan en `src/core/infrastructure/mocks/seed-data.ts`, de forma determinís
 | Partido en vivo         | Contra Obras Sanitarias, hoy, en el Estadio CAMG: 2.º cuarto con 07:08 en el reloj y el rival en bonus.                                                                                       |
 | Planilla táctica        | Los partidos finalizados y el partido en vivo traen entradas de la planilla en cada cuarto jugado (entre 6 y 14 por cuarto completo, de las cuatro categorías), atadas a jugadas del partido. |
 | Catálogo de la planilla | Sin cambios: los códigos de fábrica, sin códigos propios ni archivados.                                                                                                                       |
+| Planteles rivales       | En Primera División: Obras Sanitarias (12 jugadores, el rival del partido en vivo) y Ferro Carril Oeste (10 jugadores, el rival del último partido finalizado).                               |
 | Partido programado      | Contra Boca Juniors como visitante, dentro de 7 días, con convocatoria precargada.                                                                                                            |
 
 Los mismos datos cargan el servidor con `npm run db:seed`. El navegador los usa solo hasta el primer ingreso: en la primera sincronización de una tablet, la copia del servidor reemplaza los datos locales de demostración (nunca se envían al servidor). Los cambios que alguien haya hecho antes de esa primera sincronización no se pierden: se vuelven a aplicar sobre la copia del servidor y se envían.

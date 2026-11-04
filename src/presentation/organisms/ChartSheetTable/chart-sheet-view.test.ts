@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { makeEvent, makePlayer } from '@/core/testing/fixtures';
+import { makeEvent, makePlayer, makeRivalTeam } from '@/core/testing/fixtures';
 import type { ChartCategory, ChartCodeRecord, ChartPoints } from '@/core/domain/entities/chart.types';
 import { resolveChartCatalog } from '@/core/domain/rules/chart-catalog';
 import {
@@ -10,6 +10,9 @@ import {
   chartEntryResult,
   formatChartPoints,
   formatCodeCounts,
+  rivalInvolvement,
+  rivalPlayerIdsByEvent,
+  rivalPlayerTag,
 } from './chart-sheet-view';
 
 const chart = (category: ChartCategory, code: string, playerId?: string, points?: ChartPoints) =>
@@ -166,5 +169,58 @@ describe('offensive result on the sheet (S11)', () => {
       chartEntryTitle('OFFENSE', { eventId: 'e2', code: 'GOOD_SHOT', made: false }, playersById),
       'Buen lanzamiento (no convirtió) · Equipo'
     );
+  });
+});
+
+describe('rival player on the sheet (S14)', () => {
+  const rivalById = new Map(makeRivalTeam().players.map((player) => [player.id, player]));
+
+  it('tags a rival player with the jersey and last name, #? when unknown', () => {
+    assert.strictEqual(rivalPlayerTag(rivalById.get('rp-1')), '#5 Pérez');
+    assert.strictEqual(rivalPlayerTag(undefined), '#?');
+  });
+
+  it('reads as the scorer on points allowed and as the defender on offensive actions', () => {
+    assert.strictEqual(rivalInvolvement('POINTS_ALLOWED', '#5 Pérez'), 'convirtió #5 Pérez');
+    assert.strictEqual(rivalInvolvement('OFFENSE', '#5 Pérez'), 'vs #5 Pérez');
+  });
+
+  it('adds the rival player to the entry title only when recorded', () => {
+    assert.strictEqual(
+      chartEntryTitle(
+        'POINTS_ALLOWED',
+        { eventId: 'e1', code: 'CUT', points: 2, rivalPlayerId: 'rp-1', gameClockFormatted: '03:00' },
+        playersById,
+        undefined,
+        rivalById
+      ),
+      'Corte (2 pts) · Equipo · convirtió #5 Juan Pérez · 03:00'
+    );
+    assert.strictEqual(
+      chartEntryTitle(
+        'OFFENSE',
+        { eventId: 'e2', playerId: 'p-ana', code: 'GOOD_SHOT', made: false, rivalPlayerId: 'rp-2' },
+        playersById,
+        undefined,
+        rivalById
+      ),
+      'Buen lanzamiento (no convirtió) · #7 Ana Gómez · vs #11 Diego García'
+    );
+    assert.strictEqual(
+      chartEntryTitle('OFFENSE', { eventId: 'e3', code: 'GOOD_SHOT', made: false, rivalPlayerId: 'rp-gone' }, playersById),
+      'Buen lanzamiento (no convirtió) · Equipo · vs jugador rival desconocido'
+    );
+    assert.strictEqual(
+      chartEntryTitle('POINTS_ALLOWED', { eventId: 'e4', code: 'CUT', points: 2 }, playersById, undefined, rivalById),
+      'Corte (2 pts) · Equipo'
+    );
+  });
+
+  it('maps each chart event to its rival player id', () => {
+    const withRival = chart('POINTS_ALLOWED', 'CUT', undefined, 2);
+    withRival.chart = { ...withRival.chart!, rivalPlayerId: 'rp-1' };
+    const without = chart('TURNOVER', 'BAD_PASS', 'p-ana');
+    const map = rivalPlayerIdsByEvent([withRival, without, makeEvent({ type: 'FG2_MADE' })]);
+    assert.deepStrictEqual([...map], [[withRival.id, 'rp-1']]);
   });
 });

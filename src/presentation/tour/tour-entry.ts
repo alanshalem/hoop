@@ -12,6 +12,7 @@ const FIXED_ROUTES: Partial<Record<TourId, string>> = {
   players: '/players',
   matches: '/matches',
   planilla: '/planilla',
+  rivales: '/rivales',
   help: '/ayuda',
 };
 

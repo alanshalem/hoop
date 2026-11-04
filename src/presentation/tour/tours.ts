@@ -278,7 +278,7 @@ const LIVE: TourDefinition = {
       target: 'live-chart-pad',
       roles: RECORD_LIVE,
       title: 'Cargar la planilla',
-      body: 'Elige la categoría, toca el jugador (o Equipo) y después el código. Azul es una acción buena, rojo un error. En Puntos recibidos elige 1, 2 o 3 puntos.',
+      body: 'Elige la categoría, toca el jugador (o Equipo) y después el código. Azul es una acción buena, rojo un error. En Puntos recibidos elige 1, 2 o 3 puntos. Si el rival tiene plantel cargado, en Puntos recibidos y Acciones ofensivas puedes marcar también al jugador rival (es opcional).',
       example: 'Ejemplo: Pérdidas, #7 Campagna y "Pase malo".',
     },
     {
@@ -411,6 +411,43 @@ const PLANILLA: TourDefinition = {
   ],
 };
 
+const RIVALES: TourDefinition = {
+  id: 'rivales',
+  title: 'Rivales',
+  steps: [
+    {
+      target: 'rivals-filters',
+      title: 'Filtro por división',
+      body: 'Cada rival pertenece a una división. Elige una para ver solo sus rivales.',
+    },
+    {
+      target: 'rival-card',
+      title: 'Un rival por tarjeta',
+      body: 'Nombre, división, cantidad de jugadores y el plantel por dorsal. La línea con el enlace cuenta los partidos de la división con ese mismo nombre de rival: en ellos la consola en vivo ofrece este plantel.',
+      example: 'Ejemplo: Obras Sanitarias, Primera División, 12 jugadores, 1 partido con este nombre.',
+    },
+    {
+      target: 'rivals-create',
+      roles: MANAGE_MATCHES,
+      title: 'Nuevo rival',
+      body: 'Elige la división y escribe el nombre igual que en los partidos; mayúsculas y acentos no importan.',
+    },
+    {
+      target: 'rival-add-player',
+      roles: MANAGE_MATCHES,
+      title: 'Agregar jugador',
+      body: 'Dorsal de 0 a 99, sin repetir en el equipo, nombre y apellido.',
+      example: 'Ejemplo: #7 Lautaro Domínguez.',
+    },
+    {
+      target: 'rival-rename',
+      roles: MANAGE_MATCHES,
+      title: 'Renombrar o eliminar',
+      body: 'Corrige el nombre si no coincide con el de los partidos. Eliminar pide confirmación.',
+    },
+  ],
+};
+
 const HELP: TourDefinition = {
   id: 'help',
   title: 'Ayuda',
@@ -444,6 +481,7 @@ export const TOURS: TourDefinition[] = [
   LIVE,
   STATS,
   PLANILLA,
+  RIVALES,
   HELP,
 ];
 
