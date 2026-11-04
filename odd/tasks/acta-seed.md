@@ -16,7 +16,7 @@ Branch: `feat/acta-seed` (from `main` after merging `feat/scouting-sheet`, f5de1
 - T1 [S1] Explore: how wiping the server interacts with browser local data, outbox and initial seed; where coaches/users are referenced. Route: explore. Commit: n/a
 - [x] T2 [S3,S4,S5] Domain + sync: official result, optional player fields + license, coach record kind (migration, RBAC), division coach assignment. Route: worker; independent verify. Commit: c18adcd
 - [x] T3 [S1,S2] Seed data from the reports (generator + validation) and the wipe script; client cannot resurrect old data. Route: worker; independent verify. Commit: 2924f1e
-- T4 [S3,S4,S5] UI: coaches screen, division form, official result display, optional player fields; manual. Route: worker. Commit: _pending_
+- [x] T4 [S3,S4,S5] UI: coaches screen, division form, official result display, optional player fields; manual. Route: worker. Commit: 31658b0
 - T5 [S1,S2] Run the wipe + seed on the dev database and verify in the browser. Route: inline. Commit: n/a
 
 ## Log
