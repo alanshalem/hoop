@@ -16,7 +16,7 @@ import { calculateTeamBoxScore, MatchBoxScoresResult } from './basketball-rules'
 
 /**
  * =============================================================================
- * HOOP OS - MATCH DERIVATIONS
+ * HOOP - MATCH DERIVATIONS
  * The play-by-play is the single source of truth: score, team fouls, partials
  * and box scores are always derived from `match.events`. A match without
  * scoring plays shows its official result instead (S3); fouls stay event-based.
@@ -162,16 +162,11 @@ export function getStartingLineup(
 }
 
 /**
- * Own-team box score for a match, with +/- measured from the starting five.
+ * Own-team box score for a match: the scoring line of each roster player.
  */
 export function calculateMatchBoxScore(
-  match: Match,
-  playerIds: string[] = match.rosterOwnPlayerIds
+  match: Pick<Match, 'ownTeamId' | 'rosterOwnPlayerIds' | 'events'>,
+  playerIds: readonly string[] = match.rosterOwnPlayerIds
 ): MatchBoxScoresResult {
-  return calculateTeamBoxScore(
-    match.ownTeamId,
-    playerIds,
-    match.events,
-    getStartingLineup(match)
-  );
+  return calculateTeamBoxScore(match.ownTeamId, playerIds, match.events);
 }

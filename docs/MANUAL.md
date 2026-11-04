@@ -31,7 +31,7 @@ Hoop es el sistema de básquet del Club Atlético Monte Grande (CAMG). Su núcle
 | Offline-first             | Cada acción se guarda al instante en el navegador. Un corte de WiFi o 4G en el estadio no interrumpe el registro del partido.                                       |
 | Sincronizado              | Con conexión, los cambios viajan al servidor del club y llegan en vivo a las demás tablets. Sin conexión quedan en una cola y se envían solos cuando vuelve la red. |
 | Tablet-first              | Pensado para tablet (horizontal o vertical) y teléfono. Áreas táctiles de 48 px como mínimo y de 56 px en la consola en vivo. Registro de jugadas en dos toques.    |
-| Reglas FIBA               | Faltas, bonus, tiempos muertos, duración de períodos, convocatoria, PIR y +/- siguen el reglamento FIBA (detalle en la [sección 7](#7-reglas-fiba-aplicadas)).      |
+| Reglas FIBA               | Faltas de equipo, bonus, tiempos muertos, duración de períodos y convocatoria siguen el reglamento FIBA (detalle en la [sección 7](#7-reglas-fiba-aplicadas)).      |
 | Sin alertas del navegador | Todos los avisos y confirmaciones son modales propios de la aplicación (`notify` y `confirm`). Nunca se usa `alert`, `confirm` ni `prompt` del navegador.           |
 
 ---
@@ -658,14 +658,11 @@ También se puede cargar desde el formulario del partido (crear o editar): con l
 
 | Regla                | Implementación                                                                                                                                                                                                                                                                            | Código                                                                                                                           |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Exclusión por faltas | 5 faltas (personales, técnicas y antideportivas) excluyen al jugador. Con 4 se marca como advertencia.                                                                                                                                                                                    | `basketball-rules.ts` (`FIBA_MAX_PLAYER_FOULS`)                                                                                  |
 | Bonus de equipo      | Con 4 o más faltas de equipo en el período se enciende **Bonus**. Las faltas de cualquier suplementario cuentan como parte del 4.º cuarto.                                                                                                                                                | `basketball-rules.ts`, `event-rules.ts` (`isSameTeamFoulPeriod`)                                                                 |
 | Tiempos muertos      | 2 en la primera mitad, 3 en la segunda y 1 por cada suplementario. Los no usados no pasan a la mitad siguiente. Al entrar a un suplementario nuevo se repone 1. Con el reloj del 4.º cuarto en 2:00 o menos, como máximo 2 (Art. 18.2.5): si quedaban 3, uno se pierde.                   | `timeouts.ts` (`isLastTwoMinutesOfFourthQuarter`)                                                                                |
 | Entretiempo          | Al terminar el 2.º cuarto el partido pasa a `HALFTIME`: no se registran jugadas ni tiempos muertos hasta comenzar el 3.er cuarto. Cualquier salto de la primera mitad a un período posterior pasa por el entretiempo, y finalizar desde el entretiempo guarda el reloj en 00:00. | `match-use-cases.ts` (`startHalftime`, `startThirdQuarter`, `changeQuarter`, `finishMatch`), `game-clock.ts` (`crossesHalftime`) |
 | Duración de períodos | 10 minutos por cuarto, 5 por suplementario, hasta 4 suplementarios.                                                                                                                                                                                                                       | `game-clock.ts`                                                                                                                  |
 | Convocatoria         | Entre 5 y 12 jugadores, exactamente 5 titulares y todos ellos convocados.                                                                                                                                                                                                                 | `lineup-rules.ts`                                                                                                                |
-| Valoración (PIR)     | `(PTS + REB + AST + ROB + TAP) - (tiros de campo fallados + tiros libres fallados + PER + faltas cometidas)`. Cuenta todas las faltas del jugador.                                                                                                                                        | `calculateFibaPir`                                                                                                               |
-| +/-                  | Diferencia de puntos mientras el jugador estuvo en cancha. Parte del quinteto inicial (`startingLineupOwn`) y sigue cada cambio propio en orden.                                                                                                                                          | `calculatePlayerPlusMinus`, `getStartingLineup`                                                                                  |
 
 Fuente única de verdad: el marcador, las faltas de equipo, los parciales y el box score se derivan siempre de la lista de jugadas del partido (`match-derivations.ts`). Los campos guardados en el partido son una copia que se recalcula en cada cambio. Las entradas de la planilla táctica (`CHART`) no suman puntos ni faltas por sí mismas: cuando una entrada lleva puntos (Puntos recibidos o una acción ofensiva convertida), registra además la jugada de puntos correspondiente, enlazada con `chart.scoreEventId`, y esa jugada es la que suma.
 
@@ -961,9 +958,9 @@ public/brand/               escudo del club
 
 ### Cómo agregar un tipo de jugada
 
-1. Agregar el valor a `PlayByPlayEventTypeSchema` y su etiqueta a `PLAY_BY_PLAY_EVENT_LABELS` (`src/core/domain/entities/match.types.ts`).
+1. Agregar el valor a `PlayByPlayEventTypeSchema` (`src/core/domain/entities/match.types.ts`).
 2. Si suma puntos o cuenta como falta, actualizar `EVENT_POINTS` o `isFoulEvent` (`src/core/domain/rules/event-rules.ts`).
-3. Si aparece en el box score, contarlo en `calculatePlayerBoxScore` y `calculateTeamBoxScore` (`basketball-rules.ts`) y agregar su columna en `BOX_SCORE_COLUMNS` (`src/presentation/organisms/BoxScoreTable/box-score-columns.ts`).
+3. Si aparece en el box score, sumarlo a la línea de anotación (`ScoringLine`) en `calculatePlayerBoxScore` y `calculateTeamBoxScore` (`basketball-rules.ts`) y agregar su columna en `BOX_SCORE_COLUMNS` (`src/presentation/organisms/BoxScoreTable/box-score-columns.ts`).
 4. Exponerlo en la interfaz: botón en la barra de la consola (`ConsoleToolbar.tsx`).
 5. Pruebas en `src/core/domain/rules/*.test.ts` y, si cambia un caso de uso, en `src/core/application/use-cases/match-use-cases.test.ts`.
 6. Si cambia la forma de los datos guardados, subir `CLUB_STORE_VERSION`.
@@ -986,7 +983,7 @@ Un club agrega sus propios códigos desde la pantalla [Códigos de la planilla](
 ### Estrategia de pruebas
 
 - Runner: `node:test` con `node:assert`, ejecutado por `tsx` (`npm test`). Los archivos `*.test.ts` viven junto al código que prueban.
-- Cubren: reglas FIBA (faltas, bonus, PIR, +/-, box score), reloj y períodos, tiempos muertos, convocatoria, permisos, clasificación de jugadas, esquemas, derivación del marcador y parciales, analítica de temporada, casos de uso de club y de partido, estado del store y migración, reducer del reloj, reglas de la consola, columnas del box score, planilla táctica (catálogo, carga, deshacer y grilla), integridad e identidad de los datos de demostración.
+- Cubren: reglas FIBA (faltas de equipo, bonus, box score), reloj y períodos, tiempos muertos, convocatoria, permisos, clasificación de jugadas, esquemas, derivación del marcador y parciales, analítica de temporada, casos de uso de club y de partido, estado del store y migración, reducer del reloj, reglas de la consola, columnas del box score, planilla táctica (catálogo, carga, deshacer y grilla), integridad e identidad de los datos de demostración.
 - Sincronización del cliente: diferencias entre estados, coalescencia de la cola, límites del envío, resultado del envío (aceptado, `STALE`, `FORBIDDEN`, `INVALID`), fusión last-write-wins, eliminaciones, orden de jugadas, primera sincronización, cambios hechos antes de la primera sincronización, cola reaplicada sobre la copia completa, reinicio del cursor, dueño de la cola al cambiar de usuario, motor (debounce, reintentos con espera creciente, 401, sin conexión, SSE), cierre de sesión sin conexión, destino seguro tras el ingreso, adaptador HTTP y textos del indicador.
 - Servidor: hash de contraseñas, sesiones, RBAC, esquemas de la API, reglas de fusión, SSE y, con `npm run test:db`, integración contra PostgreSQL.
 - No cubren: componentes React ni flujos en navegador.
@@ -998,8 +995,6 @@ Un club agrega sus propios códigos desde la pantalla [Códigos de la planilla](
 
 | Término                          | Significado                                                                                                        |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| PIR                              | Valoración FIBA (Performance Index Rating). Fórmula en la [sección 7](#7-reglas-fiba-aplicadas).                   |
-| +/-                              | Diferencia de puntos del equipo mientras el jugador estuvo en cancha.                                              |
 | Bonus                            | Situación de penalización del equipo con 4 o más faltas de equipo en el período.                                   |
 | TL                               | Tiro libre (1 punto).                                                                                              |
 | 2P / T2                          | Tiro de campo de 2 puntos (doble).                                                                                 |
@@ -1010,7 +1005,7 @@ Un club agrega sus propios códigos desde la pantalla [Códigos de la planilla](
 | TM                               | Tiempo muerto.                                                                                                     |
 | 1C a 4C, S1 a S4                 | Cuartos y suplementarios.                                                                                          |
 | Convocatoria / lista de buena fe | Jugadores habilitados para un partido (5 a 12).                                                                    |
-| Quinteto inicial                 | Los 5 titulares que empiezan el partido; base del cálculo de +/-.                                                  |
+| Quinteto inicial                 | Los 5 titulares que empiezan el partido.                                                                           |
 | Convocado                        | Juvenil sumado al plantel de otro equipo (por ejemplo, Primera) sin dejar su división.                             |
 | Jugada a jugada (play-by-play)   | Lista ordenada de jugadas del partido; fuente única del marcador y las estadísticas.                               |
 | Offline-first                    | Diseño en el que la aplicación funciona sin conexión y guarda todo localmente.                                     |

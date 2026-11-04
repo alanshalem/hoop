@@ -4,7 +4,6 @@ import type {
   PlayByPlayEventType,
   Quarter,
 } from '@/core/domain/entities/match.types';
-import type { CourtCoordinates } from '@/core/domain/value-objects/coordinates';
 import {
   CHART_CATALOG,
   DEFAULT_CHART_POINTS,
@@ -33,7 +32,7 @@ import {
 
 /**
  * =============================================================================
- * HOOP OS - MATCH USE-CASES
+ * HOOP - MATCH USE-CASES
  * Pure functions: Match in, new Match (or a typed refusal) out. The scoreboard
  * is always re-derived from events.
  * =============================================================================
@@ -55,9 +54,6 @@ export type TeamSide = 'OWN' | 'RIVAL';
 export interface RecordEventInput {
   type: PlayByPlayEventType;
   isOwnTeam: boolean;
-  playerId?: string;
-  assistedByPlayerId?: string;
-  coordinates?: CourtCoordinates;
   /** Real clock at the moment of the event; also persisted on the match. */
   clockSeconds?: number;
 }
@@ -189,9 +185,6 @@ export function recordEvent(
     {
       teamId: input.isOwnTeam ? match.ownTeamId : RIVAL_TEAM_ID,
       isOwnTeam: input.isOwnTeam,
-      playerId: input.playerId,
-      assistedByPlayerId: input.assistedByPlayerId,
-      coordinates: input.coordinates,
       type: input.type,
     },
     ctx

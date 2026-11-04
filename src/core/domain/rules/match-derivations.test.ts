@@ -7,17 +7,12 @@ import {
   isSameTeamFoulPeriod,
 } from './event-rules';
 import {
-  calculateMatchBoxScore,
   deriveScoreboard,
   getOwnRivalScore,
   getQuarterPartials,
   getStartingLineup,
   withDerivedScoreboard,
 } from './match-derivations';
-import {
-  PLAY_BY_PLAY_EVENT_LABELS,
-  PlayByPlayEventTypeSchema,
-} from '../entities/match.types';
 import { MatchSchema, OfficialResultSchema, type OfficialResult } from '../entities/match.types';
 import { PlayerSchema } from '../entities/club.types';
 import { makeEvent, makeMatch } from '@/core/testing/fixtures';
@@ -53,15 +48,6 @@ describe('Event rules', () => {
     assert.strictEqual(isSameTeamFoulPeriod('Q4', 'OT1'), true);
     assert.strictEqual(isSameTeamFoulPeriod('OT1', 'OT2'), true);
     assert.strictEqual(isSameTeamFoulPeriod('Q3', 'OT1'), false);
-  });
-
-  it('labels every event type in Spanish', () => {
-    for (const type of PlayByPlayEventTypeSchema.options) {
-      assert.ok(PLAY_BY_PLAY_EVENT_LABELS[type].length > 0, type);
-    }
-    assert.strictEqual(PLAY_BY_PLAY_EVENT_LABELS.FG3_MADE, 'Triple convertido');
-    assert.strictEqual(PLAY_BY_PLAY_EVENT_LABELS.FOUL_PERSONAL, 'Falta personal');
-    assert.strictEqual(PLAY_BY_PLAY_EVENT_LABELS.SUBSTITUTION, 'Cambio');
   });
 });
 
@@ -379,7 +365,7 @@ describe('official result without play-by-play (S3)', () => {
   });
 });
 
-describe('getStartingLineup & calculateMatchBoxScore (+/- from the starting five)', () => {
+describe('getStartingLineup', () => {
   const events = [
     makeEvent({
       type: 'SUBSTITUTION',
@@ -404,16 +390,5 @@ describe('getStartingLineup & calculateMatchBoxScore (+/- from the starting five
       events,
     });
     assert.deepStrictEqual(getStartingLineup(match), ['p1', 'p2', 'p3', 'p4', 'p5']);
-  });
-
-  it('charges the rival basket to the player on court, not to the subbed-out starter', () => {
-    const match = makeMatch({
-      activeLineupOwn: ['p6', 'p2', 'p3', 'p4', 'p5'],
-      events,
-    });
-    const box = calculateMatchBoxScore(match);
-    assert.strictEqual(box.players.p1.plusMinus, 0);
-    assert.strictEqual(box.players.p6.plusMinus, -2);
-    assert.strictEqual(box.players.p2.plusMinus, -2);
   });
 });

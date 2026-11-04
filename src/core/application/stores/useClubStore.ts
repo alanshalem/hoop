@@ -127,8 +127,6 @@ export interface ClubStoreState extends ClubDataState {
   /** Generic edit; the scoreboard is re-derived from events. */
   updateMatch: (id: string, updates: Partial<Omit<Match, 'id'>>) => void;
   deleteMatch: (id: string) => void;
-  /** Legacy lineup setter (sets starting five and current lineup). Prefer startMatch. */
-  setStartingLineup: (matchId: string, playerIds: string[]) => void;
   startMatch: (
     matchId: string,
     rosterIds: string[],
@@ -349,13 +347,6 @@ export const useClubStore = create<ClubStoreState>()(
 
         deleteMatch: (id) =>
           set((state) => ({ matches: state.matches.filter((m) => m.id !== id) })),
-
-        setStartingLineup: (matchId, playerIds) =>
-          mapMatch(matchId, (m) => ({
-            ...m,
-            startingLineupOwn: playerIds.slice(0, 5),
-            activeLineupOwn: playerIds.slice(0, 5),
-          })),
 
         startMatch: (matchId, rosterIds, starterIds) =>
           runMatchUseCase(matchId, (m) => matchUseCases.startMatch(m, rosterIds, starterIds)),

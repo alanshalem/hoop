@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * =============================================================================
- * HOOP OS - VALUE OBJECT: COURT COORDINATES
+ * HOOP - VALUE OBJECT: COURT COORDINATES
  * Half-court normalized coordinate system (0% to 100%)
  * =============================================================================
  */
@@ -25,16 +25,3 @@ export const CourtCoordinatesSchema = z.object({
 });
 
 export type CourtCoordinates = z.infer<typeof CourtCoordinatesSchema>;
-
-/**
- * Distance calculation in normalized court space (useful for automatic 2pt vs 3pt zone determination).
- */
-export function calculateNormalizedDistance(
-  p1: CourtCoordinates,
-  p2: CourtCoordinates
-): number {
-  const dx = p1.x - p2.x;
-  const dy = p1.y - p2.y;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-

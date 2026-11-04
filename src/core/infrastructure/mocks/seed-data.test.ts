@@ -8,7 +8,7 @@ import {
   getOwnRivalScore,
   getQuarterPartials,
 } from '@/core/domain/rules/match-derivations';
-import { getPlayerFoulsFromEvents } from '@/core/domain/rules/basketball-rules';
+import { isFoulEvent } from '@/core/domain/rules/event-rules';
 import { CHART_CATEGORIES, findChartCode } from '@/core/domain/entities/chart.types';
 import { RivalTeamSchema } from '@/core/domain/entities/rival.types';
 import { findRivalTeam } from '@/core/domain/rules/rival-teams';
@@ -126,8 +126,8 @@ describe('seed data', () => {
   it('never lets a player on court be fouled out', () => {
     for (const match of state.matches) {
       for (const playerId of match.rosterOwnPlayerIds) {
-        const fouls = getPlayerFoulsFromEvents(playerId, match.events);
-        assert.ok(fouls.total < 5, `${match.id} ${playerId}`);
+        const fouls = match.events.filter((e) => e.playerId === playerId && isFoulEvent(e.type));
+        assert.ok(fouls.length < 5, `${match.id} ${playerId}`);
       }
     }
   });

@@ -30,11 +30,7 @@ describe('recordEvent', () => {
   it('appends a fully-formed event and re-derives the scoreboard', () => {
     const match = makeMatch({ currentQuarter: 'Q2', quarterTimeRemainingSeconds: 400 });
     const { match: next } = expectOk(
-      recordEvent(
-        match,
-        { type: 'FG3_MADE', isOwnTeam: true, playerId: 'p1', coordinates: { x: 10, y: 10 } },
-        ctx
-      )
+      recordEvent(match, { type: 'FG3_MADE', isOwnTeam: true }, ctx)
     );
     assert.strictEqual(next.homeScore, 3);
     assert.strictEqual(next.events.length, 1);
@@ -46,9 +42,6 @@ describe('recordEvent', () => {
       gameClockFormatted: '06:40',
       teamId: 'team-own',
       isOwnTeam: true,
-      playerId: 'p1',
-      assistedByPlayerId: undefined,
-      coordinates: { x: 10, y: 10 },
       type: 'FG3_MADE',
       scoreAtEvent: { home: 3, away: 0 },
       timestamp: '2026-10-30T21:00:00.000Z',
@@ -617,7 +610,7 @@ describe('halftime (FIBA: interval after Q2)', () => {
   it('refuses events, undo and timeouts during HALFTIME', () => {
     const halftime = expectOk(startHalftime(endOfQ2())).match;
     const refused = { ok: false, reason: 'HALFTIME' };
-    assert.deepStrictEqual(recordEvent(halftime, { type: 'FG2_MADE', isOwnTeam: true, playerId: 'p1' }, ctx), refused);
+    assert.deepStrictEqual(recordEvent(halftime, { type: 'FG2_MADE', isOwnTeam: true }, ctx), refused);
     assert.deepStrictEqual(undoLastChartEntry(halftime), refused);
     assert.deepStrictEqual(requestTimeout(halftime, 'OWN'), refused);
     assert.deepStrictEqual(requestTimeout(halftime, 'RIVAL'), refused);

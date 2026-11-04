@@ -6,7 +6,7 @@ import type {
 
 /**
  * =============================================================================
- * HOOP OS - PLAY-BY-PLAY EVENT CLASSIFICATION
+ * HOOP - PLAY-BY-PLAY EVENT CLASSIFICATION
  * Single place that knows what an event is worth and who it belongs to.
  * =============================================================================
  */
@@ -38,23 +38,6 @@ export function isFoulEvent(type: PlayByPlayEventType): boolean {
     type === 'FOUL_TECHNICAL' ||
     type === 'FOUL_UNSPORTSMANLIKE'
   );
-}
-
-export function isFieldGoalAttempt(type: PlayByPlayEventType): boolean {
-  return (
-    type === 'FG2_MADE' ||
-    type === 'FG2_MISS' ||
-    type === 'FG3_MADE' ||
-    type === 'FG3_MISS'
-  );
-}
-
-export function isThreePointAttempt(type: PlayByPlayEventType): boolean {
-  return type === 'FG3_MADE' || type === 'FG3_MISS';
-}
-
-export function isFieldGoalMade(type: PlayByPlayEventType): boolean {
-  return type === 'FG2_MADE' || type === 'FG3_MADE';
 }
 
 /**

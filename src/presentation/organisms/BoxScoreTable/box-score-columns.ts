@@ -1,10 +1,9 @@
-import type { TeamBoxScore } from '@/core/domain/rules/basketball-rules';
+import type { ScoringLine } from '@/core/domain/rules/basketball-rules';
 
 /**
- * Fields the box score shows: the points and made counts that the sheet's scoring plays record.
- * A player box score has the same fields, so one column model serves player rows and the team total.
+ * Player rows and the team total are both scoring lines, so one column model serves them all.
  */
-export type BoxScoreLine = Pick<TeamBoxScore, 'points' | 'ft' | 'fg2' | 'fg3'>;
+export type BoxScoreLine = ScoringLine;
 
 export interface BoxScoreColumn {
   label: string;
