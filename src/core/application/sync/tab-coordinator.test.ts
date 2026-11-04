@@ -13,7 +13,8 @@ import {
   type SyncTabCoordinatorDeps,
   type TabMessage,
 } from './tab-coordinator';
-import type { SyncableClubData, SyncStoreData } from './sync-types';
+import type { SyncableClubData } from './record-kinds';
+import type { SyncStoreData } from './sync-types';
 import { makeClubData, makeDivision, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
 
 const KEYS = { club: 'club-key', sync: 'sync-key' };

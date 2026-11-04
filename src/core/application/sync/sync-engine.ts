@@ -9,12 +9,12 @@ import {
 } from './outbox';
 import {
   applyServerSnapshot,
-  createEmptyClubData,
   isServerCursorBehind,
   mergePulledChanges,
   type MergeState,
 } from './pull-merge';
-import type { ApiResult, ClubDiff, PullPage, SyncableClubData, SyncApi, SyncStoreData } from './sync-types';
+import { createEmptyClubData, type SyncableClubData } from './record-kinds';
+import type { ApiResult, ClubDiff, PullPage, SyncApi, SyncStoreData } from './sync-types';
 
 /**
  * =============================================================================

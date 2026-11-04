@@ -1,7 +1,15 @@
 import type { Match, PlayByPlayEvent } from '@/core/domain/entities/match.types';
 import { withDerivedScoreboard } from '@/core/domain/rules/match-derivations';
+import {
+  clubDataFrom,
+  entitiesOf,
+  SYNC_RECORD_KINDS,
+  type SyncableClubData,
+  type SyncEntityByKind,
+  type SyncRecordKind,
+} from './record-kinds';
 import { compareEventsByTime } from './sync-records';
-import type { SyncableClubData } from './sync-types';
+import type { SyncEvent } from './sync-types';
 
 /**
  * Mutable working copy of the synced club collections, shared by the pull
@@ -44,26 +52,12 @@ export class Collection<T extends { id: string }> {
   }
 }
 
-export type Collections = {
-  division: Collection<SyncableClubData['divisions'][number]>;
-  team: Collection<SyncableClubData['teams'][number]>;
-  player: Collection<SyncableClubData['players'][number]>;
-  match: Collection<Match>;
-  chartCode: Collection<SyncableClubData['chartCodes'][number]>;
-  rivalTeam: Collection<SyncableClubData['rivalTeams'][number]>;
-  coach: Collection<SyncableClubData['coaches'][number]>;
-};
+export type Collections = { [K in SyncRecordKind]: Collection<SyncEntityByKind[K]> };
 
 export function createCollections(data: SyncableClubData): Collections {
-  return {
-    division: new Collection(data.divisions),
-    team: new Collection(data.teams),
-    player: new Collection(data.players),
-    match: new Collection(data.matches),
-    chartCode: new Collection(data.chartCodes),
-    rivalTeam: new Collection(data.rivalTeams),
-    coach: new Collection(data.coaches),
-  };
+  return Object.fromEntries(
+    SYNC_RECORD_KINDS.map((kind) => [kind, new Collection(entitiesOf(data, kind))])
+  ) as Collections;
 }
 
 export function hasCollectionChanges(collections: Collections): boolean {
@@ -71,24 +65,47 @@ export function hasCollectionChanges(collections: Collections): boolean {
 }
 
 export function toData(collections: Collections): SyncableClubData {
-  return {
-    divisions: collections.division.toArray(),
-    teams: collections.team.toArray(),
-    players: collections.player.toArray(),
-    matches: collections.match.toArray(),
-    chartCodes: collections.chartCode.toArray(),
-    rivalTeams: collections.rivalTeam.toArray(),
-    coaches: collections.coach.toArray(),
-  };
+  return clubDataFrom((kind) => collections[kind].toArray());
 }
 
-/** Adds and removes events of the touched matches, then re-derives their scoreboard. */
+/** Upserts an entity stored as is (every kind but `match`, whose record lacks its events). */
+export function setEntity<K extends SyncRecordKind>(
+  collections: Collections,
+  kind: K,
+  id: string,
+  entity: SyncEntityByKind[K]
+): void {
+  const collection: Collection<SyncEntityByKind[K]> = collections[kind];
+  collection.set(id, entity);
+}
+
+/**
+ * Adds and removes synced events of the matches this data has (a tombstone
+ * removes the event, a live event already present is skipped), then re-derives
+ * the scoreboard of every touched match. `touchedMatches` gains the matches of
+ * the events; it may already hold matches whose record was replaced.
+ */
 export function applyEventChanges(
   matches: Collection<Match>,
-  touchedMatches: Set<string>,
-  added: Map<string, PlayByPlayEvent[]>,
-  removed: Set<string>
+  events: Iterable<SyncEvent>,
+  touchedMatches: Set<string>
 ): void {
+  const added = new Map<string, PlayByPlayEvent[]>();
+  const removed = new Set<string>();
+  for (const event of events) {
+    const match = matches.get(event.matchId);
+    if (!match) continue;
+    touchedMatches.add(event.matchId);
+    if (event.deleted) {
+      removed.add(event.id);
+      continue;
+    }
+    const additions = added.get(event.matchId) ?? [];
+    if (match.events.some((existing) => existing.id === event.id)) continue;
+    if (additions.some((pending) => pending.id === event.id)) continue;
+    added.set(event.matchId, [...additions, event.data]);
+  }
+
   for (const matchId of touchedMatches) {
     const match = matches.get(matchId);
     if (!match) continue;

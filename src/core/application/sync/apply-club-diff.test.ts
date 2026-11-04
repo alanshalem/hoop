@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { applyClubDiff } from './apply-club-diff';
 import { diffClubState } from './club-diff';
 import { toMatchRecord } from './sync-records';
-import type { SyncableClubData } from './sync-types';
+import type { SyncableClubData } from './record-kinds';
 import { makeClubData, makeDivision, makeEvent, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
 
 function club(overrides: Partial<SyncableClubData> = {}): SyncableClubData {

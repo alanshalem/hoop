@@ -6,7 +6,8 @@ import { resolveFieldVersions, writeFieldVersions } from '@/core/application/syn
 import { createEmptyOutbox, enqueueChanges } from '@/core/application/sync/outbox';
 import { mergePulledChanges } from '@/core/application/sync/pull-merge';
 import { toMatchRecord } from '@/core/application/sync/sync-records';
-import type { OutboxRecordEntry, SyncableClubData } from '@/core/application/sync/sync-types';
+import type { SyncableClubData } from '@/core/application/sync/record-kinds';
+import type { OutboxRecordEntry } from '@/core/application/sync/sync-types';
 import { makeClubData, makeDivision, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
 import { decideRecordWrite, type StoredRecord } from './merge';
 

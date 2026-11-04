@@ -20,7 +20,7 @@ import {
   type CompleteFieldVersions,
 } from './match-fields';
 import { toMatchRecord } from './sync-records';
-import type { MatchRecord } from './sync-types';
+import type { MatchRecord } from './record-kinds';
 
 const T1 = '2026-10-30T18:00:01.000Z';
 const T2 = '2026-10-30T18:00:02.000Z';

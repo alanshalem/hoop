@@ -1,7 +1,8 @@
-import type { Match, PlayByPlayEvent } from '@/core/domain/entities/match.types';
-import { applyEventChanges, createCollections, hasCollectionChanges, toData } from './club-collections';
+import type { Match } from '@/core/domain/entities/match.types';
+import { applyEventChanges, createCollections, hasCollectionChanges, setEntity, toData } from './club-collections';
 import type { MatchField } from './match-fields';
-import type { ClubDiff, MatchRecord, SyncableClubData } from './sync-types';
+import type { MatchRecord, SyncableClubData } from './record-kinds';
+import type { ClubDiff } from './sync-types';
 
 /**
  * Replays a club diff made in another tab onto this tab's data (S13.3): the
@@ -18,53 +19,20 @@ export function applyClubDiff(data: SyncableClubData, diff: ClubDiff): SyncableC
   for (const change of diff.records) {
     if (change.deleted) {
       collections[change.kind].remove(change.id);
-      continue;
-    }
-    switch (change.kind) {
-      case 'division':
-        collections.division.set(change.id, change.data);
-        break;
-      case 'team':
-        collections.team.set(change.id, change.data);
-        break;
-      case 'player':
-        collections.player.set(change.id, change.data);
-        break;
-      case 'chartCode':
-        collections.chartCode.set(change.id, change.data);
-        break;
-      case 'rivalTeam':
-        collections.rivalTeam.set(change.id, change.data);
-        break;
-      case 'coach':
-        collections.coach.set(change.id, change.data);
-        break;
-      case 'match': {
-        const current = collections.match.get(change.id);
-        const next = current && change.changedFields
-          ? withFields(current, change.data, change.changedFields)
-          : { ...change.data, events: current?.events ?? [] };
-        collections.match.set(change.id, next);
-        collections.match.markReplaced(change.id);
-        touchedMatches.add(change.id);
-        break;
-      }
+    } else if (change.kind === 'match') {
+      const current = collections.match.get(change.id);
+      const next = current && change.changedFields
+        ? withFields(current, change.data, change.changedFields)
+        : { ...change.data, events: current?.events ?? [] };
+      collections.match.set(change.id, next);
+      collections.match.markReplaced(change.id);
+      touchedMatches.add(change.id);
+    } else {
+      setEntity(collections, change.kind, change.id, change.data);
     }
   }
 
-  const added = new Map<string, PlayByPlayEvent[]>();
-  const removed = new Set<string>();
-  for (const event of diff.events) {
-    const match = collections.match.get(event.matchId);
-    if (!match) continue;
-    touchedMatches.add(event.matchId);
-    if (event.deleted) {
-      removed.add(event.id);
-    } else if (!match.events.some((existing) => existing.id === event.id)) {
-      added.set(event.matchId, [...(added.get(event.matchId) ?? []), event.data]);
-    }
-  }
-  applyEventChanges(collections.match, touchedMatches, added, removed);
+  applyEventChanges(collections.match, diff.events, touchedMatches);
 
   return hasCollectionChanges(collections) ? toData(collections) : data;
 }

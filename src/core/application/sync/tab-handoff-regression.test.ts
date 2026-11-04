@@ -4,7 +4,8 @@ import { createEditHandoff } from '@/core/application/sync/edit-handoff';
 import { createEmptyOutbox } from '@/core/application/sync/outbox';
 import { createSyncEngine } from '@/core/application/sync/sync-engine';
 import { createSyncTabCoordinator, type KeyValueStoragePort, type TabMessage } from '@/core/application/sync/tab-coordinator';
-import type { SyncableClubData, SyncStoreData } from '@/core/application/sync/sync-types';
+import type { SyncableClubData } from '@/core/application/sync/record-kinds';
+import type { SyncStoreData } from '@/core/application/sync/sync-types';
 import type { Match } from '@/core/domain/entities/match.types';
 import { makeClubData, makeDivision, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
 

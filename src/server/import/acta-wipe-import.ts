@@ -4,7 +4,7 @@ import { normalizeEmail } from '../auth/users';
 import type { Database } from '../db/client';
 import { matchEvents, sessions, syncRecords, users } from '../db/schema';
 import { rotateDataEpoch } from '../sync/epoch';
-import type { SyncRecordKind } from '../sync/record-kinds';
+import type { SyncRecordKind } from '@/core/application/sync/record-kinds';
 import { validRecordWrite } from '../sync/records';
 import {
   insertRecordsIfNew,

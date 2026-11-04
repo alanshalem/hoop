@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { findRivalTeam } from '@/core/domain/rules/rival-teams';
-import { RECORD_DATA_SCHEMAS } from '../sync/records';
+import { SYNC_RECORDS, type SyncRecordKind } from '@/core/application/sync/record-kinds';
 import {
   ActaImportError,
   buildActaImport,
@@ -249,8 +249,8 @@ describe('buildActaImport', () => {
 
   it('produces records valid for their sync schemas, whose matches resolve their rival roster', () => {
     const data = buildFixture();
-    const check = (kind: keyof typeof RECORD_DATA_SCHEMAS, entity: unknown) =>
-      assert.ok(RECORD_DATA_SCHEMAS[kind].safeParse(entity).success, `${kind} is valid`);
+    const check = (kind: SyncRecordKind, entity: unknown) =>
+      assert.ok(SYNC_RECORDS[kind].schema.safeParse(entity).success, `${kind} is valid`);
     check('division', data.division);
     check('team', data.team);
     data.players.forEach((p) => check('player', p));

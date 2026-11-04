@@ -3,14 +3,8 @@ import assert from 'node:assert';
 import { createSyncEngine, SYNC_ERROR_MESSAGES, type SyncEngineDeps } from './sync-engine';
 import { createEmptyOutbox } from './outbox';
 import { toMatchRecord } from './sync-records';
-import type {
-  ApiResult,
-  PullPage,
-  PushPayload,
-  PushResult,
-  SyncableClubData,
-  SyncStoreData,
-} from './sync-types';
+import type { SyncableClubData } from './record-kinds';
+import type { ApiResult, PullPage, PushPayload, PushResult, SyncStoreData } from './sync-types';
 import { makeClubData, makeDivision, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
 
 const NOW = Date.parse('2026-10-30T18:00:00.000Z');

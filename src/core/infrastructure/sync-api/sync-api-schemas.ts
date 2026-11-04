@@ -1,18 +1,10 @@
 import { z } from 'zod';
-import { ChartCodeRecordSchema } from '@/core/domain/entities/chart.types';
-import { DivisionSchema, PlayerSchema, TeamSchema, UserRoleSchema } from '@/core/domain/entities/club.types';
-import { MatchSchema, PlayByPlayEventSchema } from '@/core/domain/entities/match.types';
-import { CoachSchema } from '@/core/domain/entities/coach.types';
-import { RivalTeamSchema } from '@/core/domain/entities/rival.types';
+import { UserRoleSchema } from '@/core/domain/entities/club.types';
+import { PlayByPlayEventSchema } from '@/core/domain/entities/match.types';
 import type { AuthUser } from '@/core/application/auth/auth-session';
 import { pickFieldVersions } from '@/core/application/sync/match-fields';
-import {
-  SYNC_RECORD_KINDS,
-  type PullPage,
-  type PushResult,
-  type SyncEvent,
-  type SyncRecord,
-} from '@/core/application/sync/sync-types';
+import { SYNC_RECORD_KINDS, SYNC_RECORDS } from '@/core/application/sync/record-kinds';
+import type { PullPage, PushResult, SyncEvent, SyncRecord } from '@/core/application/sync/sync-types';
 
 /**
  * =============================================================================
@@ -70,46 +62,15 @@ const PullEnvelopeSchema = z.object({
   epoch: z.string().min(1),
 });
 
-/** Match records never carry events; zod strips an unexpected `events` key. */
-const MatchRecordSchema = MatchSchema.omit({ events: true });
-
 type PulledRecordEnvelope = z.infer<typeof PullEnvelopeSchema>['records'][number];
 
+/** Validates the data with its kind's schema (match records never carry events). */
 function parseRecord({ kind, id, data, updatedAt, deleted, fieldVersions }: PulledRecordEnvelope): SyncRecord | null {
-  const base = { id, updatedAt, deleted };
-  switch (kind) {
-    case 'division': {
-      const parsed = DivisionSchema.safeParse(data);
-      return parsed.success ? { ...base, kind, data: parsed.data } : null;
-    }
-    case 'team': {
-      const parsed = TeamSchema.safeParse(data);
-      return parsed.success ? { ...base, kind, data: parsed.data } : null;
-    }
-    case 'player': {
-      const parsed = PlayerSchema.safeParse(data);
-      return parsed.success ? { ...base, kind, data: parsed.data } : null;
-    }
-    case 'chartCode': {
-      const parsed = ChartCodeRecordSchema.safeParse(data);
-      return parsed.success ? { ...base, kind, data: parsed.data } : null;
-    }
-    case 'rivalTeam': {
-      const parsed = RivalTeamSchema.safeParse(data);
-      return parsed.success ? { ...base, kind, data: parsed.data } : null;
-    }
-    case 'coach': {
-      const parsed = CoachSchema.safeParse(data);
-      return parsed.success ? { ...base, kind, data: parsed.data } : null;
-    }
-    case 'match': {
-      const parsed = MatchRecordSchema.safeParse(data);
-      if (!parsed.success) return null;
-      return fieldVersions
-        ? { ...base, kind, data: parsed.data, fieldVersions: pickFieldVersions(fieldVersions) }
-        : { ...base, kind, data: parsed.data };
-    }
-  }
+  const parsed = SYNC_RECORDS[kind].schema.safeParse(data);
+  if (!parsed.success) return null;
+  const record = { kind, id, data: parsed.data, updatedAt, deleted } as SyncRecord;
+  if (record.kind === 'match' && fieldVersions) return { ...record, fieldVersions: pickFieldVersions(fieldVersions) };
+  return record;
 }
 
 export function parsePullPage(body: unknown): PullPage | null {

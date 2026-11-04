@@ -1,4 +1,4 @@
-import type { Match, PlayByPlayEvent } from '@/core/domain/entities/match.types';
+import type { Match } from '@/core/domain/entities/match.types';
 import {
   changedMatchFields,
   coversFieldVersions,
@@ -12,20 +12,14 @@ import {
   applyEventChanges,
   createCollections,
   hasCollectionChanges,
+  setEntity,
   toData,
   type Collections,
 } from './club-collections';
 import { createEmptyOutbox } from './outbox';
+import { createEmptyClubData, type MatchRecord, type SyncableClubData } from './record-kinds';
 import { recordKey, timeOf, toMatchRecord } from './sync-records';
-import type {
-  MatchRecord,
-  Outbox,
-  OutboxRecordEntry,
-  PulledChanges,
-  SyncableClubData,
-  SyncRecord,
-  VersionMap,
-} from './sync-types';
+import type { Outbox, OutboxRecordEntry, PulledChanges, SyncRecord, VersionMap } from './sync-types';
 
 export interface MergeState {
   data: SyncableClubData;
@@ -85,25 +79,10 @@ export function mergePulledChanges(state: MergeState, pulled: PulledChanges): Me
     applyRecord(collections, record, touchedMatches);
   }
 
-  const added = new Map<string, PlayByPlayEvent[]>();
-  const removed = new Set<string>();
-  for (const event of pulled.events) {
-    if (event.deleted) {
-      removed.add(event.id);
-      delete outboxEvents[event.id];
-      touchedMatches.add(event.matchId);
-      continue;
-    }
-    const match = collections.match.get(event.matchId);
-    if (!match || outboxEvents[event.id]?.deleted) continue;
-    if (match.events.some((existing) => existing.id === event.id)) continue;
-    const list = added.get(event.matchId) ?? [];
-    if (!list.some((pendingEvent) => pendingEvent.id === event.id)) list.push(event.data);
-    added.set(event.matchId, list);
-    touchedMatches.add(event.matchId);
-  }
-
-  applyEventChanges(collections.match, touchedMatches, added, removed);
+  // A pending local tombstone is never undone by a pull; a pulled tombstone settles it.
+  const events = pulled.events.filter((event) => event.deleted || !outboxEvents[event.id]?.deleted);
+  for (const event of pulled.events) if (event.deleted) delete outboxEvents[event.id];
+  applyEventChanges(collections.match, events, touchedMatches);
 
   const changed = hasCollectionChanges(collections);
   return {
@@ -156,40 +135,14 @@ function mergeMatchRecord(
 function applyRecord(collections: Collections, record: SyncRecord, touchedMatches: Set<string>): void {
   if (record.deleted) {
     collections[record.kind].remove(record.id);
-    return;
+  } else if (record.kind === 'match') {
+    const local = collections.match.get(record.id);
+    collections.match.set(record.id, { ...record.data, events: local?.events ?? [] });
+    collections.match.markReplaced(record.id);
+    touchedMatches.add(record.id);
+  } else {
+    setEntity(collections, record.kind, record.id, record.data);
   }
-  switch (record.kind) {
-    case 'division':
-      collections.division.set(record.id, record.data);
-      break;
-    case 'team':
-      collections.team.set(record.id, record.data);
-      break;
-    case 'player':
-      collections.player.set(record.id, record.data);
-      break;
-    case 'chartCode':
-      collections.chartCode.set(record.id, record.data);
-      break;
-    case 'rivalTeam':
-      collections.rivalTeam.set(record.id, record.data);
-      break;
-    case 'coach':
-      collections.coach.set(record.id, record.data);
-      break;
-    case 'match': {
-      const local = collections.match.get(record.id);
-      collections.match.set(record.id, { ...record.data, events: local?.events ?? [] });
-      collections.match.markReplaced(record.id);
-      touchedMatches.add(record.id);
-      break;
-    }
-  }
-}
-
-/** Club data without any synced record. */
-export function createEmptyClubData(): SyncableClubData {
-  return { divisions: [], teams: [], players: [], matches: [], chartCodes: [], rivalTeams: [], coaches: [] };
 }
 
 /**
@@ -231,20 +184,7 @@ function reapplyOutbox({ data, versions, outbox }: MergeState): MergeState {
     applyRecord(collections, entry, touchedMatches);
   }
 
-  const added = new Map<string, PlayByPlayEvent[]>();
-  const removed = new Set<string>();
-  for (const entry of Object.values(outbox.events)) {
-    const match = collections.match.get(entry.matchId);
-    if (!match) continue;
-    touchedMatches.add(entry.matchId);
-    if (entry.deleted) {
-      removed.add(entry.id);
-    } else if (!match.events.some((event) => event.id === entry.id)) {
-      added.set(entry.matchId, [...(added.get(entry.matchId) ?? []), entry.data]);
-    }
-  }
-
-  applyEventChanges(collections.match, touchedMatches, added, removed);
+  applyEventChanges(collections.match, Object.values(outbox.events), touchedMatches);
   return { data: toData(collections), versions: nextVersions, outbox };
 }
 

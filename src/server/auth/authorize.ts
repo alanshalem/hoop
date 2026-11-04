@@ -1,7 +1,7 @@
 import 'server-only';
 import type { UserRole } from '@/core/domain/entities/club.types';
 import { can, type Permission } from '@/core/domain/rules/permissions';
-import type { SyncRecordKind } from '../sync/record-kinds';
+import type { SyncRecordKind } from '@/core/application/sync/record-kinds';
 
 /**
  * =============================================================================

@@ -9,7 +9,8 @@ import {
 import { toMatchRecord } from './sync-records';
 import { readFieldVersions, resolveFieldVersions, writeFieldVersions, type CompleteFieldVersions } from './match-fields';
 import { createEmptyOutbox, enqueueChanges } from './outbox';
-import type { PulledChanges, SyncableClubData, SyncEvent, SyncRecord } from './sync-types';
+import type { SyncableClubData } from './record-kinds';
+import type { PulledChanges, SyncEvent, SyncRecord } from './sync-types';
 import {
   makeChartCode,
   makeClubData,

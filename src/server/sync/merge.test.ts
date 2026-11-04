@@ -261,6 +261,12 @@ describe('decideEventWrite (append-only events with permanent tombstones)', () =
     assert.strictEqual(decideEventWrite({ deleted: false, data: reordered }, { deleted: false, data }), 'unchanged');
   });
 
+  it('compares a resend as stored JSON: an undefined key equals a missing one', () => {
+    const withUndefined = { ...data, assistedByPlayerId: undefined };
+    assert.strictEqual(decideEventWrite({ deleted: false, data: withUndefined }, { deleted: false, data }), 'unchanged');
+    assert.strictEqual(decideEventWrite({ deleted: false, data }, { deleted: false, data: withUndefined }), 'unchanged');
+  });
+
   it('keeps the data of a live event immutable: different data is stale', () => {
     const changed = { ...data, scoreAtEvent: { home: 3, away: 0 } };
     assert.strictEqual(decideEventWrite({ deleted: false, data: changed }, { deleted: false, data }), 'stale');

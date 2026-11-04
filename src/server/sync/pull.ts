@@ -1,7 +1,7 @@
 import 'server-only';
 import type { Database } from '../db/client';
 import { readDataEpoch } from './epoch';
-import type { SyncRecordKind } from './record-kinds';
+import type { SyncRecordKind } from '@/core/application/sync/record-kinds';
 import { listEventsSince, listRecordsSince } from './repository';
 
 export const PULL_PAGE_SIZE = 1000;

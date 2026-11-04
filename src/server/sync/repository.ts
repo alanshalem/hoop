@@ -3,7 +3,7 @@ import { and, asc, eq, gt, inArray, or, sql } from 'drizzle-orm';
 import type { DbExecutor } from '../db/client';
 import { matchEvents, syncRecords, type MatchEventRow, type SyncRecordRow } from '../db/schema';
 import { recordKey, type StoredEventState, type StoredRecord } from './merge';
-import type { SyncRecordKind } from './record-kinds';
+import type { SyncRecordKind } from '@/core/application/sync/record-kinds';
 
 /**
  * =============================================================================

@@ -9,7 +9,7 @@ import {
   type MatchFieldVersions,
 } from '@/core/application/sync/match-fields';
 import type { WriteOperation } from '../auth/authorize';
-import type { SyncRecordKind } from './record-kinds';
+import type { SyncRecordKind } from '@/core/application/sync/record-kinds';
 
 /**
  * =============================================================================
@@ -186,5 +186,10 @@ export function decideEventWrite(
   if (!stored) return 'insert';
   if (stored.deleted) return incoming.deleted ? 'unchanged' : 'stale';
   if (incoming.deleted) return 'tombstone';
-  return isDeepStrictEqual(incoming.data, stored.data) ? 'unchanged' : 'stale';
+  return isDeepStrictEqual(asStoredJson(incoming.data), asStoredJson(stored.data)) ? 'unchanged' : 'stale';
+}
+
+/** The value as `jsonb` keeps it: an `undefined` key is dropped, a Date becomes its ISO string. */
+function asStoredJson(value: unknown): unknown {
+  return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 }

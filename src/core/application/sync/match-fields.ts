@@ -1,5 +1,6 @@
 import { recordKey, timeOf } from './sync-records';
-import type { MatchRecord, VersionMap } from './sync-types';
+import type { MatchRecord } from './record-kinds';
+import type { VersionMap } from './sync-types';
 
 /**
  * =============================================================================

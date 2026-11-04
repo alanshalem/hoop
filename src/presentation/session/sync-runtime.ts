@@ -5,6 +5,7 @@ import {
   type SyncStorePort,
 } from '@/core/application/sync/sync-engine';
 import { reconcileSelection } from '@/core/application/sync/pull-merge';
+import { pickSyncableClubData } from '@/core/application/sync/record-kinds';
 import { createEditHandoff } from '@/core/application/sync/edit-handoff';
 import { createSyncTabCoordinator, type SyncTabCoordinator } from '@/core/application/sync/tab-coordinator';
 import { useAuthStore } from '@/core/application/stores/useAuthStore';
@@ -31,10 +32,7 @@ import { claimSyncData } from './sync-ownership';
 export const authApi = createHttpAuthApi();
 
 const clubPort: ClubDataPort = {
-  getData: () => {
-    const { divisions, teams, players, matches, chartCodes, rivalTeams, coaches } = useClubStore.getState();
-    return { divisions, teams, players, matches, chartCodes, rivalTeams, coaches };
-  },
+  getData: () => pickSyncableClubData(useClubStore.getState()),
   applyData: (data) => useClubStore.getState().applySyncedData(data),
   subscribe: (listener) => useClubStore.subscribe(listener),
 };

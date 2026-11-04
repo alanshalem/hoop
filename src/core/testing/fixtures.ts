@@ -3,7 +3,7 @@ import type { Division, Player, Team } from '@/core/domain/entities/club.types';
 import type { Coach } from '@/core/domain/entities/coach.types';
 import type { Match, PlayByPlayEvent } from '@/core/domain/entities/match.types';
 import type { RivalTeam } from '@/core/domain/entities/rival.types';
-import type { SyncableClubData } from '@/core/application/sync/sync-types';
+import { createEmptyClubData, type SyncableClubData } from '@/core/application/sync/record-kinds';
 
 /**
  * Test fixtures shared by core tests. Not imported by production code.
@@ -115,16 +115,7 @@ export function makePlayer(overrides: Partial<Player> = {}): Player {
 
 /** Club data with every collection empty; pass the collections a test needs. */
 export function makeClubData(overrides: Partial<SyncableClubData> = {}): SyncableClubData {
-  return {
-    divisions: [],
-    teams: [],
-    players: [],
-    matches: [],
-    chartCodes: [],
-    rivalTeams: [],
-    coaches: [],
-    ...overrides,
-  };
+  return { ...createEmptyClubData(), ...overrides };
 }
 
 export function makeMatch(overrides: Partial<Match> = {}): Match {

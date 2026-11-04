@@ -16,7 +16,7 @@ import {
 } from 'drizzle-orm/pg-core';
 // Relative imports (not `@/`): drizzle-kit loads this file outside the Next.js resolver.
 import { UserRoleSchema } from '../../core/domain/entities/club.types';
-import { SYNC_RECORD_KINDS } from '../sync/record-kinds';
+import { SYNC_RECORD_KINDS } from '../../core/application/sync/record-kinds';
 
 /**
  * =============================================================================

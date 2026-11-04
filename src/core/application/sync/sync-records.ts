@@ -1,5 +1,5 @@
 import type { Match, PlayByPlayEvent } from '@/core/domain/entities/match.types';
-import type { MatchRecord, SyncRecordKind } from './sync-types';
+import type { MatchRecord, SyncRecordKind } from './record-kinds';
 
 /** Outbox and versions key of a record (ids of different kinds may collide). */
 export function recordKey(kind: SyncRecordKind, id: string): string {

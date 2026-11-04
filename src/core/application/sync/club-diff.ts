@@ -1,7 +1,8 @@
 import type { Match } from '@/core/domain/entities/match.types';
 import { changedMatchFields } from './match-fields';
+import { entitiesOf, SYNC_RECORD_KINDS, type SyncableClubData } from './record-kinds';
 import { toMatchRecord } from './sync-records';
-import type { ClubDiff, EventChange, RecordChange, SyncableClubData } from './sync-types';
+import type { ClubDiff, EventChange, RecordChange } from './sync-types';
 
 /**
  * Local changes between two club states. Store updates are immutable, so an
@@ -14,24 +15,17 @@ export function diffClubState(prev: SyncableClubData, next: SyncableClubData): C
   const records: RecordChange[] = [];
   const events: EventChange[] = [];
 
-  records.push(
-    ...collectionChanges(prev.divisions, next.divisions, (data, deleted) => ({ kind: 'division', id: data.id, data, deleted })),
-    ...collectionChanges(prev.teams, next.teams, (data, deleted) => ({ kind: 'team', id: data.id, data, deleted })),
-    ...collectionChanges(prev.players, next.players, (data, deleted) => ({ kind: 'player', id: data.id, data, deleted })),
-    ...collectionChanges(prev.chartCodes, next.chartCodes, (data, deleted) => ({
-      kind: 'chartCode',
-      id: data.id,
-      data,
-      deleted,
-    })),
-    ...collectionChanges(prev.rivalTeams, next.rivalTeams, (data, deleted) => ({
-      kind: 'rivalTeam',
-      id: data.id,
-      data,
-      deleted,
-    })),
-    ...collectionChanges(prev.coaches, next.coaches, (data, deleted) => ({ kind: 'coach', id: data.id, data, deleted }))
-  );
+  for (const kind of SYNC_RECORD_KINDS) {
+    if (kind === 'match') continue;
+    const before = entitiesOf(prev, kind);
+    const after = entitiesOf(next, kind);
+    if (before === after) continue;
+    const { upserts, removed } = diffById<{ id: string }>(before, after);
+    records.push(
+      ...upserts.map((data) => ({ kind, id: data.id, data, deleted: false }) as RecordChange),
+      ...removed.map((data) => ({ kind, id: data.id, data, deleted: true }) as RecordChange)
+    );
+  }
 
   if (prev.matches !== next.matches) {
     const { upserts, removed, previous } = diffById(prev.matches, next.matches);
@@ -58,16 +52,6 @@ export function diffClubState(prev: SyncableClubData, next: SyncableClubData): C
   }
 
   return { records, events };
-}
-
-function collectionChanges<T extends { id: string }>(
-  prev: T[],
-  next: T[],
-  toChange: (data: T, deleted: boolean) => RecordChange
-): RecordChange[] {
-  if (prev === next) return [];
-  const { upserts, removed } = diffById(prev, next);
-  return [...upserts.map((data) => toChange(data, false)), ...removed.map((data) => toChange(data, true))];
 }
 
 function diffById<T extends { id: string }>(prev: T[], next: T[]) {

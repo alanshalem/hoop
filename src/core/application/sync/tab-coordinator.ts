@@ -3,7 +3,8 @@ import { diffClubState } from './club-diff';
 import { countPending } from './outbox';
 import { dropSupersededChanges } from './stale-diff';
 import type { ClubDataPort, SyncEngine } from './sync-engine';
-import type { ClubDiff, SyncableClubData, SyncStatus, SyncStoreData } from './sync-types';
+import type { SyncableClubData } from './record-kinds';
+import type { ClubDiff, SyncStatus, SyncStoreData } from './sync-types';
 
 /**
  * =============================================================================

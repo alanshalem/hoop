@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { diffClubState } from './club-diff';
-import type { SyncableClubData } from './sync-types';
+import type { SyncableClubData } from './record-kinds';
 import {
   makeChartCode,
   makeClubData,

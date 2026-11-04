@@ -1,7 +1,7 @@
 import 'server-only';
 import { z } from 'zod';
 import { pickFieldVersions } from '@/core/application/sync/match-fields';
-import { SYNC_RECORD_KINDS } from './record-kinds';
+import { SYNC_RECORD_KINDS } from '@/core/application/sync/record-kinds';
 
 /**
  * =============================================================================
