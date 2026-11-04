@@ -2,7 +2,7 @@
 
 Hoop es el sistema de básquet del Club Atlético Monte Grande: gestiona divisiones, planteles y calendario, arma convocatorias y quintetos, y registra los partidos en vivo con reglas FIBA desde una tablet al borde de la cancha. Su núcleo es la planilla táctica del entrenador, que se carga en vivo durante el partido: pérdidas, puntos recibidos, acciones ofensivas y defensivas, cada una con su jugador, período y reloj ([manual](docs/MANUAL.md#2-planilla-táctica-en-vivo)). Es local primero con servidor: cada cambio se guarda al instante en el navegador (Zustand + `localStorage`) y se sincroniza con PostgreSQL cuando hay conexión (cola de salida persistente, last-write-wins para registros, jugadas solo agregadas y consulta automática al servidor cada pocos segundos). Sin conexión sigue funcionando igual. El acceso es con correo y contraseña, y los roles se validan en el servidor. El marcador, las faltas y el box score se derivan del jugada a jugada.
 
-Manual completo (uso, reglas, datos y arquitectura): [docs/MANUAL.md](docs/MANUAL.md). Cómo publicar la app en internet: [docs/DEPLOY.md](docs/DEPLOY.md).
+Manual completo (uso, reglas, datos y arquitectura): [docs/MANUAL.md](docs/MANUAL.md). Cómo publicar la app en internet gratis (Vercel + Supabase): [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Inicio rápido
 
