@@ -8,6 +8,7 @@ import { ModalSheet } from '@/presentation/molecules/ModalSheet/ModalSheet';
 import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
 import { LineupPlayerRow } from '@/presentation/organisms/LineupPlayerRow/LineupPlayerRow';
+import { coachNames } from '@/presentation/organisms/DivisionFormModal/division-staff';
 import { getTeamRosterPlayers, isCalledUpTo } from './team-roster';
 import styles from './DivisionRosterModal.module.css';
 
@@ -23,11 +24,12 @@ export const DivisionRosterModal: React.FC<DivisionRosterModalProps> = ({ isOpen
   const divisions = useClubStore((state) => state.divisions);
   const teams = useClubStore((state) => state.teams);
   const players = useClubStore((state) => state.players);
-  const users = useClubStore((state) => state.users);
+  const coaches = useClubStore((state) => state.coaches);
 
   const division = divisions.find((d) => d.id === divisionId);
   const team = teams.find((t) => t.divisionId === divisionId);
-  const coach = users.find((u) => u.id === team?.headCoachId);
+  const coach = coaches.find((c) => c.id === team?.headCoachId);
+  const assistants = coachNames(team?.assistantCoachIds ?? [], coaches);
   const roster = getTeamRosterPlayers(team, players);
 
   return (
@@ -51,6 +53,9 @@ export const DivisionRosterModal: React.FC<DivisionRosterModalProps> = ({ isOpen
           <Award size={ICON_SIZE.sm} aria-hidden="true" />
           {coach ? coach.name : 'Sin entrenador asignado'}
         </span>
+        {assistants.length > 0 && (
+          <span className={styles.summaryItem}>Ayudantes: {assistants.join(', ')}</span>
+        )}
         {team && <span className={styles.summaryItem}>Temporada {team.season}</span>}
       </div>
 

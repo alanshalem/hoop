@@ -1,5 +1,6 @@
 import { chartCodeRecordId, type ChartCodeRecord } from '@/core/domain/entities/chart.types';
 import type { Division, Player, Team } from '@/core/domain/entities/club.types';
+import type { Coach } from '@/core/domain/entities/coach.types';
 import type { Match, PlayByPlayEvent } from '@/core/domain/entities/match.types';
 import type { RivalTeam } from '@/core/domain/entities/rival.types';
 
@@ -56,6 +57,17 @@ export function makeRivalTeam(overrides: Partial<RivalTeam> = {}): RivalTeam {
       { id: 'rp-1', dorsal: 5, firstName: 'Juan', lastName: 'Pérez' },
       { id: 'rp-2', dorsal: 11, firstName: 'Diego', lastName: 'García' },
     ],
+    ...overrides,
+  };
+}
+
+export function makeCoach(overrides: Partial<Coach> = {}): Coach {
+  return {
+    id: 'coach-test',
+    clubId: 'club-test',
+    name: 'PEREZ, J.',
+    license: '123',
+    role: 'HEAD',
     ...overrides,
   };
 }

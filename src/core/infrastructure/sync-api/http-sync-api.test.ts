@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { createHttpAuthApi, createHttpSyncApi } from './http-sync-api';
 import { parseChangedEventData } from './sync-api-schemas';
 import { toMatchRecord } from '@/core/application/sync/sync-records';
-import { makeChartCode, makeDivision, makeEvent, makeMatch, makeRivalTeam } from '@/core/testing/fixtures';
+import { makeChartCode, makeCoach, makeDivision, makeEvent, makeMatch, makeRivalTeam } from '@/core/testing/fixtures';
 
 interface Call {
   url: string;
@@ -27,7 +27,7 @@ const USER = { id: 'user-admin-1', email: 'admin@camg.com.ar', name: 'Admin', ro
 
 describe('http sync api', () => {
   it('pulls the full snapshot without `since` and pages with it', async () => {
-    const { fetchImpl, calls } = fakeFetch(() => json({ records: [], events: [], cursor: '0', hasMore: false }));
+    const { fetchImpl, calls } = fakeFetch(() => json({ records: [], events: [], cursor: '0', hasMore: false, epoch: 'epoch-1' }));
     const api = createHttpSyncApi(fetchImpl);
     await api.pull(null);
     await api.pull('120');
@@ -50,6 +50,7 @@ describe('http sync api', () => {
         ],
         cursor: '42',
         hasMore: true,
+        epoch: 'epoch-1',
       })
     );
     const result = await createHttpSyncApi(fetchImpl).pull('1');
@@ -73,6 +74,7 @@ describe('http sync api', () => {
         events: [],
         cursor: '7',
         hasMore: false,
+        epoch: 'epoch-1',
       })
     );
     const result = await createHttpSyncApi(fetchImpl).pull('1');
@@ -101,12 +103,36 @@ describe('http sync api', () => {
         events: [],
         cursor: '8',
         hasMore: false,
+        epoch: 'epoch-1',
       })
     );
     const result = await createHttpSyncApi(fetchImpl).pull('1');
     assert.ok(result.ok);
     assert.deepStrictEqual(result.value.records, [
       { kind: 'rivalTeam', id: valid.id, data: valid, updatedAt: T, deleted: false },
+    ]);
+  });
+
+  it('accepts a valid coach record and drops an invalid one (S5)', async () => {
+    const valid = makeCoach();
+    const invalid = makeCoach({ id: 'coach-bad', name: 'A' });
+    const T = '2026-10-30T18:00:00.000Z';
+    const { fetchImpl } = fakeFetch(() =>
+      json({
+        records: [
+          { kind: 'coach', id: valid.id, data: valid, updatedAt: T, deleted: false },
+          { kind: 'coach', id: invalid.id, data: invalid, updatedAt: T, deleted: false },
+        ],
+        events: [],
+        cursor: '9',
+        hasMore: false,
+        epoch: 'epoch-1',
+      })
+    );
+    const result = await createHttpSyncApi(fetchImpl).pull('1');
+    assert.ok(result.ok);
+    assert.deepStrictEqual(result.value.records, [
+      { kind: 'coach', id: valid.id, data: valid, updatedAt: T, deleted: false },
     ]);
   });
 
@@ -122,6 +148,7 @@ describe('http sync api', () => {
         events: [],
         cursor: '7',
         hasMore: false,
+        epoch: 'epoch-1',
       })
     );
     const result = await createHttpSyncApi(fetchImpl).pull('1');
@@ -140,7 +167,7 @@ describe('http sync api', () => {
       records: [{ kind: 'match' as const, id: 'm-test', data: toMatchRecord(makeMatch()), updatedAt: '2026-10-30T18:00:00.000Z', deleted: false }],
       events: [],
     };
-    const result = await createHttpSyncApi(fetchImpl).push(payload);
+    const result = await createHttpSyncApi(fetchImpl).push(payload, 'epoch-1');
     assert.deepStrictEqual(result, {
       ok: true,
       value: { accepted: ['m-test'], rejected: [{ id: 'ev-1', reason: 'STALE' }], cursor: '77' },
@@ -148,7 +175,26 @@ describe('http sync api', () => {
     assert.strictEqual(calls[0].url, '/api/sync/push');
     assert.strictEqual(calls[0].init?.method, 'POST');
     assert.strictEqual(new Headers(calls[0].init?.headers).get('Content-Type'), 'application/json');
-    assert.deepStrictEqual(JSON.parse(String(calls[0].init?.body)), payload);
+    assert.deepStrictEqual(JSON.parse(String(calls[0].init?.body)), { ...payload, epoch: 'epoch-1' });
+  });
+
+  it('returns the data epoch of a pull and refuses a pull without one (S1)', async () => {
+    const page = { records: [], events: [], cursor: '3', hasMore: false };
+    const withEpoch = await createHttpSyncApi(fakeFetch(() => json({ ...page, epoch: 'epoch-9' })).fetchImpl).pull('1');
+    assert.ok(withEpoch.ok);
+    assert.strictEqual(withEpoch.value.epoch, 'epoch-9');
+    const without = await createHttpSyncApi(fakeFetch(() => json(page)).fetchImpl).pull('1');
+    assert.deepStrictEqual(without, { ok: false, error: 'INVALID_RESPONSE', status: 200 });
+  });
+
+  it('maps a push refused for another data epoch to EPOCH_MISMATCH (S1)', async () => {
+    const payload = { records: [], events: [] };
+    const refused = await createHttpSyncApi(
+      fakeFetch(() => json({ error: 'Datos reemplazados', reason: 'EPOCH_MISMATCH' }, 409)).fetchImpl
+    ).push(payload, 'epoch-old');
+    assert.deepStrictEqual(refused, { ok: false, error: 'EPOCH_MISMATCH', status: 409, message: 'Datos reemplazados' });
+    const conflict = await createHttpSyncApi(fakeFetch(() => json({ error: 'Otro' }, 409)).fetchImpl).push(payload, 'e');
+    assert.deepStrictEqual(conflict, { ok: false, error: 'HTTP', status: 409, message: 'Otro' });
   });
 
   it('maps 401, HTTP errors, network failures and malformed bodies', async () => {
@@ -170,7 +216,7 @@ describe('http sync api', () => {
 
 describe('request timeout', () => {
   it('bounds every API request with an abort signal so a hung server cannot block sync or logout', async () => {
-    const { fetchImpl, calls } = fakeFetch(() => json({ records: [], events: [], cursor: '0', hasMore: false }));
+    const { fetchImpl, calls } = fakeFetch(() => json({ records: [], events: [], cursor: '0', hasMore: false, epoch: 'epoch-1' }));
     await createHttpSyncApi(fetchImpl).pull(null);
     await createHttpAuthApi(fetchImpl).logout();
     assert.strictEqual(calls.length, 2);

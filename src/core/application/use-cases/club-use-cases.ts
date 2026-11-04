@@ -2,8 +2,8 @@ import type {
   Division,
   Player,
   Team,
-  User,
 } from '@/core/domain/entities/club.types';
+import type { Coach } from '@/core/domain/entities/coach.types';
 
 /**
  * =============================================================================
@@ -30,28 +30,49 @@ export interface CreateDivisionContext {
   teamId: string;
   season: string;
   clubName: string;
+  /** Coach id (S5). */
   headCoachId?: string;
+  /** Coach ids (S5). */
+  assistantCoachIds?: readonly string[];
 }
 
+/** Refusal when an id is not one of the club coaches (S5). */
+type CoachNotFound = 'COACH_NOT_FOUND';
+
+function allCoachesExist(coaches: readonly Coach[], ids: readonly string[]): boolean {
+  return ids.every((id) => coaches.some((coach) => coach.id === id));
+}
+
+/**
+ * Creates the division and its team; head coach and assistants are coach ids
+ * and must exist.
+ */
 export function createDivision(
   data: ClubData,
+  coaches: readonly Coach[],
   input: NewDivisionInput,
   ctx: CreateDivisionContext
-): ClubData {
+): ClubResult<CoachNotFound> {
+  const assistantCoachIds = [...new Set(ctx.assistantCoachIds ?? [])];
+  const coachIds = ctx.headCoachId === undefined ? assistantCoachIds : [ctx.headCoachId, ...assistantCoachIds];
+  if (!allCoachesExist(coaches, coachIds)) return { ok: false, reason: 'COACH_NOT_FOUND' };
   const team: Team = {
     id: ctx.teamId,
     name: buildTeamName(ctx.clubName, input.name),
     divisionId: ctx.divisionId,
     season: ctx.season,
     headCoachId: ctx.headCoachId,
-    assistantCoachIds: [],
+    assistantCoachIds,
     playerIds: [],
     clubId: input.clubId,
   };
   return {
-    ...data,
-    divisions: [...data.divisions, { ...input, id: ctx.divisionId }],
-    teams: [...data.teams, team],
+    ok: true,
+    data: {
+      ...data,
+      divisions: [...data.divisions, { ...input, id: ctx.divisionId }],
+      teams: [...data.teams, team],
+    },
   };
 }
 
@@ -96,24 +117,41 @@ export function deleteDivision(data: ClubData, divisionId: string): ClubData {
   };
 }
 
+/** Assigns any existing coach as the team head coach (S5). */
 export function assignHeadCoach(
   data: ClubData,
-  users: User[],
+  coaches: readonly Coach[],
   teamId: string,
   /** `null` leaves the team without a head coach. */
-  userId: string | null
-): ClubResult<'TEAM_NOT_FOUND' | 'USER_NOT_HEAD_COACH'> {
+  coachId: string | null
+): ClubResult<'TEAM_NOT_FOUND' | CoachNotFound> {
   if (!data.teams.some((t) => t.id === teamId)) return { ok: false, reason: 'TEAM_NOT_FOUND' };
-  if (userId !== null) {
-    const user = users.find((u) => u.id === userId);
-    if (!user || user.role !== 'HEAD_COACH') return { ok: false, reason: 'USER_NOT_HEAD_COACH' };
-  }
-  const headCoachId = userId ?? undefined;
+  if (coachId !== null && !allCoachesExist(coaches, [coachId])) return { ok: false, reason: 'COACH_NOT_FOUND' };
+  const headCoachId = coachId ?? undefined;
   return {
     ok: true,
     data: {
       ...data,
       teams: data.teams.map((t) => (t.id === teamId ? { ...t, headCoachId } : t)),
+    },
+  };
+}
+
+/** Replaces the team assistants with existing coaches, once each, in the given order (S5). */
+export function assignAssistantCoaches(
+  data: ClubData,
+  coaches: readonly Coach[],
+  teamId: string,
+  coachIds: readonly string[]
+): ClubResult<'TEAM_NOT_FOUND' | CoachNotFound> {
+  if (!data.teams.some((t) => t.id === teamId)) return { ok: false, reason: 'TEAM_NOT_FOUND' };
+  if (!allCoachesExist(coaches, coachIds)) return { ok: false, reason: 'COACH_NOT_FOUND' };
+  const assistantCoachIds = [...new Set(coachIds)];
+  return {
+    ok: true,
+    data: {
+      ...data,
+      teams: data.teams.map((t) => (t.id === teamId ? { ...t, assistantCoachIds } : t)),
     },
   };
 }

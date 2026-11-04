@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ChartCodeRecordSchema } from '@/core/domain/entities/chart.types';
 import { DivisionSchema, PlayerSchema, TeamSchema, UserRoleSchema } from '@/core/domain/entities/club.types';
 import { MatchSchema, PlayByPlayEventSchema } from '@/core/domain/entities/match.types';
+import { CoachSchema } from '@/core/domain/entities/coach.types';
 import { RivalTeamSchema } from '@/core/domain/entities/rival.types';
 import type { AuthUser } from '@/core/application/auth/auth-session';
 import { pickFieldVersions } from '@/core/application/sync/match-fields';
@@ -35,6 +36,9 @@ export const AuthUserResponseSchema = z.object({ user: AuthUserSchema });
 
 export const ErrorResponseSchema = z.object({ error: z.string() });
 
+/** Typed refusal of a whole request (409): the push was made in another data epoch. */
+const RejectionResponseSchema = z.object({ reason: z.literal('EPOCH_MISMATCH') });
+
 export const PushResultSchema = z.object({
   accepted: z.array(z.string()),
   rejected: z.array(z.object({ id: z.string(), reason: z.enum(['INVALID', 'FORBIDDEN', 'STALE']) })),
@@ -63,6 +67,7 @@ const PullEnvelopeSchema = z.object({
   ),
   cursor: CursorSchema,
   hasMore: z.boolean(),
+  epoch: z.string().min(1),
 });
 
 /** Match records never carry events; zod strips an unexpected `events` key. */
@@ -93,6 +98,10 @@ function parseRecord({ kind, id, data, updatedAt, deleted, fieldVersions }: Pull
       const parsed = RivalTeamSchema.safeParse(data);
       return parsed.success ? { ...base, kind, data: parsed.data } : null;
     }
+    case 'coach': {
+      const parsed = CoachSchema.safeParse(data);
+      return parsed.success ? { ...base, kind, data: parsed.data } : null;
+    }
     case 'match': {
       const parsed = MatchRecordSchema.safeParse(data);
       if (!parsed.success) return null;
@@ -116,7 +125,8 @@ export function parsePullPage(body: unknown): PullPage | null {
     return [{ id: event.id, matchId: event.matchId, data: parsed.data, deleted: event.deleted }];
   });
 
-  return { records, events, cursor: envelope.data.cursor, hasMore: envelope.data.hasMore };
+  const { cursor, hasMore, epoch } = envelope.data;
+  return { records, events, cursor, hasMore, epoch };
 }
 
 export function parsePushResult(body: unknown): PushResult | null {
@@ -127,6 +137,11 @@ export function parsePushResult(body: unknown): PushResult | null {
 export function parseAuthUser(body: unknown): AuthUser | null {
   const parsed = AuthUserResponseSchema.safeParse(body);
   return parsed.success ? parsed.data.user : null;
+}
+
+export function parseRejectionReason(body: unknown): 'EPOCH_MISMATCH' | undefined {
+  const parsed = RejectionResponseSchema.safeParse(body);
+  return parsed.success ? parsed.data.reason : undefined;
 }
 
 export function parseErrorMessage(body: unknown): string | undefined {

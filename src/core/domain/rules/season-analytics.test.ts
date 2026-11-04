@@ -70,6 +70,29 @@ describe('calculateSeasonSummary', () => {
     });
   });
 
+  it('counts finished matches without play-by-play by their official result (S3)', () => {
+    const officialLoss = makeMatch({
+      id: 'm-official',
+      status: 'FINISHED',
+      condition: 'AWAY',
+      events: [],
+      officialResult: { home: 70, away: 60, quarters: [] },
+    });
+    const officialWin = makeMatch({
+      id: 'm-official-win',
+      status: 'FINISHED',
+      condition: 'HOME',
+      events: [],
+      officialResult: { home: 80, away: 75, quarters: [] },
+    });
+    const summary = calculateSeasonSummary([officialLoss, officialWin], 'team-own');
+    assert.strictEqual(summary.played, 2);
+    assert.strictEqual(summary.wins, 1);
+    assert.strictEqual(summary.losses, 1);
+    assert.strictEqual(summary.pointsForAvg, 70); // (60 + 80) / 2
+    assert.strictEqual(summary.pointsAgainstAvg, 72.5); // (70 + 75) / 2
+  });
+
   it('returns zeros when the team has no finished matches', () => {
     const summary = calculateSeasonSummary([live], 'team-own');
     assert.strictEqual(summary.played, 0);

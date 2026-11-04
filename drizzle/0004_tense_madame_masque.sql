@@ -1,0 +1,1 @@
+ALTER TYPE "public"."sync_record_kind" ADD VALUE 'coach';

@@ -11,10 +11,12 @@ import { pullChanges } from '@/server/sync/pull';
 /**
  * GET /api/sync/pull?since=<cursor>
  *   -> 200 { records: [{ kind, id, data, updatedAt, deleted, fieldVersions }], events: [{ id, matchId, data, deleted }],
- *            cursor: string, hasMore: boolean }
+ *            cursor: string, hasMore: boolean, epoch: string }
  * Changes with seq > since in seq order, at most 1000 per page; while `hasMore`,
- * pull again with `since=cursor`. No `since` = full snapshot. 401 without a
- * session, 400 for a malformed cursor.
+ * pull again with `since=cursor`. No `since` = full snapshot. `epoch` is the
+ * server data epoch: when it differs from the one a client holds, the server
+ * data was replaced and the client drops its local data and pulls a snapshot.
+ * 401 without a session, 400 for a malformed cursor.
  */
 export async function GET(request: Request): Promise<Response> {
   try {

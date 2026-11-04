@@ -12,6 +12,7 @@ import { createEmptyOutbox, enqueueChanges } from './outbox';
 import type { PulledChanges, SyncableClubData, SyncEvent, SyncRecord } from './sync-types';
 import {
   makeChartCode,
+  makeCoach,
   makeDivision,
   makeEvent,
   makeMatch,
@@ -32,6 +33,7 @@ function club(overrides: Partial<SyncableClubData> = {}): SyncableClubData {
     matches: [makeMatch({ events: [] })],
     chartCodes: [],
     rivalTeams: [],
+    coaches: [],
     ...overrides,
   };
 }
@@ -85,6 +87,39 @@ describe('mergePulledChanges: records by last-write-wins (S10.7)', () => {
 
     const removed = mergePulledChanges(applied, pulled({ records: [{ ...record, updatedAt: T2, deleted: true }] }));
     assert.deepStrictEqual(removed.data.rivalTeams, []);
+  });
+
+  it('applies a pulled coach record and its tombstone (S5)', () => {
+    const coach = makeCoach();
+    const record: SyncRecord = { kind: 'coach', id: coach.id, data: coach, updatedAt: T1, deleted: false };
+    const applied = mergePulledChanges({ data: club(), versions: {}, outbox: createEmptyOutbox() }, pulled({
+      records: [record],
+    }));
+    assert.strictEqual(applied.changed, true);
+    assert.deepStrictEqual(applied.data.coaches, [coach]);
+    assert.strictEqual(applied.versions[`coach:${coach.id}`], T1);
+
+    const removed = mergePulledChanges(applied, pulled({ records: [{ ...record, updatedAt: T2, deleted: true }] }));
+    assert.deepStrictEqual(removed.data.coaches, []);
+  });
+
+  it('shows the official result of a pulled match without scoring plays (S3)', () => {
+    const local = makeMatch({ events: [] });
+    const officialResult = { home: 58, away: 90, quarters: [] };
+    const record: SyncRecord = {
+      kind: 'match',
+      id: local.id,
+      data: { ...toMatchRecord(local), officialResult },
+      updatedAt: T1,
+      deleted: false,
+    };
+    const applied = mergePulledChanges(
+      { data: club({ matches: [local] }), versions: {}, outbox: createEmptyOutbox() },
+      pulled({ records: [record] })
+    );
+    const [match] = applied.data.matches;
+    assert.deepStrictEqual(match.officialResult, officialResult);
+    assert.deepStrictEqual([match.homeScore, match.awayScore], [58, 90]);
   });
 
   it('applies equal or newer versions and ignores older ones', () => {

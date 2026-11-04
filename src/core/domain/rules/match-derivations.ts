@@ -3,6 +3,7 @@ import type {
   MatchCondition,
   PlayByPlayEvent,
   Quarter,
+  ScoreSnapshot,
 } from '../entities/match.types';
 import {
   getEventPoints,
@@ -17,7 +18,8 @@ import { calculateTeamBoxScore, MatchBoxScoresResult } from './basketball-rules'
  * =============================================================================
  * HOOP OS - MATCH DERIVATIONS
  * The play-by-play is the single source of truth: score, team fouls, partials
- * and box scores are always derived from `match.events`.
+ * and box scores are always derived from `match.events`. A match without
+ * scoring plays shows its official result instead (S3); fouls stay event-based.
  * =============================================================================
  */
 
@@ -37,8 +39,19 @@ export interface QuarterPartial {
   away: number;
 }
 
+type ScoreSource = Pick<Match, 'events' | 'condition' | 'officialResult'>;
+
+function hasScoringEvents(events: readonly PlayByPlayEvent[]): boolean {
+  return events.some((event) => getEventPoints(event.type) > 0);
+}
+
+/** The official result, when the match has one and no scoring plays to derive from. */
+function officialResultOf(match: Pick<Match, 'events' | 'officialResult'>) {
+  return match.officialResult && !hasScoringEvents(match.events) ? match.officialResult : undefined;
+}
+
 export function deriveScoreboard(
-  match: Pick<Match, 'events' | 'condition' | 'currentQuarter'>
+  match: Pick<Match, 'events' | 'condition' | 'currentQuarter' | 'officialResult'>
 ): Scoreboard {
   const board: Scoreboard = {
     homeScore: 0,
@@ -58,6 +71,12 @@ export function deriveScoreboard(
       else board.awayFoulsQuarter += 1;
     }
   }
+
+  const official = officialResultOf(match);
+  if (official) {
+    board.homeScore = official.home;
+    board.awayScore = official.away;
+  }
   return board;
 }
 
@@ -69,7 +88,7 @@ export function withDerivedScoreboard(match: Match): Match {
 }
 
 export function getOwnRivalScore(
-  match: Pick<Match, 'events' | 'condition' | 'currentQuarter'>
+  match: Pick<Match, 'events' | 'condition' | 'currentQuarter' | 'officialResult'>
 ): { own: number; rival: number } {
   const { homeScore, awayScore } = deriveScoreboard(match);
   return match.condition === 'HOME'
@@ -77,13 +96,36 @@ export function getOwnRivalScore(
     : { own: awayScore, rival: homeScore };
 }
 
+function toPartial(quarter: Quarter, own: number, rival: number, condition: MatchCondition): QuarterPartial {
+  const ownIsHome = condition === 'HOME';
+  return {
+    quarter,
+    own,
+    rival,
+    home: ownIsHome ? own : rival,
+    away: ownIsHome ? rival : own,
+  };
+}
+
+/** Official points per period: Q1-Q4 always, then the overtimes it lists. */
+function officialPartials(quarters: readonly ScoreSnapshot[], condition: MatchCondition): QuarterPartial[] {
+  return QUARTER_SEQUENCE.filter((q, index) => !isOvertime(q) || index < quarters.length).map((quarter, index) => {
+    const { home, away } = quarters[index] ?? { home: 0, away: 0 };
+    return condition === 'HOME'
+      ? toPartial(quarter, home, away, condition)
+      : toPartial(quarter, away, home, condition);
+  });
+}
+
 /**
- * Points per period: Q1-Q4 always, overtimes only when they have events.
+ * Points per period: Q1-Q4 always, overtimes only when they have events. A match
+ * without scoring plays uses the quarters of its official result (S3).
  */
-export function getQuarterPartials(
-  events: PlayByPlayEvent[],
-  condition: MatchCondition
-): QuarterPartial[] {
+export function getQuarterPartials(match: ScoreSource): QuarterPartial[] {
+  const { events, condition } = match;
+  const official = officialResultOf(match);
+  if (official && official.quarters.length > 0) return officialPartials(official.quarters, condition);
+
   const playedQuarters = new Set(events.map((e) => e.quarter));
   return QUARTER_SEQUENCE.filter((q) => !isOvertime(q) || playedQuarters.has(q)).map(
     (quarter) => {
@@ -95,14 +137,7 @@ export function getQuarterPartials(
         if (event.isOwnTeam) own += points;
         else rival += points;
       }
-      const ownIsHome = condition === 'HOME';
-      return {
-        quarter,
-        own,
-        rival,
-        home: ownIsHome ? own : rival,
-        away: ownIsHome ? rival : own,
-      };
+      return toPartial(quarter, own, rival, condition);
     }
   );
 }

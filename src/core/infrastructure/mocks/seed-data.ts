@@ -3,6 +3,7 @@ import { Match } from '@/core/domain/entities/match.types';
 import type { RivalPlayer, RivalTeam } from '@/core/domain/entities/rival.types';
 import { createMatch } from '@/core/application/use-cases/match-use-cases';
 import { withDerivedScoreboard } from '@/core/domain/rules/match-derivations';
+import { CLUB_PROFILE } from '../club-profile';
 import { generatePlayByPlay, PeriodPlan } from './play-by-play-generator';
 
 /**
@@ -13,13 +14,9 @@ import { generatePlayByPlay, PeriodPlan } from './play-by-play-generator';
  * =============================================================================
  */
 
-export const SEED_CLUB_ID = 'club-camg';
+export { CLUB_PROFILE };
 
-export const CLUB_PROFILE = {
-  id: SEED_CLUB_ID,
-  name: 'Club Atlético Monte Grande',
-  season: '2025/2026',
-} as const;
+export const SEED_CLUB_ID = CLUB_PROFILE.id;
 
 export const SEED_LIVE_MATCH_ID = 'match-live-today';
 export const SEED_ACTIVE_DIVISION_ID = 'div-primera';
@@ -38,12 +35,13 @@ function seedUser(id: string, name: string, email: string, role: User['role']): 
   };
 }
 
+// Pure calls: the client imports CLUB_PROFILE from this module and must not bundle the demo data.
 export const SEED_USERS: User[] = [
-  seedUser('user-coach-1', 'Federico Balbi', 'fbalbi@camg.com.ar', 'HEAD_COACH'),
-  seedUser('user-assistant-1', 'Mariano Ginóbili', 'mginobili@camg.com.ar', 'ASSISTANT_STATISTICIAN'),
-  seedUser('user-admin-1', 'Alejandro Montecchia', 'admin@camg.com.ar', 'ADMIN'),
-  seedUser('user-coach-2', 'Sergio Hernández', 'shernandez@camg.com.ar', 'HEAD_COACH'),
-  seedUser('user-coach-3', 'Julio Lamas', 'jlamas@camg.com.ar', 'HEAD_COACH'),
+  /* @__PURE__ */ seedUser('user-coach-1', 'Federico Balbi', 'fbalbi@camg.com.ar', 'HEAD_COACH'),
+  /* @__PURE__ */ seedUser('user-assistant-1', 'Mariano Ginóbili', 'mginobili@camg.com.ar', 'ASSISTANT_STATISTICIAN'),
+  /* @__PURE__ */ seedUser('user-admin-1', 'Alejandro Montecchia', 'admin@camg.com.ar', 'ADMIN'),
+  /* @__PURE__ */ seedUser('user-coach-2', 'Sergio Hernández', 'shernandez@camg.com.ar', 'HEAD_COACH'),
+  /* @__PURE__ */ seedUser('user-coach-3', 'Julio Lamas', 'jlamas@camg.com.ar', 'HEAD_COACH'),
 ];
 
 export const SEED_DIVISIONS: Division[] = [
@@ -539,7 +537,7 @@ function seedRivalTeam(id: string, name: string, rows: RivalPlayerRow[]): RivalT
 
 /** Rival rosters (S14): the live match rival, the rival of the last finished match and the next rival. */
 export const SEED_RIVAL_TEAMS: RivalTeam[] = [
-  seedRivalTeam('rival-obras', 'Obras Sanitarias', [
+  /* @__PURE__ */ seedRivalTeam('rival-obras', 'Obras Sanitarias', [
     [1, 'Martín', 'Aguirre'],
     [4, 'Tomás', 'Benítez'],
     [5, 'Federico', 'Cáceres'],
@@ -553,7 +551,7 @@ export const SEED_RIVAL_TEAMS: RivalTeam[] = [
     [32, 'Franco', 'Peralta'],
     [44, 'Ramiro', 'Sosa'],
   ]),
-  seedRivalTeam('rival-ferro', 'Ferro Carril Oeste', [
+  /* @__PURE__ */ seedRivalTeam('rival-ferro', 'Ferro Carril Oeste', [
     [0, 'Bruno', 'Acosta'],
     [2, 'Iván', 'Castro'],
     [6, 'Leonel', 'Díaz'],
@@ -565,7 +563,7 @@ export const SEED_RIVAL_TEAMS: RivalTeam[] = [
     [24, 'Mauro', 'Romero'],
     [33, 'Ezequiel', 'Vega'],
   ]),
-  seedRivalTeam('rival-boca', 'Boca Juniors', [
+  /* @__PURE__ */ seedRivalTeam('rival-boca', 'Boca Juniors', [
     [3, 'Lucas', 'Fernández'],
     [5, 'Thiago', 'Suárez'],
     [6, 'Maximiliano', 'Rojas'],

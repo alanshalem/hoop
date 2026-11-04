@@ -35,7 +35,7 @@ function browser(initial: SyncableClubData, owner = 'u1') {
       if (writable) persistedClub = next;
       clubListeners.forEach((l) => l());
     };
-    let store: SyncStoreData = { owner: { id: owner, name: owner }, cursor: '1', versions: {}, outbox: createEmptyOutbox(), lastSyncedAt: null, status: 'idle', lastError: null };
+    let store: SyncStoreData = { owner: { id: owner, name: owner }, cursor: '1', versions: {}, outbox: createEmptyOutbox(), lastSyncedAt: null, status: 'idle', lastError: null, epoch: 'epoch-1' };
     const storeListeners = new Set<() => void>();
     const club = {
       getData: () => data,
@@ -143,7 +143,7 @@ function browser(initial: SyncableClubData, owner = 'u1') {
   };
 }
 
-const club = (m: Match): SyncableClubData => ({ divisions: [makeDivision()], teams: [makeTeam()], players: [makePlayer({ id: 'p1' })], matches: [m], chartCodes: [], rivalTeams: [] });
+const club = (m: Match): SyncableClubData => ({ divisions: [makeDivision()], teams: [makeTeam()], players: [makePlayer({ id: 'p1' })], matches: [m], chartCodes: [], rivalTeams: [], coaches: [] });
 const live = makeMatch({ status: 'LIVE', currentQuarter: 'Q2', quarterTimeRemainingSeconds: 300, events: [] });
 const gameState = (m: Pick<Match, 'status' | 'currentQuarter' | 'quarterTimeRemainingSeconds'>) => ({
   status: m.status,

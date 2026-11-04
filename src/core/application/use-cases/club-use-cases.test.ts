@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import {
   addPlayer,
+  assignAssistantCoaches,
   assignHeadCoach,
   callUpPlayer,
   ClubData,
@@ -11,7 +12,8 @@ import {
   updateDivision,
   updatePlayer,
 } from './club-use-cases';
-import type { Player, User } from '@/core/domain/entities/club.types';
+import type { Player } from '@/core/domain/entities/club.types';
+import { makeCoach } from '@/core/testing/fixtures';
 
 function player(id: string, teamId?: string): Player {
   return {
@@ -28,16 +30,11 @@ function player(id: string, teamId?: string): Player {
   };
 }
 
-function user(id: string, role: User['role']): User {
-  return {
-    id,
-    name: id,
-    email: `${id}@hoop.test`,
-    role,
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-  };
-}
+const COACHES = [
+  makeCoach({ id: 'c1', name: 'Head One', role: 'HEAD' }),
+  makeCoach({ id: 'c2', name: 'Head Two', role: 'HEAD' }),
+  makeCoach({ id: 'a1', name: 'Assistant One', role: 'ASSISTANT' }),
+];
 
 function seed(): ClubData {
   return {
@@ -46,7 +43,7 @@ function seed(): ClubData {
       { id: 'd2', name: 'U19', category: 'U19', gender: 'MALE', clubId: 'c' },
     ],
     teams: [
-      { id: 't1', name: 'Club - Primera', divisionId: 'd1', season: '2025/2026', headCoachId: 'u1', assistantCoachIds: [], playerIds: ['a', 'y'], clubId: 'c' },
+      { id: 't1', name: 'Club - Primera', divisionId: 'd1', season: '2025/2026', headCoachId: 'c1', assistantCoachIds: [], playerIds: ['a', 'y'], clubId: 'c' },
       { id: 't2', name: 'Club - U19', divisionId: 'd2', season: '2025/2026', assistantCoachIds: [], playerIds: ['y'], clubId: 'c' },
     ],
     players: [player('a', 't1'), player('y', 't2')],
@@ -54,14 +51,14 @@ function seed(): ClubData {
 }
 
 describe('createDivision', () => {
+  const U15 = { name: 'U15', category: 'U15', gender: 'MALE', clubId: 'c' } as const;
+  const ctx = { divisionId: 'd3', teamId: 't3', season: '2025/2026', clubName: 'Club' };
+
   it('creates the division and its team for the given season', () => {
-    const next = createDivision(
-      seed(),
-      { name: 'U15', category: 'U15', gender: 'MALE', clubId: 'c' },
-      { divisionId: 'd3', teamId: 't3', season: '2025/2026', clubName: 'Club' }
-    );
-    assert.strictEqual(next.divisions.length, 3);
-    assert.deepStrictEqual(next.teams[2], {
+    const result = createDivision(seed(), COACHES, U15, ctx);
+    assert.ok(result.ok);
+    assert.strictEqual(result.data.divisions.length, 3);
+    assert.deepStrictEqual(result.data.teams[2], {
       id: 't3',
       name: 'Club - U15',
       divisionId: 'd3',
@@ -71,6 +68,26 @@ describe('createDivision', () => {
       playerIds: [],
       clubId: 'c',
     });
+  });
+
+  it('assigns the chosen head coach and assistants by coach id (S5)', () => {
+    const result = createDivision(seed(), COACHES, U15, { ...ctx, headCoachId: 'a1', assistantCoachIds: ['c2', 'c2'] });
+    assert.ok(result.ok);
+    assert.strictEqual(result.data.teams[2].headCoachId, 'a1');
+    assert.deepStrictEqual(result.data.teams[2].assistantCoachIds, ['c2']);
+  });
+
+  it('refuses unknown coach ids and creates nothing (S5)', () => {
+    const data = seed();
+    assert.deepStrictEqual(createDivision(data, COACHES, U15, { ...ctx, headCoachId: 'u1' }), {
+      ok: false,
+      reason: 'COACH_NOT_FOUND',
+    });
+    assert.deepStrictEqual(createDivision(data, COACHES, U15, { ...ctx, assistantCoachIds: ['nope'] }), {
+      ok: false,
+      reason: 'COACH_NOT_FOUND',
+    });
+    assert.deepStrictEqual(data, seed());
   });
 });
 
@@ -99,30 +116,55 @@ describe('deleteDivision', () => {
   });
 });
 
-describe('assignHeadCoach', () => {
-  const users = [user('u1', 'HEAD_COACH'), user('u2', 'HEAD_COACH'), user('s1', 'ASSISTANT_STATISTICIAN')];
-
-  it('assigns a head coach user to the team', () => {
-    const result = assignHeadCoach(seed(), users, 't2', 'u2');
-    assert.strictEqual(result.ok, true);
-    if (result.ok) assert.strictEqual(result.data.teams[1].headCoachId, 'u2');
+describe('assignHeadCoach (S5)', () => {
+  it('assigns any existing coach to the team, whatever its role', () => {
+    const result = assignHeadCoach(seed(), COACHES, 't2', 'c2');
+    assert.ok(result.ok);
+    assert.strictEqual(result.data.teams[1].headCoachId, 'c2');
+    const assistant = assignHeadCoach(seed(), COACHES, 't2', 'a1');
+    assert.ok(assistant.ok);
+    assert.strictEqual(assistant.data.teams[1].headCoachId, 'a1');
   });
 
-  it('rejects users without the HEAD_COACH role', () => {
-    assert.deepStrictEqual(assignHeadCoach(seed(), users, 't2', 's1'), {
+  it('refuses ids that are not coaches (for example a user id)', () => {
+    assert.deepStrictEqual(assignHeadCoach(seed(), COACHES, 't2', 'u1'), {
       ok: false,
-      reason: 'USER_NOT_HEAD_COACH',
+      reason: 'COACH_NOT_FOUND',
     });
   });
 
-  it('unassigns the head coach when userId is null', () => {
-    const result = assignHeadCoach(seed(), users, 't1', null);
-    assert.strictEqual(result.ok, true);
-    if (result.ok) assert.strictEqual(result.data.teams[0].headCoachId, undefined);
+  it('unassigns the head coach when coachId is null', () => {
+    const result = assignHeadCoach(seed(), COACHES, 't1', null);
+    assert.ok(result.ok);
+    assert.strictEqual(result.data.teams[0].headCoachId, undefined);
   });
 
   it('rejects unknown teams', () => {
-    assert.deepStrictEqual(assignHeadCoach(seed(), users, 'nope', 'u2'), {
+    assert.deepStrictEqual(assignHeadCoach(seed(), COACHES, 'nope', 'c2'), {
+      ok: false,
+      reason: 'TEAM_NOT_FOUND',
+    });
+  });
+});
+
+describe('assignAssistantCoaches (S5)', () => {
+  it('replaces the assistants of the team with the given coaches, once each, in order', () => {
+    const data = seed();
+    const result = assignAssistantCoaches(data, COACHES, 't1', ['a1', 'c2', 'a1']);
+    assert.ok(result.ok);
+    assert.deepStrictEqual(result.data.teams[0].assistantCoachIds, ['a1', 'c2']);
+    assert.strictEqual(result.data.teams[1], data.teams[1]);
+    const cleared = assignAssistantCoaches(result.data, COACHES, 't1', []);
+    assert.ok(cleared.ok);
+    assert.deepStrictEqual(cleared.data.teams[0].assistantCoachIds, []);
+  });
+
+  it('refuses unknown coaches and unknown teams', () => {
+    assert.deepStrictEqual(assignAssistantCoaches(seed(), COACHES, 't1', ['a1', 'u1']), {
+      ok: false,
+      reason: 'COACH_NOT_FOUND',
+    });
+    assert.deepStrictEqual(assignAssistantCoaches(seed(), COACHES, 'nope', ['a1']), {
       ok: false,
       reason: 'TEAM_NOT_FOUND',
     });

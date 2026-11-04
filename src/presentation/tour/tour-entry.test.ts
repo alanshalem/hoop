@@ -19,6 +19,7 @@ describe('tourEntry', () => {
     assert.deepStrictEqual(tourEntry('matches', []), { href: '/matches' });
     assert.deepStrictEqual(tourEntry('planilla', []), { href: '/planilla' });
     assert.deepStrictEqual(tourEntry('rivales', []), { href: '/rivales' });
+    assert.deepStrictEqual(tourEntry('entrenadores', []), { href: '/entrenadores' });
     assert.deepStrictEqual(tourEntry('help', []), { href: '/ayuda' });
   });
 

@@ -36,6 +36,7 @@ function harness({ withLock = true, withChannel = true, realEngine = false, lock
     matches: [makeMatch()],
     chartCodes: [],
     rivalTeams: [],
+    coaches: [],
   };
   const clubListeners = new Set<() => void>();
   const setData = (next: SyncableClubData) => {
@@ -50,6 +51,7 @@ function harness({ withLock = true, withChannel = true, realEngine = false, lock
     lastSyncedAt: null,
     status: 'idle',
     lastError: null,
+    epoch: 'epoch-1',
   };
   const storeListeners = new Set<() => void>();
   const posted: TabMessage[] = [];

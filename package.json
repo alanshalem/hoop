@@ -13,7 +13,8 @@
     "db:down": "docker compose down",
     "db:generate": "node --import ./scripts/server-runtime.mjs ./node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "node --import ./scripts/server-runtime.mjs ./node_modules/drizzle-kit/bin.cjs migrate",
-    "db:seed": "tsx --import ./scripts/server-runtime.mjs scripts/db-seed.ts"
+    "db:seed": "tsx --import ./scripts/server-runtime.mjs scripts/db-seed.ts",
+    "db:import-actas": "tsx --import ./scripts/server-runtime.mjs scripts/db-import-actas.ts"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

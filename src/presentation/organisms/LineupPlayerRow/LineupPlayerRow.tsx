@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import { Check, Lock } from 'lucide-react';
 import type { Player } from '@/core/domain/entities/club.types';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { formatPlayerHeight } from '@/presentation/player-display';
 import { JerseyBadge } from '@/presentation/atoms/JerseyBadge/JerseyBadge';
 import { StatBadge } from '@/presentation/atoms/StatBadge/StatBadge';
 import { StatusPill } from '@/presentation/atoms/StatusPill/StatusPill';
@@ -51,7 +52,7 @@ export const LineupPlayerRow: React.FC<LineupPlayerRowProps> = ({
         </span>
         <span className={styles.metaRow}>
           <StatBadge position={player.position} />
-          <span className={clsx(styles.height, 'tabular-nums')}>{player.heightCm} cm</span>
+          <span className={clsx(styles.height, 'tabular-nums')}>{formatPlayerHeight(player.heightCm)}</span>
           {player.status !== 'ACTIVE' && <StatusPill status={player.status} />}
           {meta}
         </span>

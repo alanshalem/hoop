@@ -29,6 +29,20 @@
       "when": 1793748743603,
       "tag": "0003_chubby_skreet",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793760237169,
+      "tag": "0004_tense_madame_masque",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793761530315,
+      "tag": "0005_sour_valkyrie",
+      "breakpoints": true
     }
   ]
 }

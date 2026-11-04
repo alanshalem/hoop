@@ -112,6 +112,16 @@ export const matchEvents = pgTable(
   ]
 );
 
+/**
+ * Server-wide sync settings by key. `data_epoch` identifies the current server
+ * data: replacing the data (report import) rotates it, pulls return it and a
+ * push made on other data is refused (S1, L5). The migration creates it.
+ */
+export const syncMeta = pgTable('sync_meta', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+});
+
 export type UserRow = typeof users.$inferSelect;
 export type SyncRecordRow = typeof syncRecords.$inferSelect;
 export type MatchEventRow = typeof matchEvents.$inferSelect;

@@ -162,6 +162,32 @@ export const TeamTimeoutsSchema = z.object({
 export type TeamTimeouts = z.infer<typeof TeamTimeoutsSchema>;
 
 // -----------------------------------------------------------------------------
+// OFFICIAL RESULT (S3)
+// -----------------------------------------------------------------------------
+
+const sumOf = (scores: readonly ScoreSnapshot[], side: keyof ScoreSnapshot) =>
+  scores.reduce((total, score) => total + score[side], 0);
+
+/**
+ * Final score and points per period from the official match report, for matches
+ * without play-by-play. `home`/`away` are the scoreboard sides; quarters are in
+ * order (Q1-Q4, then overtimes) and, when present, add up to the final score.
+ */
+export const OfficialResultSchema = z
+  .object({
+    home: z.number().int().min(0),
+    away: z.number().int().min(0),
+    quarters: z.array(ScoreSnapshotSchema).max(QuarterSchema.options.length),
+  })
+  .refine(
+    (result) =>
+      result.quarters.length === 0 ||
+      (sumOf(result.quarters, 'home') === result.home && sumOf(result.quarters, 'away') === result.away),
+    { message: 'Official quarters must add up to the final score' }
+  );
+export type OfficialResult = z.infer<typeof OfficialResultSchema>;
+
+// -----------------------------------------------------------------------------
 // MATCH
 // -----------------------------------------------------------------------------
 
@@ -206,6 +232,11 @@ export const MatchSchema = z.object({
    * Full match roster player IDs for own team.
    */
   rosterOwnPlayerIds: z.array(z.string()).default([]),
+  /**
+   * Official result of the match report; the scoreboard shows it while the
+   * match has no scoring plays (S3).
+   */
+  officialResult: OfficialResultSchema.optional(),
   events: z.array(PlayByPlayEventSchema).default([]),
   createdAt: z.string().datetime().or(z.date()).optional(),
   updatedAt: z.string().datetime().or(z.date()).optional(),

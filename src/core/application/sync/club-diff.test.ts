@@ -4,6 +4,7 @@ import { diffClubState } from './club-diff';
 import type { SyncableClubData } from './sync-types';
 import {
   makeChartCode,
+  makeCoach,
   makeDivision,
   makeEvent,
   makeMatch,
@@ -20,6 +21,7 @@ function club(overrides: Partial<SyncableClubData> = {}): SyncableClubData {
     matches: [makeMatch()],
     chartCodes: [],
     rivalTeams: [],
+    coaches: [],
     ...overrides,
   };
 }
@@ -82,6 +84,20 @@ describe('diffClubState (S10.7)', () => {
     const withTeam = { ...prev, rivalTeams: [team] };
     assert.deepStrictEqual(diffClubState(withTeam, { ...withTeam, rivalTeams: [] }), {
       records: [{ kind: 'rivalTeam', id: team.id, data: team, deleted: true }],
+      events: [],
+    });
+  });
+
+  it('sends coaches as whole coach records and their deletion as a tombstone (S5)', () => {
+    const prev = club();
+    const coach = makeCoach();
+    assert.deepStrictEqual(diffClubState(prev, { ...prev, coaches: [coach] }), {
+      records: [{ kind: 'coach', id: coach.id, data: coach, deleted: false }],
+      events: [],
+    });
+    const withCoach = { ...prev, coaches: [coach] };
+    assert.deepStrictEqual(diffClubState(withCoach, { ...withCoach, coaches: [] }), {
+      records: [{ kind: 'coach', id: coach.id, data: coach, deleted: true }],
       events: [],
     });
   });

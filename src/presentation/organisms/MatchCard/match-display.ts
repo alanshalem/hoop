@@ -1,5 +1,6 @@
 import type { Match, MatchCondition, MatchStatus } from '@/core/domain/entities/match.types';
 import { getOwnRivalScore } from '@/core/domain/rules/match-derivations';
+import { getEventPoints } from '@/core/domain/rules/event-rules';
 
 /**
  * Presentation helpers shared by the match calendar, the dashboard and the lineup screen.
@@ -40,6 +41,19 @@ export const formatMatchDate = (iso: string): { date: string; time: string } => 
   if (Number.isNaN(value.getTime())) return { date: '', time: '' };
   return { date: DATE_FORMAT.format(value), time: TIME_FORMAT.format(value) };
 };
+
+export const OFFICIAL_RESULT_LABEL = 'Resultado oficial (acta)';
+
+/**
+ * The score and partials come from the official report (S3): the match has an
+ * official result and no scoring plays, so box score and shot map stay empty.
+ */
+export const hasOnlyOfficialResult = (match: Pick<Match, 'events' | 'officialResult'>): boolean =>
+  match.officialResult !== undefined && !match.events.some((event) => getEventPoints(event.type) > 0);
+
+/** Player stats (leaders, shooting) need recorded plays; imported reports only bring the score (S3). */
+export const hasAnyPlays = (matches: readonly Pick<Match, 'events'>[]): boolean =>
+  matches.some((match) => match.events.length > 0);
 
 export type MatchOutcome = 'WIN' | 'LOSS' | 'DRAW';
 

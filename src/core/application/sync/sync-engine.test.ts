@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { createSyncEngine, type SyncEngineDeps } from './sync-engine';
+import { createSyncEngine, SYNC_ERROR_MESSAGES, type SyncEngineDeps } from './sync-engine';
 import { createEmptyOutbox } from './outbox';
 import { toMatchRecord } from './sync-records';
 import type {
@@ -14,6 +14,7 @@ import type {
 import { makeDivision, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
 
 const NOW = Date.parse('2026-10-30T18:00:00.000Z');
+const TEST_EPOCH = 'epoch-1';
 
 type Responder<T> = ApiResult<T> | (() => ApiResult<T>);
 
@@ -25,6 +26,7 @@ function harness(initial: Partial<SyncStoreData> = {}) {
     matches: [],
     chartCodes: [],
     rivalTeams: [],
+    coaches: [],
   };
   const clubListeners = new Set<() => void>();
   let store: SyncStoreData = {
@@ -35,10 +37,12 @@ function harness(initial: Partial<SyncStoreData> = {}) {
     lastSyncedAt: null,
     status: 'idle',
     lastError: null,
+    epoch: TEST_EPOCH,
     ...initial,
   };
   const pulls: (string | null)[] = [];
   const pushes: PushPayload[] = [];
+  const pushEpochs: string[] = [];
   const pullQueue: Responder<PullPage>[] = [];
   const pushQueue: Responder<PushResult>[] = [];
   const timers: { fn: () => void; ms: number; cleared: boolean }[] = [];
@@ -56,10 +60,11 @@ function harness(initial: Partial<SyncStoreData> = {}) {
     api: {
       pull: async (since) => {
         pulls.push(since);
-        return respond(pullQueue, { ok: true, value: { records: [], events: [], cursor: since ?? '0', hasMore: false } });
+        return respond(pullQueue, { ok: true, value: { records: [], events: [], cursor: since ?? '0', hasMore: false, epoch: TEST_EPOCH } });
       },
-      push: async (payload) => {
+      push: async (payload, epoch) => {
         pushes.push(payload);
+        pushEpochs.push(epoch);
         const ids = [...payload.records.map((r) => r.id), ...payload.events.map((e) => e.id)];
         return respond(pushQueue, { ok: true, value: { accepted: ids, rejected: [], cursor: '999' } });
       },
@@ -114,6 +119,7 @@ function harness(initial: Partial<SyncStoreData> = {}) {
     engine,
     pulls,
     pushes,
+    pushEpochs,
     pullQueue,
     pushQueue,
     timers,
@@ -145,7 +151,7 @@ function harness(initial: Partial<SyncStoreData> = {}) {
   };
 }
 
-const snapshotPage = (cursor: string, hasMore = false): ApiResult<PullPage> => ({
+const snapshotPage = (cursor: string, hasMore = false, epoch = TEST_EPOCH): ApiResult<PullPage> => ({
   ok: true,
   value: {
     records: [
@@ -155,7 +161,128 @@ const snapshotPage = (cursor: string, hasMore = false): ApiResult<PullPage> => (
     events: [],
     cursor,
     hasMore,
+    epoch,
   },
+});
+
+describe('sync engine: data epoch (S1, L5)', () => {
+  const pendingPlayer = () => {
+    const player = makePlayer({ id: 'p-pending', dorsal: 21 });
+    return { records: [{ kind: 'player' as const, id: player.id, data: player, deleted: false }], events: [] };
+  };
+
+  it('adopts the epoch of the first snapshot and sends it with every push', async () => {
+    const h = harness({ epoch: null });
+    h.pullQueue.push(snapshotPage('40', false, 'epoch-new'));
+    h.engine.start();
+    await h.engine.whenIdle();
+    assert.strictEqual(h.store.epoch, 'epoch-new');
+
+    h.edit({ divisions: [makeDivision({ id: 'div-server', name: 'Renamed' })] });
+    await h.runPendingTimers();
+    assert.strictEqual(h.pushes.length, 1);
+    assert.deepStrictEqual(h.pushEpochs, ['epoch-new']);
+    h.engine.stop();
+  });
+
+  it('never pushes without an epoch: pending changes wait for a snapshot first', async () => {
+    const h = harness({ cursor: '10', epoch: null });
+    h.engine.enqueue(pendingPlayer());
+    h.pullQueue.push(snapshotPage('40'));
+    h.engine.start();
+    await h.engine.whenIdle();
+
+    assert.deepStrictEqual(h.pulls, [null], 'an unknown epoch restarts from a snapshot, not from the cursor');
+    assert.deepStrictEqual(h.pushes.map((p) => p.records.map((r) => r.id)), [['p-pending']]);
+    assert.deepStrictEqual(h.pushEpochs, [TEST_EPOCH]);
+    h.engine.stop();
+  });
+
+  it('drops the outbox and local data when a pull reveals a new epoch, then loads the snapshot', async () => {
+    const h = harness({ cursor: '10' });
+    h.engine.start();
+    await h.engine.whenIdle();
+    h.edit({ players: [{ ...h.data.players[0], dorsal: 33 }] });
+    assert.deepStrictEqual(Object.keys(h.store.outbox.records), ['player:p1']);
+
+    h.pullQueue.push(
+      { ok: true, value: { records: [], events: [], cursor: '50', hasMore: false, epoch: 'epoch-2' } },
+      snapshotPage('60', false, 'epoch-2')
+    );
+    h.emitChanged('50');
+    await h.engine.whenIdle();
+
+    assert.deepStrictEqual(h.pulls.slice(-2), ['10', null]);
+    assert.deepStrictEqual(h.data.divisions.map((d) => d.id), ['div-server']);
+    assert.deepStrictEqual(h.data.players, [], 'local data of the old epoch is gone');
+    assert.deepStrictEqual(h.data.teams, []);
+    assert.deepStrictEqual(h.store.outbox.records, {});
+    assert.deepStrictEqual(h.store.outbox.events, {});
+    assert.strictEqual(h.store.epoch, 'epoch-2');
+    assert.strictEqual(h.store.cursor, '60');
+    assert.strictEqual(h.store.versions['division:div-server'], '2026-10-29T10:00:00.000Z');
+    assert.ok(!('player:p1' in h.store.versions), 'versions of the old epoch are gone');
+    assert.strictEqual(h.store.status, 'error');
+    assert.strictEqual(h.store.lastError, SYNC_ERROR_MESSAGES.dataReset(1));
+
+    await h.runPendingTimers();
+    assert.deepStrictEqual(h.pushes, [], 'the dropped change is never pushed');
+    h.engine.stop();
+  });
+
+  it('drops the outbox when the server refuses a push for another epoch, then loads the snapshot', async () => {
+    const h = harness({ cursor: '10' });
+    h.engine.start();
+    await h.engine.whenIdle();
+    h.pushQueue.push({ ok: false, error: 'EPOCH_MISMATCH', status: 409, message: 'Datos reemplazados' });
+    h.pullQueue.push(snapshotPage('70', false, 'epoch-2'));
+    h.edit({ players: [{ ...h.data.players[0], dorsal: 34 }] });
+    await h.runPendingTimers();
+
+    assert.strictEqual(h.pushes.length, 1);
+    assert.deepStrictEqual(h.pulls.at(-1), null);
+    assert.deepStrictEqual(h.store.outbox.records, {});
+    assert.strictEqual(h.store.epoch, 'epoch-2');
+    assert.strictEqual(h.store.cursor, '70');
+    assert.deepStrictEqual(h.data.divisions.map((d) => d.id), ['div-server']);
+    assert.deepStrictEqual(h.data.players, []);
+    assert.strictEqual(h.store.lastError, SYNC_ERROR_MESSAGES.dataReset(1));
+    assert.strictEqual(h.unauthorized, 0);
+
+    await h.runPendingTimers();
+    assert.strictEqual(h.pushes.length, 1, 'nothing is pushed again');
+    h.engine.stop();
+  });
+
+  it('restarts from a snapshot when the epoch changes between pages, without a message when nothing was pending', async () => {
+    const h = harness({ cursor: '5' });
+    h.pullQueue.push(
+      { ok: true, value: { records: [], events: [], cursor: '1005', hasMore: true, epoch: TEST_EPOCH } },
+      { ok: true, value: { records: [], events: [], cursor: '1200', hasMore: false, epoch: 'epoch-2' } },
+      snapshotPage('1300', false, 'epoch-2')
+    );
+    h.engine.start();
+    await h.engine.whenIdle();
+    assert.deepStrictEqual(h.pulls, ['5', '1005', null]);
+    assert.strictEqual(h.store.epoch, 'epoch-2');
+    assert.strictEqual(h.store.cursor, '1300');
+    assert.strictEqual(h.store.status, 'idle');
+    assert.strictEqual(h.store.lastError, null);
+    h.engine.stop();
+  });
+
+  it('keeps the outbox when the pulled epoch is the known one', async () => {
+    const h = harness({ cursor: '10' });
+    h.engine.start();
+    await h.engine.whenIdle();
+    h.setOnline(false);
+    h.edit({ players: [{ ...h.data.players[0], dorsal: 35 }] });
+    h.setOnline(true);
+    await h.engine.whenIdle();
+    assert.deepStrictEqual(h.pushEpochs, [TEST_EPOCH]);
+    assert.strictEqual(h.store.epoch, TEST_EPOCH);
+    h.engine.stop();
+  });
 });
 
 describe('sync engine: changes from another tab (S13.3)', () => {
@@ -196,8 +323,8 @@ describe('sync engine (S10.7)', () => {
   it('follows hasMore and stores the cursor of the last page', async () => {
     const h = harness({ cursor: '5' });
     h.pullQueue.push(
-      { ok: true, value: { records: [], events: [], cursor: '1005', hasMore: true } },
-      { ok: true, value: { records: [], events: [], cursor: '1200', hasMore: false } }
+      { ok: true, value: { records: [], events: [], cursor: '1005', hasMore: true, epoch: TEST_EPOCH } },
+      { ok: true, value: { records: [], events: [], cursor: '1200', hasMore: false, epoch: TEST_EPOCH } }
     );
     h.engine.start();
     await h.engine.whenIdle();
@@ -377,6 +504,7 @@ describe('sync engine (S10.7)', () => {
             events: [],
             cursor: '50',
             hasMore: false,
+            epoch: TEST_EPOCH,
           },
         };
       });

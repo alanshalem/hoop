@@ -18,6 +18,7 @@ export const SCREEN_TOUR_IDS = [
   'stats',
   'planilla',
   'rivales',
+  'entrenadores',
   'help',
 ] as const;
 

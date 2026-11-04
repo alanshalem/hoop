@@ -14,6 +14,7 @@ import { can } from '@/core/domain/rules/permissions';
 import { calculateMatchBoxScore } from '@/core/domain/rules/match-derivations';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { formatPlayerHeight, MISSING_VALUE } from '@/presentation/player-display';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
 import { PageHeader } from '@/presentation/molecules/PageHeader/PageHeader';
 import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
@@ -33,6 +34,8 @@ import styles from './page.module.css';
 
 const ALL = 'ALL';
 const NO_TEAM = 'NO_TEAM';
+/** Facet value of a player without a position: no chip selects it (S4). */
+const NO_POSITION = 'NO_POSITION';
 
 type Facet = 'division' | 'position' | 'status';
 type Filters = Record<Facet, string>;
@@ -61,7 +64,7 @@ export default function PlayersPage() {
 
   const facetValue = (player: Player, facet: Facet): string => {
     if (facet === 'division') return divisionIdOf(player);
-    if (facet === 'position') return player.position;
+    if (facet === 'position') return player.position ?? NO_POSITION;
     return player.status;
   };
 
@@ -222,11 +225,15 @@ export default function PlayersPage() {
                   <dl className={styles.meta}>
                     <div className={styles.metaItem}>
                       <dt>Altura</dt>
-                      <dd className="tabular-nums">{player.heightCm} cm</dd>
+                      <dd className="tabular-nums">{formatPlayerHeight(player.heightCm)}</dd>
                     </div>
                     <div className={styles.metaItem}>
                       <dt>Mano</dt>
                       <dd>{DOMINANT_HAND_LABELS[player.dominantHand]}</dd>
+                    </div>
+                    <div className={styles.metaItem}>
+                      <dt>Licencia</dt>
+                      <dd className="tabular-nums">{player.license ?? MISSING_VALUE}</dd>
                     </div>
                     <div className={styles.metaItem}>
                       <dt>División</dt>

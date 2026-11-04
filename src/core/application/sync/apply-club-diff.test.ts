@@ -14,6 +14,7 @@ function club(overrides: Partial<SyncableClubData> = {}): SyncableClubData {
     matches: [makeMatch()],
     chartCodes: [],
     rivalTeams: [],
+    coaches: [],
     ...overrides,
   };
 }

@@ -17,6 +17,8 @@ npm run db:seed      # club de demostración y cuentas (solo inserta lo que falt
 npm run dev
 ```
 
+`db:seed` carga datos de demostración para desarrollo y pruebas. Para los datos reales del club se usa `db:import-actas` (ver [Datos reales: actas oficiales](#datos-reales-actas-oficiales)), que reemplaza todo lo anterior.
+
 Abrir `http://localhost:3000` e iniciar sesión, por ejemplo con `admin@camg.com.ar` y la contraseña de demostración `camg1922` (variable `SEED_DEMO_PASSWORD`). Cuentas por rol, variables de entorno (`DATABASE_URL`, `TEST_DATABASE_URL`, `POSTGRES_*`, `SESSION_COOKIE_SECURE`) y solución de problemas: [sección Servidor y base de datos del manual](docs/MANUAL.md#9-servidor-y-base-de-datos).
 
 > Tablets en la red del club con una compilación de producción por `http`: definir `SESSION_COOKIE_SECURE=false`, o el navegador descarta la cookie de sesión.
@@ -33,7 +35,21 @@ Abrir `http://localhost:3000` e iniciar sesión, por ejemplo con `admin@camg.com
 | `npm run test:db`                   | Pruebas de integración contra PostgreSQL (base `_test` aparte).                                                                                                |
 | `npm run db:up` / `npm run db:down` | Levanta o detiene PostgreSQL en Docker.                                                                                                                        |
 | `npm run db:migrate`                | Aplica las migraciones de `drizzle/`.                                                                                                                          |
-| `npm run db:seed`                   | Carga el club de demostración y las cuentas. Nunca sobrescribe datos del club, pero restablece las cuentas de demostración (nombre, correo, rol y contraseña). |
+| `npm run db:seed`                   | Carga el club de demostración y las cuentas (desarrollo y pruebas). Nunca sobrescribe datos del club, pero restablece las cuentas de demostración (nombre, correo, rol y contraseña). |
+| `npm run db:import-actas`           | Reemplaza todos los datos por los de las actas oficiales (ver abajo). Con `--dry-run` solo valida y muestra el resumen.                                          |
+
+### Datos reales: actas oficiales
+
+```bash
+npm run db:import-actas -- --csv <planilla.csv> --pdfs <carpeta> --dry-run   # valida y muestra el resumen, sin conectarse a la base
+npm run db:import-actas -- --csv <planilla.csv> --pdfs <carpeta> --yes       # borra y carga
+```
+
+- `--csv`: planilla extraída de las actas (separada por `;`, UTF-8), una fila por jugador anotado en cada partido.
+- `--pdfs`: carpeta con los `Acta-Partido-<número>.pdf`; de cada acta se leen el tanteo final y los puntos por cuarto con `pdftotext -layout` (Poppler). Otra ruta del ejecutable: `--pdftotext <ruta>` o la variable `PDFTOTEXT`.
+- En una sola transacción borra todos los registros, jugadas, sesiones y cuentas excepto `admin@camg.com.ar` (su contraseña no cambia; si la cuenta no existe, no se modifica nada), cambia la época de datos del servidor y carga la división, el equipo propio con sus jugadores y entrenadores, los rivales con sus planteles y los partidos finalizados con su resultado oficial. Los navegadores con datos o cambios anteriores los descartan y recargan desde el servidor; no pueden volver a subirlos.
+- La importación falla con la lista completa de problemas si un acta no coincide con la planilla (equipos, tanteo final o cuartos que no suman el final). El resumen informa los dorsales repetidos del equipo propio, los dorsales rivales reasignados (deben ser únicos por equipo) y los nombres completados desde el acta.
+- Las actas y la planilla tienen datos personales: no se guardan en el repositorio.
 
 ## Stack
 

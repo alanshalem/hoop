@@ -15,7 +15,7 @@ function persisted(owner: SyncOwner | null, pendingPlayers: string[]): SyncPersi
     { records: pendingPlayers.map((id) => ({ kind: 'player', id, data: makePlayer({ id }), deleted: false })), events: [] },
     NOW
   );
-  return { owner, cursor: '120', versions, outbox, lastSyncedAt: '2026-10-30T17:00:00.000Z' };
+  return { owner, cursor: '120', versions, outbox, lastSyncedAt: '2026-10-30T17:00:00.000Z', epoch: 'epoch-1' };
 }
 
 describe('resolveSyncOwnership (shared device)', () => {

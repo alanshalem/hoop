@@ -1,21 +1,23 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Award, CalendarRange, Pencil, Plus, Shield, Trash2, Users } from 'lucide-react';
+import { Award, CalendarRange, Pencil, Plus, Shield, Trash2, UserCog, Users } from 'lucide-react';
 import clsx from 'clsx';
 import type { Division } from '@/core/domain/entities/club.types';
 import { can } from '@/core/domain/rules/permissions';
 import { useClubStore } from '@/core/application/stores/useClubStore';
-import { CLUB_PROFILE } from '@/core/infrastructure/mocks/seed-data';
+import { CLUB_PROFILE } from '@/core/infrastructure/club-profile';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
 import { PageHeader } from '@/presentation/molecules/PageHeader/PageHeader';
 import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
 import { IconButton } from '@/presentation/atoms/IconButton/IconButton';
+import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
 import { confirm } from '@/presentation/organisms/DialogHost/dialog-store';
 import { DivisionFormModal } from '@/presentation/organisms/DivisionFormModal/DivisionFormModal';
 import { DIVISION_CATEGORY_LABELS } from '@/presentation/organisms/DivisionFormModal/division-labels';
+import { coachNames } from '@/presentation/organisms/DivisionFormModal/division-staff';
 import { DivisionRosterModal } from '@/presentation/organisms/DivisionRosterModal/DivisionRosterModal';
 import { getTeamRosterPlayers } from '@/presentation/organisms/DivisionRosterModal/team-roster';
 import { useScreenTour } from '@/presentation/tour/useScreenTour';
@@ -25,7 +27,7 @@ export default function DivisionsPage() {
   const divisions = useClubStore((state) => state.divisions);
   const teams = useClubStore((state) => state.teams);
   const players = useClubStore((state) => state.players);
-  const users = useClubStore((state) => state.users);
+  const coaches = useClubStore((state) => state.coaches);
   const role = useClubStore((state) => state.currentUser.role);
   const deleteDivision = useClubStore((state) => state.deleteDivision);
 
@@ -68,15 +70,26 @@ export default function DivisionsPage() {
           title="Divisiones"
           subtitle={`Estructura deportiva del club, planteles y cuerpo técnico · Temporada ${CLUB_PROFILE.season}`}
           actions={
-            canManage && (
-              <TouchButton
-                leftIcon={<Plus size={ICON_SIZE.md} />}
-                onClick={() => openForm(null)}
-                data-tour="divisions-create"
+            <>
+              {/* Coaching staff: the phone top bar has no room for it (S5). */}
+              <LinkButton
+                href="/entrenadores"
+                variant="secondary"
+                leftIcon={<UserCog size={ICON_SIZE.md} />}
+                data-tour="divisions-coaches"
               >
-                Nueva división
-              </TouchButton>
-            )
+                Entrenadores
+              </LinkButton>
+              {canManage && (
+                <TouchButton
+                  leftIcon={<Plus size={ICON_SIZE.md} />}
+                  onClick={() => openForm(null)}
+                  data-tour="divisions-create"
+                >
+                  Nueva división
+                </TouchButton>
+              )}
+            </>
           }
         />
 
@@ -102,7 +115,8 @@ export default function DivisionsPage() {
             {divisions.map((division) => {
               const team = teams.find((t) => t.divisionId === division.id);
               const playerCount = getTeamRosterPlayers(team, players).length;
-              const coach = users.find((u) => u.id === team?.headCoachId);
+              const coach = coaches.find((c) => c.id === team?.headCoachId);
+              const assistants = coachNames(team?.assistantCoachIds ?? [], coaches);
 
               return (
                 <li key={division.id} className={styles.divisionCard} data-reveal data-tour="division-card">
@@ -135,6 +149,9 @@ export default function DivisionsPage() {
                     <Award size={ICON_SIZE.sm} aria-hidden="true" />
                     {coach ? `Entrenador: ${coach.name}` : 'Sin entrenador asignado'}
                   </p>
+                  {assistants.length > 0 && (
+                    <p className={styles.assistants}>Ayudantes: {assistants.join(', ')}</p>
+                  )}
 
                   <div className={styles.cardActions}>
                     <TouchButton

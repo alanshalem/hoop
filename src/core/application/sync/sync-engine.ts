@@ -1,6 +1,19 @@
 import { diffClubState } from './club-diff';
-import { applyPushResult, buildPushBatch, countPending, enqueueChanges, markBatchAttempted } from './outbox';
-import { applyServerSnapshot, isServerCursorBehind, mergePulledChanges, type MergeState } from './pull-merge';
+import {
+  applyPushResult,
+  buildPushBatch,
+  countPending,
+  createEmptyOutbox,
+  enqueueChanges,
+  markBatchAttempted,
+} from './outbox';
+import {
+  applyServerSnapshot,
+  createEmptyClubData,
+  isServerCursorBehind,
+  mergePulledChanges,
+  type MergeState,
+} from './pull-merge';
 import type { ApiResult, ClubDiff, PullPage, SyncableClubData, SyncApi, SyncStoreData } from './sync-types';
 
 /**
@@ -8,6 +21,10 @@ import type { ApiResult, ClubDiff, PullPage, SyncableClubData, SyncApi, SyncStor
  * HOOP OS - SYNC ENGINE (S10.7)
  * Watches the club store, stamps local changes into the persisted outbox and
  * flushes it; pulls server changes on start, on reconnect and on SSE `changed`.
+ * Data epoch (S1, L5): pushes carry the epoch of the last pull. When a pull or
+ * a refused push reveals another epoch (the server data was replaced), the
+ * outbox, cursor, versions and local club data are dropped and a snapshot is
+ * pulled, so old local data never reaches the new server data.
  * Framework-free: browser APIs and stores arrive as ports.
  * =============================================================================
  */
@@ -26,6 +43,10 @@ export const SYNC_ERROR_MESSAGES = {
     count === 1
       ? 'El servidor rechazó 1 cambio (sin permiso o con datos inválidos).'
       : `El servidor rechazó ${count} cambios (sin permiso o con datos inválidos).`,
+  dataReset: (count: number) =>
+    count === 1
+      ? 'Los datos del servidor se reemplazaron: se descartó 1 cambio sin sincronizar de este dispositivo.'
+      : `Los datos del servidor se reemplazaron: se descartaron ${count} cambios sin sincronizar de este dispositivo.`,
 } as const;
 
 export interface ClubDataPort {
@@ -165,7 +186,10 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       store.setState({ status: 'syncing' });
 
       // Without a cursor the snapshot comes first: pending changes are re-applied over it, then pushed.
-      const snapshotFirst = wantPull && store.getState().cursor === null;
+      // Nothing is pushed before the epoch is known.
+      const { cursor, epoch } = store.getState();
+      if (wantFlush && epoch === null) wantPull = true;
+      const snapshotFirst = wantPull && (cursor === null || epoch === null);
       const step = wantFlush && !snapshotFirst ? 'flush' : 'pull';
       if (step === 'flush') wantFlush = false;
       else wantPull = false;
@@ -222,10 +246,17 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   async function flushOnce(gen: number): Promise<{ outcome: StepOutcome; message?: string }> {
     const batch = buildPushBatch(store.getState().outbox);
     if (batch.size === 0) return { outcome: 'ok' };
+    const { epoch } = store.getState();
+    if (epoch === null) {
+      wantFlush = true;
+      wantPull = true;
+      return { outcome: 'ok' };
+    }
     store.setState({ outbox: markBatchAttempted(store.getState().outbox, batch) });
 
-    const result = await api.push(batch.payload);
+    const result = await api.push(batch.payload, epoch);
     if (!isCurrent(gen)) return { outcome: 'ok' };
+    if (!result.ok && result.error === 'EPOCH_MISMATCH') return { outcome: 'ok', message: resetForNewEpoch() };
     if (!result.ok) return failureOf(result);
 
     const { outbox, settledCount, errorCount } = applyPushResult(store.getState().outbox, batch, result.value);
@@ -240,7 +271,9 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   }
 
   async function pullAll(gen: number): Promise<{ outcome: StepOutcome; message?: string }> {
-    const since = store.getState().cursor;
+    const { cursor: storedCursor, epoch: knownEpoch } = store.getState();
+    // An unknown epoch cannot trust the cursor: it starts from a snapshot.
+    const since = knownEpoch === null ? null : storedCursor;
     const pages: PullPage[] = [];
     let cursor = since;
     for (let page = 0; page < MAX_PULL_PAGES; page += 1) {
@@ -253,29 +286,52 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     }
 
     // The cursor may have been reset while the pull was in flight; the next pull starts over.
-    if (store.getState().cursor !== since) return { outcome: 'ok' };
+    const state = store.getState();
+    if (state.cursor !== storedCursor || state.epoch !== knownEpoch) return { outcome: 'ok' };
+
+    // Pages of another epoch (or of two epochs: replaced mid-pull) never merge into local data.
+    const epoch = pages[0].epoch;
+    if (pages.some((page) => page.epoch !== epoch) || (knownEpoch !== null && epoch !== knownEpoch)) {
+      return { outcome: 'ok', message: resetForNewEpoch() };
+    }
 
     const pulled = {
       records: pages.flatMap((page) => page.records),
       events: pages.flatMap((page) => page.events),
     };
-    const state = store.getState();
     const merged: MergeState & { changed: boolean } =
       since === null
         ? { ...applyServerSnapshot(pulled, state.outbox), changed: true }
         : mergePulledChanges({ data: club.getData(), versions: state.versions, outbox: state.outbox }, pulled);
 
-    if (merged.changed) {
-      applying = true;
-      try {
-        club.applyData(merged.data);
-      } finally {
-        applying = false;
-      }
-    }
-    store.setState({ cursor, versions: merged.versions, outbox: merged.outbox });
+    if (merged.changed) applyClubData(merged.data);
+    store.setState({ cursor, epoch, versions: merged.versions, outbox: merged.outbox });
     if (since === null && countPending(merged.outbox) > 0) wantFlush = true;
     return { outcome: 'ok' };
+  }
+
+  /** Server data is not a local change: the engine ignores the store update it causes. */
+  function applyClubData(data: SyncableClubData): void {
+    applying = true;
+    try {
+      club.applyData(data);
+    } finally {
+      applying = false;
+    }
+  }
+
+  /**
+   * The server data was replaced (another epoch): drops what belongs to the old
+   * data, local club data included, and asks for a snapshot. Returns the notice
+   * for the user when unsynced changes were discarded.
+   */
+  function resetForNewEpoch(): string | undefined {
+    const discarded = countPending(store.getState().outbox);
+    store.setState({ epoch: null, cursor: null, versions: {}, outbox: createEmptyOutbox() });
+    applyClubData(createEmptyClubData());
+    wantFlush = false;
+    wantPull = true;
+    return discarded > 0 ? SYNC_ERROR_MESSAGES.dataReset(discarded) : undefined;
   }
 
   function requireFullResync(): void {

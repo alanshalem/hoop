@@ -13,6 +13,8 @@ import { withDerivedScoreboard } from '@/core/domain/rules/match-derivations';
 import type { ChartCategory } from '@/core/domain/entities/chart.types';
 import * as chartCatalog from '@/core/application/use-cases/chart-catalog-use-cases';
 import * as club from '@/core/application/use-cases/club-use-cases';
+import * as coachUseCases from '@/core/application/use-cases/coach-use-cases';
+import type { CoachInput, CoachReason } from '@/core/application/use-cases/coach-use-cases';
 import * as matchUseCases from '@/core/application/use-cases/match-use-cases';
 import * as rivalUseCases from '@/core/application/use-cases/rival-team-use-cases';
 import type {
@@ -43,7 +45,7 @@ import type {
   UndoChartReason,
   UndoRivalFoulReason,
 } from '@/core/application/use-cases/match-use-cases';
-import { CLUB_PROFILE } from '@/core/infrastructure/mocks/seed-data';
+import { CLUB_PROFILE } from '@/core/infrastructure/club-profile';
 import { reconcileSelection } from '@/core/application/sync/pull-merge';
 import type { SyncableClubData } from '@/core/application/sync/sync-types';
 import {
@@ -63,6 +65,12 @@ export type ActionResult<Reason extends string> =
 
 export type MatchNotFound = { ok: false; reason: 'MATCH_NOT_FOUND' };
 
+/** Coach ids assigned to a new division's team (S5). */
+export interface DivisionStaff {
+  headCoachId?: string;
+  assistantCoachIds?: string[];
+}
+
 export interface ClubStoreState extends ClubDataState {
   // Current user / RBAC: the authenticated account (role comes from the server)
   setCurrentUser: (user: User) => void;
@@ -73,16 +81,34 @@ export interface ClubStoreState extends ClubDataState {
 
   // Divisions
   setActiveDivision: (divisionId: string) => void;
-  /** Creates the division and its team for the current season; returns the division ID. */
-  addDivision: (division: NewDivisionInput, headCoachId?: string) => string;
+  /**
+   * Creates the division and its team for the current season, with optional
+   * head coach and assistants (coach ids, S5); returns the division ID.
+   */
+  addDivision: (
+    division: NewDivisionInput,
+    staff?: DivisionStaff
+  ) => { ok: true; id: string } | { ok: false; reason: 'COACH_NOT_FOUND' };
   updateDivision: (id: string, updates: Partial<Omit<Division, 'id'>>) => void;
   /** Also removes its team and leaves its players without a team. */
   deleteDivision: (id: string) => void;
-  /** `userId: null` unassigns the head coach. */
+  /** Any existing coach (S5); `coachId: null` unassigns the head coach. */
   assignHeadCoach: (
     teamId: string,
-    userId: string | null
-  ) => ActionResult<'TEAM_NOT_FOUND' | 'USER_NOT_HEAD_COACH'>;
+    coachId: string | null
+  ) => ActionResult<'TEAM_NOT_FOUND' | 'COACH_NOT_FOUND'>;
+  /** Replaces the team assistants with existing coaches (S5). */
+  assignAssistantCoaches: (
+    teamId: string,
+    coachIds: string[]
+  ) => ActionResult<'TEAM_NOT_FOUND' | 'COACH_NOT_FOUND'>;
+
+  // Coaches (S5): records without login
+  /** Returns the new coach's id. */
+  createCoach: (input: CoachInput) => { ok: true; id: string } | { ok: false; reason: CoachReason };
+  updateCoach: (coachId: string, updates: Partial<CoachInput>) => ActionResult<CoachReason | 'COACH_NOT_FOUND'>;
+  /** Also unassigns the coach from every team. */
+  deleteCoach: (coachId: string) => ActionResult<'COACH_NOT_FOUND'>;
 
   // Players
   /** Returns the new player ID. */
@@ -239,18 +265,19 @@ export const useClubStore = create<ClubStoreState>()(
 
         setActiveDivision: (divisionId) => set({ activeDivisionId: divisionId }),
 
-        addDivision: (division, headCoachId) => {
+        addDivision: (division, staff = {}) => {
           const divisionId = createId('div');
-          set(
-            club.createDivision(clubData(), division, {
-              divisionId,
-              teamId: createId('team'),
-              season: CLUB_PROFILE.season,
-              clubName: CLUB_PROFILE.name,
-              headCoachId,
-            })
-          );
-          return divisionId;
+          const result = club.createDivision(clubData(), get().coaches, division, {
+            divisionId,
+            teamId: createId('team'),
+            season: CLUB_PROFILE.season,
+            clubName: CLUB_PROFILE.name,
+            headCoachId: staff.headCoachId,
+            assistantCoachIds: staff.assistantCoachIds,
+          });
+          if (!result.ok) return result;
+          set(result.data);
+          return { ok: true, id: divisionId };
         },
 
         updateDivision: (id, updates) =>
@@ -258,9 +285,38 @@ export const useClubStore = create<ClubStoreState>()(
 
         deleteDivision: (id) => set(club.deleteDivision(clubData(), id)),
 
-        assignHeadCoach: (teamId, userId) => {
-          const result = club.assignHeadCoach(clubData(), get().users, teamId, userId);
+        assignHeadCoach: (teamId, coachId) => {
+          const result = club.assignHeadCoach(clubData(), get().coaches, teamId, coachId);
           if (result.ok) set(result.data);
+          return toActionResult(result);
+        },
+
+        assignAssistantCoaches: (teamId, coachIds) => {
+          const result = club.assignAssistantCoaches(clubData(), get().coaches, teamId, coachIds);
+          if (result.ok) set(result.data);
+          return toActionResult(result);
+        },
+
+        createCoach: (input) => {
+          const result = coachUseCases.createCoach(get().coaches, input, {
+            id: createId('coach'),
+            clubId: CLUB_PROFILE.id,
+          });
+          if (!result.ok) return result;
+          set({ coaches: result.coaches });
+          return { ok: true, id: result.id };
+        },
+
+        updateCoach: (coachId, updates) => {
+          const result = coachUseCases.updateCoach(get().coaches, coachId, updates);
+          if (result.ok) set({ coaches: result.coaches });
+          return toActionResult(result);
+        },
+
+        deleteCoach: (coachId) => {
+          const { coaches, teams } = get();
+          const result = coachUseCases.deleteCoach({ coaches, teams }, coachId);
+          if (result.ok) set({ coaches: result.coaches, teams: result.teams });
           return toActionResult(result);
         },
 
@@ -424,6 +480,7 @@ export const useClubStore = create<ClubStoreState>()(
         activeMatchId: state.activeMatchId,
         chartCodes: state.chartCodes,
         rivalTeams: state.rivalTeams,
+        coaches: state.coaches,
       }),
       migrate: (persisted, version) => migrateClubState(persisted, version),
       // New synced fields default without a version bump, so local data is not reseeded (L9).

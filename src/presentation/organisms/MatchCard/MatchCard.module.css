@@ -166,6 +166,28 @@
   border-top: 1px solid var(--border-subtle);
 }
 
+/* Official report result (S3): the score has no play-by-play behind it */
+.officialRow {
+  display: flex;
+  justify-content: center;
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.officialBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px dashed var(--border-strong);
+  background-color: var(--bg-surface-2);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
 /* Status badge (also used by the dashboard hero and the lineup screen) */
 .statusBadge {
   --status-color: var(--text-secondary);

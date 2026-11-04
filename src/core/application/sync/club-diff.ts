@@ -29,7 +29,8 @@ export function diffClubState(prev: SyncableClubData, next: SyncableClubData): C
       id: data.id,
       data,
       deleted,
-    }))
+    })),
+    ...collectionChanges(prev.coaches, next.coaches, (data, deleted) => ({ kind: 'coach', id: data.id, data, deleted }))
   );
 
   if (prev.matches !== next.matches) {

@@ -30,6 +30,7 @@ const club = (match: Match): SyncableClubData => ({
   matches: [match],
   chartCodes: [],
   rivalTeams: [],
+  coaches: [],
 });
 
 /** A tablet that knew `base` at T0 and edited it at `at`: its state and its pending outbox entry. */
