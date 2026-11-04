@@ -138,6 +138,20 @@ describe('tour catalog', () => {
   });
 });
 
+describe('stats tour', () => {
+  it('walks the result, partials and box score, without the removed shot map (S1, S2)', () => {
+    const stats = getTour('stats');
+    assert.deepStrictEqual(
+      stats.steps.map((step) => step.target),
+      ['stats-score', 'stats-partials', 'stats-boxscore']
+    );
+    const copy = stats.steps.map((step) => `${step.title} ${step.body} ${step.example ?? ''}`).join(' ');
+    assert.doesNotMatch(copy, /mapa de tiros|\+\/-|FIBA/i);
+    const boxScore = stats.steps.find((step) => step.target === 'stats-boxscore');
+    assert.match(`${boxScore?.body}`, /planilla/);
+  });
+});
+
 describe('live tour', () => {
   it('walks the Planilla only: no step points to the removed stats console (S15)', () => {
     const targets = getTour('live').steps.map((step) => step.target);

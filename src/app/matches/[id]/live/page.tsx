@@ -88,7 +88,7 @@ function MatchLiveConsoleGate() {
         <EmptyState
           icon={BarChart3}
           title="El partido ya finalizó"
-          description={`${match.ownTeamName} ${own} - ${rival} ${match.rivalTeamName}. Consulta la planilla con el box score y el mapa de tiros.`}
+          description={`${match.ownTeamName} ${own} - ${rival} ${match.rivalTeamName}. Consulta la planilla y el box score del partido.`}
           action={
             <LinkButton href={`/matches/${match.id}/stats`} leftIcon={<BarChart3 size={ICON_SIZE.md} />}>
               Ver planilla

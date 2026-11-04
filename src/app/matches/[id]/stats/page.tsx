@@ -1,31 +1,22 @@
 'use client';
 
-import React, { Suspense, useMemo, useState } from 'react';
+import { Suspense, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import clsx from 'clsx';
-import { BarChart3, CalendarX2, ClipboardList, Radio, Table2, Target } from 'lucide-react';
-import type { Match, Quarter } from '@/core/domain/entities/match.types';
-import type { ShootingStats } from '@/core/domain/rules/basketball-rules';
+import { BarChart3, CalendarX2, ClipboardList, Radio, Table2 } from 'lucide-react';
+import type { Match } from '@/core/domain/entities/match.types';
 import { calculateMatchBoxScore, getQuarterPartials } from '@/core/domain/rules/match-derivations';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { selectChartCatalog, selectRivalRoster } from '@/core/application/stores/club-state';
-import {
-  ALL_SHOTS,
-  calculateShotEffectiveness,
-  selectOwnShots,
-} from '@/core/application/hooks/shot-effectiveness';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
 import { PageHeader } from '@/presentation/molecules/PageHeader/PageHeader';
 import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
 import { SectionCard } from '@/presentation/molecules/SectionCard/SectionCard';
-import { FilterChipGroup } from '@/presentation/molecules/FilterChipGroup/FilterChipGroup';
-import { FilterChip } from '@/presentation/atoms/FilterChip/FilterChip';
 import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
 import { BoxScoreTable } from '@/presentation/organisms/BoxScoreTable/BoxScoreTable';
 import { QuarterPartialsTable } from '@/presentation/organisms/QuarterPartialsTable/QuarterPartialsTable';
 import { ChartSheetTable } from '@/presentation/organisms/ChartSheetTable/ChartSheetTable';
-import { HalfCourtShotChart } from '@/presentation/organisms/HalfCourtShotChart/HalfCourtShotChart';
 import { QUARTER_SHORT_LABELS } from '@/presentation/organisms/ScoreboardHeader/quarter-labels';
 import { MatchStatusBadge } from '@/presentation/organisms/MatchCard/MatchStatusBadge';
 import { OfficialResultBadge } from '@/presentation/organisms/MatchCard/OfficialResultBadge';
@@ -91,27 +82,15 @@ function MatchStatsGate() {
     );
   }
 
-  // Remount (fresh filters) when navigating to another match.
+  // Remount when navigating to another match.
   return <MatchStats key={match.id} match={match} />;
 }
-
-const EffectivenessTile: React.FC<{ label: string; stats: ShootingStats }> = ({ label, stats }) => (
-  <div className={styles.effTile} data-reveal>
-    <span className={styles.effValue}>{stats.percentage}%</span>
-    <span className={styles.effLabel}>{label}</span>
-    <span className={styles.effDetail}>
-      {stats.made}/{stats.attempted}
-    </span>
-  </div>
-);
 
 function MatchStats({ match }: { match: Match }) {
   const players = useClubStore((state) => state.players);
   const chartCatalog = useClubStore(selectChartCatalog);
   // Stable reference: the rival team's players, or one shared empty list (S14).
   const rivalRoster = useClubStore((state) => selectRivalRoster(state, match));
-  const [quarterFilter, setQuarterFilter] = useState<Quarter | typeof ALL_SHOTS>(ALL_SHOTS);
-  const [playerFilter, setPlayerFilter] = useState<string>(ALL_SHOTS);
   // A scheduled match shows a gate without the sheet, so it declares no tour.
   useScreenTour('stats', { enabled: match.status !== 'SCHEDULED' });
 
@@ -132,14 +111,6 @@ function MatchStats({ match }: { match: Match }) {
       }),
     [match.rosterOwnPlayerIds, players, box]
   );
-
-  const shots = useMemo(
-    () => selectOwnShots(match.events, { quarter: quarterFilter, playerId: playerFilter }),
-    [match.events, quarterFilter, playerFilter]
-  );
-  const effectiveness = calculateShotEffectiveness(shots);
-  const unplacedShots = shots.filter((shot) => !shot.coordinates).length;
-  const shooters = boxRows.filter(({ stats }) => stats.fgTotal.attempted > 0);
 
   const header = (
     <PageHeader
@@ -202,7 +173,7 @@ function MatchStats({ match }: { match: Match }) {
             <OfficialResultBadge />
             <p>
               El resultado y los parciales vienen del acta oficial. El partido no tiene jugadas cargadas, por eso la
-              planilla, el box score y el mapa de tiros quedan vacíos.
+              planilla y el box score quedan vacíos.
             </p>
           </div>
         )}
@@ -228,68 +199,13 @@ function MatchStats({ match }: { match: Match }) {
           title="Box score"
           icon={BarChart3}
           data-tour="stats-boxscore"
-          description="Estadísticas FIBA del equipo. El +/- se mide desde el quinteto inicial."
+          description="Puntos de cada convocado según las jugadas de puntos de la planilla: tiros libres, dobles y triples convertidos."
         >
           {boxRows.length === 0 ? (
             <p className={styles.note}>No hay jugadores convocados para este partido.</p>
           ) : (
             <BoxScoreTable playerBoxScores={boxRows} teamTotal={box.teamTotal} />
           )}
-        </SectionCard>
-
-        <SectionCard title="Mapa de tiros" icon={Target} description="Tiros de campo del equipo filtrados por período y jugador.">
-          <div className={styles.shotSection}>
-            <div className={styles.shotFilters} data-tour="stats-filters">
-              <FilterChipGroup label="Período">
-                <FilterChip
-                  label="Todos"
-                  pressed={quarterFilter === ALL_SHOTS}
-                  count={selectOwnShots(match.events, { quarter: ALL_SHOTS, playerId: playerFilter }).length}
-                  onClick={() => setQuarterFilter(ALL_SHOTS)}
-                />
-                {partials.map(({ quarter }) => (
-                  <FilterChip
-                    key={quarter}
-                    label={QUARTER_SHORT_LABELS[quarter]}
-                    pressed={quarterFilter === quarter}
-                    count={selectOwnShots(match.events, { quarter, playerId: playerFilter }).length}
-                    onClick={() => setQuarterFilter(quarter)}
-                  />
-                ))}
-              </FilterChipGroup>
-
-              <FilterChipGroup label="Jugador">
-                <FilterChip label="Todo el equipo" pressed={playerFilter === ALL_SHOTS} onClick={() => setPlayerFilter(ALL_SHOTS)} />
-                {shooters.map(({ player, stats }) => (
-                  <FilterChip
-                    key={player.id}
-                    label={`${player.dorsal} ${player.lastName}`}
-                    pressed={playerFilter === player.id}
-                    count={stats.fgTotal.attempted}
-                    onClick={() => setPlayerFilter(player.id)}
-                  />
-                ))}
-              </FilterChipGroup>
-
-              <div className={styles.effGrid} aria-label="Efectividad por zona">
-                <EffectivenessTile label="Dobles" stats={effectiveness.fg2} />
-                <EffectivenessTile label="Triples" stats={effectiveness.fg3} />
-                <EffectivenessTile label="Total campo" stats={effectiveness.total} />
-              </div>
-
-              {unplacedShots > 0 && (
-                <p className={styles.note}>
-                  {unplacedShots === 1
-                    ? '1 tiro registrado sin ubicación no aparece en el mapa.'
-                    : `${unplacedShots} tiros registrados sin ubicación no aparecen en el mapa.`}
-                </p>
-              )}
-            </div>
-
-            <div className={styles.chartContainer} data-tour="stats-chart">
-              <HalfCourtShotChart events={shots} readOnly />
-            </div>
-          </div>
         </SectionCard>
       </div>
     </TabletAppShell>

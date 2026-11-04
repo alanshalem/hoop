@@ -1,6 +1,6 @@
 # Manual del sistema Hoop · Club Atlético Monte Grande
 
-Hoop es el sistema de básquet del Club Atlético Monte Grande (CAMG). Su núcleo es la planilla táctica que el entrenador carga en vivo durante el partido (ver [Planilla táctica](#2-planilla-táctica-en-vivo)); alrededor de ella están las divisiones, los planteles, el calendario de partidos y las estadísticas FIBA de cada partido (box score, parciales y mapa de tiros). La planilla se carga desde una tablet al borde de la cancha. Este manual describe el sistema tal como está implementado hoy, primero para quien lo usa y después para quien lo mantiene.
+Hoop es el sistema de básquet del Club Atlético Monte Grande (CAMG). Su núcleo es la planilla táctica que el entrenador carga en vivo durante el partido (ver [Planilla táctica](#2-planilla-táctica-en-vivo)); alrededor de ella están las divisiones, los planteles, el calendario de partidos y la página de cada partido (parciales y box score de puntos). La planilla se carga desde una tablet al borde de la cancha. Este manual describe el sistema tal como está implementado hoy, primero para quien lo usa y después para quien lo mantiene.
 
 > Estado de esta versión: local primero con servidor. Cada cambio se guarda al instante en el navegador y se sincroniza con un servidor PostgreSQL cuando hay conexión. El acceso es con correo y contraseña, y los roles se validan en el servidor (ver [Datos, persistencia y sincronización](#8-datos-persistencia-y-sincronización) y [Servidor y base de datos](#9-servidor-y-base-de-datos)).
 
@@ -38,7 +38,7 @@ Hoop es el sistema de básquet del Club Atlético Monte Grande (CAMG). Su núcle
 
 ## 2. Planilla táctica (en vivo)
 
-La planilla táctica es el núcleo de Hoop. Es la planilla de papel "Sistemas" del entrenador llevada a la tablet: durante el partido, en vivo, se anota por qué pasaron las cosas (cómo se perdió cada pelota, por qué se recibió cada canasta, qué tiros se tomaron y cómo defendió el equipo), no solo qué pasó. El marcador, el box score y el mapa de tiros complementan a la planilla, pero no la reemplazan.
+La planilla táctica es el núcleo de Hoop. Es la planilla de papel "Sistemas" del entrenador llevada a la tablet: durante el partido, en vivo, se anota por qué pasaron las cosas (cómo se perdió cada pelota, por qué se recibió cada canasta, qué tiros se tomaron y cómo defendió el equipo), no solo qué pasó. El marcador, los parciales y el box score complementan a la planilla, pero no la reemplazan.
 
 Cada entrada guarda la categoría, el código, el jugador propio (o **Equipo** si la acción no es de un jugador) y, de forma automática, el período y el reloj del partido en ese momento.
 
@@ -172,12 +172,12 @@ El club puede cargar el plantel de cada rival, por división, en la pantalla [Ri
 | Resumen por jugador | Una fila por jugador con entradas y una de **Equipo**: cantidad de **Pérdidas**, **Puntos recibidos** (con los puntos), **Ofensivas**, **Defensivas** y el total de acciones positivas (`+`) y negativas (`−`).                                                                                                                   |
 | Referencias         | Los códigos activos del catálogo del club en cada categoría, con su símbolo y su color. Los archivados no figuran, pero sus entradas viejas siguen en la grilla.                                                                                                                                                                  |
 
-Debajo de la planilla, en la misma página, siguen los parciales por período, el box score y el mapa de tiros.
+Debajo de la planilla, en la misma página, siguen los parciales por período y el box score.
 
 ### Qué no cambia la planilla
 
 - **Excepción: los puntos sí van al marcador.** Una entrada de **Puntos recibidos** suma sus puntos al rival y una **Acción ofensiva** que convirtió los suma al equipo propio, del lado que le toca en el tablero (local a la izquierda, visitante a la derecha). Para eso la entrada registra también la jugada de puntos: 1 = tiro libre convertido, 2 = doble convertido, 3 = triple convertido. La del equipo propio queda a nombre del mismo jugador, así los parciales y el box score coinciden con el marcador. En la consola es la única forma de sumar puntos: la barra de herramientas no suma puntos al rival (ver [Faltas del rival](#faltas-del-rival)).
-- Fuera de los puntos, las entradas de la planilla no cambian las faltas (de jugador ni de equipo), el box score, los tiros, el mapa de tiros ni la analítica de temporada. Anotar **Pase malo** en la planilla no suma una pérdida al box score. La consola no registra rebotes, asistencias, robos, tapas, pérdidas, faltas propias ni tiros con ubicación: en el box score y el mapa de tiros de la página del partido solo figuran las jugadas ya guardadas que los traen (por ejemplo, las de los datos de demostración) y los puntos que suman las entradas.
+- Fuera de los puntos, las entradas de la planilla no cambian las faltas (de jugador ni de equipo), los tiros fallados ni la analítica de temporada. Anotar **Pase malo** en la planilla no suma una pérdida. La consola no registra rebotes, asistencias, robos, tapas, pérdidas, faltas propias ni tiros fallados: por eso el box score de la página del partido muestra solo los puntos y los tiros libres, dobles y triples convertidos que suman las jugadas de puntos de las entradas.
 - El **Deshacer** de la planilla quita la última entrada y, si sumó puntos, también su jugada de puntos. Las demás entradas no se tocan. **Deshacer falta**, en la barra de herramientas, quita solo la última falta del rival y no toca ninguna entrada.
 - Las entradas viajan como jugadas de tipo `CHART`: se guardan al instante en la tablet, se envían con la misma cola de salida y solo se agregan; deshacer una entrada la marca como eliminada en todas las tablets (ver [Sincronización](#sincronización)).
 
@@ -448,12 +448,11 @@ Atajo del botón **Partido en vivo**. Si hay un partido en juego, redirige a su 
 | Resultado             | Marcador propio y rival. Si terminó: Victoria, Derrota o Empate. Si está en juego: estado y período, con acceso a la **Consola en vivo**.                                                                                                                                                    |
 | Planilla              | Planilla táctica cargada en vivo: grilla por categoría y período con totales por mitad y del partido, resumen por jugador y referencias de los códigos (ver [Leer la planilla táctica](#leer-la-planilla-táctica)).                                                                          |
 | Parciales por período | Puntos por cuarto (1C a 4C) más los suplementarios que tuvieron jugadas. En un partido con resultado del acta y sin jugadas de puntos, los cuartos del acta.                                                                                                                               |
-| Box score             | Una fila por convocado y una de totales: PTS, T2, T3, TL, TC (convertidos/intentados y %), REB (ofensivos-defensivos-totales), AST, ROB, TAP, PER, FAL, +/- y VAL (PIR). Los excluidos por faltas llevan el icono `Ban`. La tabla se desplaza en horizontal con la columna del jugador fija. |
-| Mapa de tiros         | Filtros **Período** (Todos o un período) y **Jugador** (Todo el equipo o cada lanzador). Efectividad de dobles, triples y total de campo para el filtro elegido. Una nota indica cuántos tiros se cargaron desde el pad y no tienen ubicación en el mapa.                                    |
+| Box score             | Una fila por convocado (dorsal y jugador) y una de **Totales equipo**: PTS (puntos), TL (tiros libres convertidos), 2P (dobles convertidos) y 3P (triples convertidos). Salen de las jugadas de puntos de la planilla.                                                                       |
 
 Un partido programado muestra "El partido todavía no comenzó".
 
-**Resultado oficial (acta).** Un partido que tiene el resultado del acta oficial y ninguna jugada de puntos (los [importados](#importar-las-actas-oficiales)) muestra el tanteo final y los parciales del acta. Debajo del resultado aparece la marca **Resultado oficial (acta)** con el aviso "El resultado y los parciales vienen del acta oficial. El partido no tiene jugadas cargadas, por eso la planilla, el box score y el mapa de tiros quedan vacíos." No se inventan jugadas. Si después se cargan jugadas de puntos, el marcador vuelve a salir de ellas.
+**Resultado oficial (acta).** Un partido que tiene el resultado del acta oficial y ninguna jugada de puntos (los [importados](#importar-las-actas-oficiales)) muestra el tanteo final y los parciales del acta. Debajo del resultado aparece la marca **Resultado oficial (acta)** con el aviso "El resultado y los parciales vienen del acta oficial. El partido no tiene jugadas cargadas, por eso la planilla y el box score quedan vacíos." No se inventan jugadas. Si después se cargan jugadas de puntos, el marcador vuelve a salir de ellas.
 
 ### Códigos de la planilla (`/planilla`)
 
@@ -630,11 +629,11 @@ Con varias tablets en el mismo partido, cada **Deshacer** quita la última de la
 2. Confirmar en el modal, que muestra el resultado final.
 3. El partido pasa a **Finalizado**, no admite más jugadas y se abre su planilla estadística.
 
-### Leer la planilla y el mapa de tiros
+### Leer la planilla del partido
 
 1. Abrir **Planilla box score** desde Partidos, **Planilla** desde la consola o un resultado del Dashboard.
 2. Revisar la sección **Planilla** (ver [Leer la planilla táctica](#leer-la-planilla-táctica)), los parciales por período y el box score.
-3. En **Mapa de tiros**, combinar los filtros de período y jugador. Los indicadores de dobles, triples y total de campo se actualizan con el filtro.
+3. En el **Box score**, ver los puntos de cada convocado y del equipo, con los tiros libres, dobles y triples convertidos.
 
 ### Editar los códigos de la planilla
 
@@ -667,7 +666,6 @@ También se puede cargar desde el formulario del partido (crear o editar): con l
 | Convocatoria         | Entre 5 y 12 jugadores, exactamente 5 titulares y todos ellos convocados.                                                                                                                                                                                                                 | `lineup-rules.ts`                                                                                                                |
 | Valoración (PIR)     | `(PTS + REB + AST + ROB + TAP) - (tiros de campo fallados + tiros libres fallados + PER + faltas cometidas)`. Cuenta todas las faltas del jugador.                                                                                                                                        | `calculateFibaPir`                                                                                                               |
 | +/-                  | Diferencia de puntos mientras el jugador estuvo en cancha. Parte del quinteto inicial (`startingLineupOwn`) y sigue cada cambio propio en orden.                                                                                                                                          | `calculatePlayerPlusMinus`, `getStartingLineup`                                                                                  |
-| Doble o triple       | Arco de triple a 6,75 m del aro (radio de 235 unidades sobre una media cancha SVG de 500 x 470). En las esquinas, la zona de triple es la franja junto a la línea lateral cerca de la línea de fondo.                                                                                     | `HalfCourtShotChart.tsx` (`isThreePointSpot`)                                                                                    |
 
 Fuente única de verdad: el marcador, las faltas de equipo, los parciales y el box score se derivan siempre de la lista de jugadas del partido (`match-derivations.ts`). Los campos guardados en el partido son una copia que se recalcula en cada cambio. Las entradas de la planilla táctica (`CHART`) no suman puntos ni faltas por sí mismas: cuando una entrada lleva puntos (Puntos recibidos o una acción ofensiva convertida), registra además la jugada de puntos correspondiente, enlazada con `chart.scoreEventId`, y esa jugada es la que suma.
 
@@ -803,7 +801,7 @@ npm run db:import-actas -- --csv <planilla.csv> --pdfs <carpeta> --dry-run   # v
 npm run db:import-actas -- --csv <planilla.csv> --pdfs <carpeta> --yes       # borra y carga
 ```
 
-- En una sola transacción borra todos los registros, jugadas, sesiones y cuentas excepto `admin@camg.com.ar` (su contraseña no cambia; si la cuenta no existe, no se modifica nada), cambia la época de datos del servidor y carga la división, el equipo propio con sus jugadores (licencia, dorsal y nombre como en el acta) y sus entrenadores, los rivales con sus planteles y los partidos finalizados con su [resultado oficial](#planilla-estadística-matchesidstats) (tanteo final y puntos por cuarto). No se cargan jugadas: el box score y el mapa de tiros de esos partidos quedan vacíos.
+- En una sola transacción borra todos los registros, jugadas, sesiones y cuentas excepto `admin@camg.com.ar` (su contraseña no cambia; si la cuenta no existe, no se modifica nada), cambia la época de datos del servidor y carga la división, el equipo propio con sus jugadores (licencia, dorsal y nombre como en el acta) y sus entrenadores, los rivales con sus planteles y los partidos finalizados con su [resultado oficial](#planilla-estadística-matchesidstats) (tanteo final y puntos por cuarto). No se cargan jugadas: la planilla y el box score de esos partidos quedan vacíos.
 - Los navegadores con datos o cambios anteriores los descartan y descargan todo de nuevo; los cambios sin sincronizar se pierden, con un aviso (ver [Sincronización](#sincronización)).
 - La importación falla con la lista completa de problemas si un acta no coincide con la planilla (equipos, tanteo final o cuartos que no suman el final).
 - Las actas y la planilla tienen datos personales: no se guardan en el repositorio.
@@ -886,7 +884,7 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 
 ### Movimiento
 
-- Animaciones con GSAP (`gsap` y `@gsap/react`), sobre `transform` y `opacity`: entrada de páginas, rebote del marcador, luces de faltas, indicador de bonus, marcadores de tiro, entradas de la planilla y modales.
+- Animaciones con GSAP (`gsap` y `@gsap/react`), sobre `transform` y `opacity`: entrada de páginas, rebote del marcador, luces de faltas, indicador de bonus, entradas de la planilla y modales.
 - Con `prefers-reduced-motion: reduce`, las animaciones GSAP no se ejecutan (`useMotion` usa `gsap.matchMedia`) y las transiciones CSS se reducen al mínimo.
 
 ### Tamaños
@@ -965,7 +963,7 @@ public/brand/               escudo del club
 
 1. Agregar el valor a `PlayByPlayEventTypeSchema` y su etiqueta a `PLAY_BY_PLAY_EVENT_LABELS` (`src/core/domain/entities/match.types.ts`).
 2. Si suma puntos o cuenta como falta, actualizar `EVENT_POINTS` o `isFoulEvent` (`src/core/domain/rules/event-rules.ts`).
-3. Si aparece en el box score, contarlo en `calculatePlayerBoxScore` y `calculateTeamBoxScore` (`basketball-rules.ts`).
+3. Si aparece en el box score, contarlo en `calculatePlayerBoxScore` y `calculateTeamBoxScore` (`basketball-rules.ts`) y agregar su columna en `BOX_SCORE_COLUMNS` (`src/presentation/organisms/BoxScoreTable/box-score-columns.ts`).
 4. Exponerlo en la interfaz: botón en la barra de la consola (`ConsoleToolbar.tsx`).
 5. Pruebas en `src/core/domain/rules/*.test.ts` y, si cambia un caso de uso, en `src/core/application/use-cases/match-use-cases.test.ts`.
 6. Si cambia la forma de los datos guardados, subir `CLUB_STORE_VERSION`.
@@ -988,7 +986,7 @@ Un club agrega sus propios códigos desde la pantalla [Códigos de la planilla](
 ### Estrategia de pruebas
 
 - Runner: `node:test` con `node:assert`, ejecutado por `tsx` (`npm test`). Los archivos `*.test.ts` viven junto al código que prueban.
-- Cubren: reglas FIBA (faltas, bonus, PIR, +/-, box score), reloj y períodos, tiempos muertos, convocatoria, permisos, clasificación de jugadas, esquemas, derivación del marcador y parciales, analítica de temporada, casos de uso de club y de partido, estado del store y migración, reducer del reloj, reglas de la consola, efectividad de tiros, planilla táctica (catálogo, carga, deshacer y grilla), integridad e identidad de los datos de demostración.
+- Cubren: reglas FIBA (faltas, bonus, PIR, +/-, box score), reloj y períodos, tiempos muertos, convocatoria, permisos, clasificación de jugadas, esquemas, derivación del marcador y parciales, analítica de temporada, casos de uso de club y de partido, estado del store y migración, reducer del reloj, reglas de la consola, columnas del box score, planilla táctica (catálogo, carga, deshacer y grilla), integridad e identidad de los datos de demostración.
 - Sincronización del cliente: diferencias entre estados, coalescencia de la cola, límites del envío, resultado del envío (aceptado, `STALE`, `FORBIDDEN`, `INVALID`), fusión last-write-wins, eliminaciones, orden de jugadas, primera sincronización, cambios hechos antes de la primera sincronización, cola reaplicada sobre la copia completa, reinicio del cursor, dueño de la cola al cambiar de usuario, motor (debounce, reintentos con espera creciente, 401, sin conexión, SSE), cierre de sesión sin conexión, destino seguro tras el ingreso, adaptador HTTP y textos del indicador.
 - Servidor: hash de contraseñas, sesiones, RBAC, esquemas de la API, reglas de fusión, SSE y, con `npm run test:db`, integración contra PostgreSQL.
 - No cubren: componentes React ni flujos en navegador.
@@ -1000,12 +998,12 @@ Un club agrega sus propios códigos desde la pantalla [Códigos de la planilla](
 
 | Término                          | Significado                                                                                                        |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| PIR / VAL                        | Valoración FIBA (Performance Index Rating). Fórmula en la [sección 7](#7-reglas-fiba-aplicadas).                   |
+| PIR                              | Valoración FIBA (Performance Index Rating). Fórmula en la [sección 7](#7-reglas-fiba-aplicadas).                   |
 | +/-                              | Diferencia de puntos del equipo mientras el jugador estuvo en cancha.                                              |
 | Bonus                            | Situación de penalización del equipo con 4 o más faltas de equipo en el período.                                   |
 | TL                               | Tiro libre (1 punto).                                                                                              |
-| T2                               | Tiro de campo de 2 puntos (doble).                                                                                 |
-| T3                               | Tiro de campo de 3 puntos (triple).                                                                                |
+| 2P / T2                          | Tiro de campo de 2 puntos (doble).                                                                                 |
+| 3P / T3                          | Tiro de campo de 3 puntos (triple).                                                                                |
 | TC                               | Tiros de campo totales (T2 + T3).                                                                                  |
 | REB, AST, ROB, TAP, PER, FAL     | Rebotes, asistencias, robos, tapas, pérdidas y faltas.                                                             |
 | PPG, RPG, APG                    | Puntos, rebotes y asistencias por partido.                                                                         |
