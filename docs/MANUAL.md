@@ -242,7 +242,7 @@ Hay tres roles. Cada usuario tiene uno, asignado en el servidor. Cada pantalla o
 | ---------------------- | -------------------------------------------------------------------------------------- | :-----------: | :------------------: | :------------------: |
 | `MANAGE_DIVISIONS`     | Crear, editar y eliminar divisiones y entrenadores; asignar el cuerpo técnico          |      Sí       |          No          |          No          |
 | `MANAGE_PLAYERS`       | Crear, editar y eliminar jugadores; convocar juveniles a Primera                       |      Sí       |          Sí          |          No          |
-| `MANAGE_MATCHES`       | Crear, editar y eliminar partidos programados; cargar y editar los planteles rivales   |      Sí       |          Sí          |          No          |
+| `MANAGE_MATCHES`       | Crear y editar partidos programados, eliminar partidos programados o finalizados; cargar y editar los planteles rivales   |      Sí       |          Sí          |          No          |
 | `MANAGE_LINEUP`        | Armar convocatoria y quinteto; iniciar el partido                                      |      Sí       |          Sí          |          No          |
 | `RECORD_LIVE`          | Usar la consola en vivo: reloj, períodos, jugadas, cambios, tiempos muertos, finalizar |      Sí       |          Sí          |          Sí          |
 | `MANAGE_CHART_CATALOG` | Editar el catálogo de códigos de la planilla: renombrar, agregar, archivar y restaurar |      Sí       |          Sí          |          No          |
@@ -381,7 +381,7 @@ Acciones de cada tarjeta según su estado:
 | ---------- | ------------------------------------------------------------------------------------ |
 | En vivo    | **Convocatoria** y **Consola en vivo**.                                              |
 | Programado | Editar y eliminar (con `MANAGE_MATCHES`); **Armar quinteto** o **Ver convocatoria**. |
-| Finalizado | **Planilla box score**.                                                              |
+| Finalizado | Eliminar (con `MANAGE_MATCHES`; borra también su planilla, sus jugadas y su resultado); **Planilla box score**. |
 
 Un partido finalizado que solo tiene el resultado del acta oficial (sin jugadas de puntos, por ejemplo los [importados](#importar-las-actas-oficiales)) muestra debajo del marcador la marca **Resultado oficial (acta)**.
 

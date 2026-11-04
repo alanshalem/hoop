@@ -85,9 +85,11 @@ export default function MatchesPage() {
 
   const handleDelete = async (match: Match) => {
     const { date, time } = formatMatchDate(match.date);
+    const playsNote =
+      match.status === 'SCHEDULED' ? '' : ' También se eliminan su planilla, sus jugadas y su resultado.';
     const accepted = await confirm({
       title: 'Eliminar partido',
-      message: `Se eliminará el partido contra ${match.rivalTeamName} del ${date} a las ${time} h. Esta acción no se puede deshacer.`,
+      message: `Se eliminará el partido contra ${match.rivalTeamName} del ${date} a las ${time} h.${playsNote} Esta acción no se puede deshacer.`,
       confirmLabel: 'Eliminar partido',
       tone: 'danger',
     });
@@ -119,14 +121,24 @@ export default function MatchesPage() {
 
     if (match.status === 'FINISHED') {
       return (
-        <LinkButton
-          href={`/matches/${match.id}/stats`}
-          variant="secondary"
-          leftIcon={<BarChart3 size={ICON_SIZE.md} />}
-          data-tour="match-stats"
-        >
-          Planilla box score
-        </LinkButton>
+        <>
+          {canManageMatches && (
+            <IconButton
+              aria-label={`Eliminar partido contra ${match.rivalTeamName}`}
+              variant="danger"
+              icon={<Trash2 size={ICON_SIZE.md} />}
+              onClick={() => handleDelete(match)}
+            />
+          )}
+          <LinkButton
+            href={`/matches/${match.id}/stats`}
+            variant="secondary"
+            leftIcon={<BarChart3 size={ICON_SIZE.md} />}
+            data-tour="match-stats"
+          >
+            Planilla box score
+          </LinkButton>
+        </>
       );
     }
 

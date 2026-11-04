@@ -230,6 +230,23 @@ export async function tombstoneEvents(db: DbExecutor, ids: readonly string[]): P
   return accepted;
 }
 
+/**
+ * Tombstones every live event of the given matches (a deleted match takes its plays with it),
+ * giving each a new seq so pulls deliver the deletion.
+ */
+export async function tombstoneEventsOfMatches(db: DbExecutor, matchIds: readonly string[]): Promise<AcceptedEvent[]> {
+  const accepted: AcceptedEvent[] = [];
+  for (const batch of chunk(matchIds)) {
+    const rows = await db
+      .update(matchEvents)
+      .set({ deleted: true, seq: sql`nextval('sync_seq')` })
+      .where(and(inArray(matchEvents.matchId, batch), eq(matchEvents.deleted, false)))
+      .returning({ id: matchEvents.id, seq: matchEvents.seq });
+    accepted.push(...rows);
+  }
+  return accepted;
+}
+
 /** Up to `limit` records with seq > `since`, in seq order (tombstones included). */
 export async function listRecordsSince(db: DbExecutor, since: number, limit: number): Promise<SyncRecordRow[]> {
   return db.select().from(syncRecords).where(gt(syncRecords.seq, since)).orderBy(asc(syncRecords.seq)).limit(limit);

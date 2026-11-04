@@ -122,6 +122,27 @@ describe('sync push / pull (database)', () => {
     await connection.pool.end();
   });
 
+  it('deleting a match also deletes its plays, so none stay orphaned on the server', async () => {
+    const matchId = await createMatch();
+    const keptMatchId = await createMatch();
+    const [e1, e2, kept] = [uid('ev'), uid('ev'), uid('ev')];
+    await push(ADMIN, body([], [eventInput(e1, matchId), eventInput(e2, matchId), eventInput(kept, keptMatchId)]));
+    const cursorBefore = await readCurrentCursor(connection.db);
+
+    const result = await push(ADMIN, body([matchRecord(matchId, at(30), {}, true)]));
+    assert.deepStrictEqual(result.accepted, [matchId]);
+    assert.strictEqual((await storedRecord('match', matchId)).deleted, true);
+    assert.strictEqual((await storedEvent(e1)).deleted, true);
+    assert.strictEqual((await storedEvent(e2)).deleted, true);
+    assert.strictEqual((await storedEvent(kept)).deleted, false, 'plays of other matches are untouched');
+
+    const pulled = await pullChanges(connection.db, Number(cursorBefore));
+    assert.deepStrictEqual(
+      pulled.events.filter((event) => event.matchId === matchId).map((event) => [event.id, event.deleted]).sort(),
+      [[e1, true], [e2, true]].sort()
+    );
+  });
+
   it('accepts a new record and pulls it back once, advancing the cursor', async () => {
     const id = uid('player');
     const start = await readCurrentCursor(connection.db);

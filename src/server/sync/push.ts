@@ -26,6 +26,7 @@ import {
   readCurrentCursor,
   replaceRecordAtSeq,
   tombstoneEvents,
+  tombstoneEventsOfMatches,
   upsertRecordsLww,
   type AcceptedRecord,
   type EventWrite,
@@ -169,8 +170,14 @@ export async function applyPush(
       else reject(id, 'STALE');
     }
 
+    // A deleted match takes its plays with it, so none stay orphaned on the server.
+    const deletedMatchIds = recordWrites
+      .filter((write) => write.kind === 'match' && write.deleted && writtenRecords.has(recordKey(write.kind, write.id)))
+      .map((write) => write.id);
+    const cascadedEvents = await tombstoneEventsOfMatches(tx, deletedMatchIds);
+
     const cursor = await readCurrentCursor(tx);
-    if (writtenRecords.size + writtenEvents.size > 0) await notifySyncChanged(tx, cursor);
+    if (writtenRecords.size + writtenEvents.size + cascadedEvents.length > 0) await notifySyncChanged(tx, cursor);
     return { ok: true, value: { accepted, rejected, cursor } };
   });
 }
