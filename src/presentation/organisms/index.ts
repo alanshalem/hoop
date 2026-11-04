@@ -5,7 +5,6 @@ export * from './SyncStatusIndicator/SyncStatusIndicator';
 export * from './SyncStatusIndicator/sync-status-view';
 export * from './PlayerFormModal/PlayerFormModal';
 export * from './ScoreboardHeader/ScoreboardHeader';
-export * from './HalfCourtShotChart/HalfCourtShotChart';
 export * from './BoxScoreTable/BoxScoreTable';
 export * from './ClubHero/ClubHero';
 export * from './ChartSheetTable/ChartSheetTable';

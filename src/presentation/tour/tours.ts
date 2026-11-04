@@ -220,7 +220,7 @@ const MATCHES: TourDefinition = {
     {
       target: 'match-stats',
       title: 'Planilla',
-      body: 'Al finalizar, el box score FIBA, los parciales y el mapa de tiros.',
+      body: 'Al finalizar, la planilla con los parciales y el box score.',
     },
   ],
 };
@@ -328,18 +328,8 @@ const STATS: TourDefinition = {
     {
       target: 'stats-boxscore',
       title: 'Box score',
-      body: 'Estadísticas FIBA por jugador y del equipo. El +/- se mide desde el quinteto inicial.',
-    },
-    {
-      target: 'stats-filters',
-      title: 'Filtros del mapa de tiros',
-      body: 'Filtra los tiros por período y por jugador y mira la efectividad en dobles, triples y total.',
-      example: 'Ejemplo: elige "7 Campagna" y "Q4" para ver sus tiros del último cuarto.',
-    },
-    {
-      target: 'stats-chart',
-      title: 'Mapa de tiros',
-      body: 'Cada punto es un tiro de campo: convertidos y fallados en la media cancha.',
+      body: 'Puntos de cada convocado y del equipo, con los tiros libres, dobles y triples convertidos que suman las jugadas de puntos de la planilla.',
+      example: 'Ejemplo: un triple convertido cargado en la planilla suma 3 PTS y 1 en 3P.',
     },
   ],
 };
