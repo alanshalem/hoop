@@ -332,3 +332,21 @@ describe('formatActaImportSummary', () => {
     assert.match(text, /Names completed from the reports:\n {2}Atlético Ficticio: 203 NUEVO, -> NUEVO, Y\. \(match 900003\)/);
   });
 });
+
+describe('parseActaReportText label offset (S2, S3)', () => {
+  it('reads quarter pairs in reading order when pdftotext offsets the Cuarto labels', () => {
+    const text = [
+      'Equipo A: CLUB ALFA                Equipo B: CLUB ATLETICO MONTE GRANDE LM',
+      'Partido nº: 900001 Localidad: Estadio Ficticio',
+      'Anotador: X          Tanteos: Cuarto 1      A: 22     B: 12',
+      'Ayudante Anotador: Y                        A: 14     B: 15',
+      'Cronometrador: Z     Cuarto 2               A: 7      B: 31',
+      'Operador 24": W      Cuarto 3               A: 19     B: 13',
+      '                     Cuarto 4               A: --     B: --',
+      'Arb. auxiliar 1:   Tanteo final:   Equipo A: 62     Equipo B: 71',
+    ].join('\n');
+    const report = parseActaReportText(text);
+    assert.deepStrictEqual(report.periods, [{ a: 22, b: 12 }, { a: 14, b: 15 }, { a: 7, b: 31 }, { a: 19, b: 13 }]);
+    assert.deepStrictEqual([report.finalA, report.finalB], [62, 71]);
+  });
+});

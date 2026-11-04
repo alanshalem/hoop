@@ -6,6 +6,7 @@ import type { DatabaseConnection } from '../db/client';
 import { matchEvents, sessions, syncRecords, users } from '../db/schema';
 import { seedDatabase } from '../db/seed';
 import { readDataEpoch } from '../sync/epoch';
+import { applyPush } from '../sync/push';
 import { createSyncChangeListener, type SyncChangeListener } from '../sync/listener';
 import { pullChanges } from '../sync/pull';
 import { readCurrentCursor } from '../sync/repository';
@@ -88,6 +89,20 @@ describe('acta wipe + import (database, S1, S2)', () => {
       before
     );
     assert.strictEqual(await readDataEpoch(connection.db), epoch);
+  });
+
+  it('never keeps a push of the old epoch that races the wipe (S1)', async () => {
+    await restoreDemoSeed();
+    const old = await readDataEpoch(connection.db);
+    const id = 'acta-test-race-player';
+    const record = { kind: 'player' as const, id, data: { ...data.players[0], id }, updatedAt: NOW, deleted: false };
+    await Promise.all([
+      applyPush(connection.db, { role: 'ADMIN' }, { records: [record], events: [], epoch: old }, NOW),
+      wipeAndImportActas(connection.db, data, { now: NOW }),
+    ]);
+    const rows = await connection.db.select().from(syncRecords).where(eq(syncRecords.id, id));
+    assert.strictEqual(rows.length, 0, 'a push of the old epoch either lands before the wipe (and is wiped) or is refused');
+    await restoreDemoSeed();
   });
 
   it('keeps only the admin, wipes records, events and sessions, rotates the epoch and inserts the reports', async () => {
