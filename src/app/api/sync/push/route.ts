@@ -12,8 +12,11 @@ import { applyPush } from '@/server/sync/push';
 
 /**
  * POST /api/sync/push
- *   { records: [{ kind, id, data, updatedAt, deleted, fieldVersions? }], events: [{ id, matchId, data, deleted }] }
+ *   { records: [{ kind, id, data, updatedAt, deleted, fieldVersions? }], events: [{ id, matchId, data, deleted }],
+ *     epoch: string }
  *   -> 200 { accepted: string[], rejected: [{ id, reason: 'INVALID' | 'FORBIDDEN' | 'STALE' }], cursor: string }
+ *   -> 409 { error, reason: 'EPOCH_MISMATCH' } when `epoch` (the data epoch of the last pull) is missing or
+ *      not the current one: the server data was replaced, nothing is written and the client reloads a snapshot.
  * Live match records merge field by field with `fieldVersions` (field or group -> ISO
  * time; `game-state` versions status, quarter and clock together, and legacy per-field
  * versions of a group fold into it; omitted = every field at `updatedAt`); other
@@ -43,7 +46,9 @@ export async function POST(request: Request): Promise<Response> {
       return jsonError(parsed.status, parsed.status === 413 ? SYNC_MESSAGES.payloadTooLarge : SYNC_MESSAGES.invalidBody);
     }
 
-    return jsonOk(await applyPush(getDb(), user, parsed.value));
+    const outcome = await applyPush(getDb(), user, parsed.value);
+    if (!outcome.ok) return jsonError(409, SYNC_MESSAGES.epochMismatch, outcome.reason);
+    return jsonOk(outcome.value);
   } catch (error) {
     unstable_rethrow(error);
     logServerError('sync/push', error);

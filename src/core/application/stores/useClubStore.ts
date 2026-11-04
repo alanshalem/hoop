@@ -45,7 +45,7 @@ import type {
   UndoChartReason,
   UndoRivalFoulReason,
 } from '@/core/application/use-cases/match-use-cases';
-import { CLUB_PROFILE } from '@/core/infrastructure/mocks/seed-data';
+import { CLUB_PROFILE } from '@/core/infrastructure/club-profile';
 import { reconcileSelection } from '@/core/application/sync/pull-merge';
 import type { SyncableClubData } from '@/core/application/sync/sync-types';
 import {

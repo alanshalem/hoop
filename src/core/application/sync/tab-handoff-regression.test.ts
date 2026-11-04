@@ -35,7 +35,7 @@ function browser(initial: SyncableClubData, owner = 'u1') {
       if (writable) persistedClub = next;
       clubListeners.forEach((l) => l());
     };
-    let store: SyncStoreData = { owner: { id: owner, name: owner }, cursor: '1', versions: {}, outbox: createEmptyOutbox(), lastSyncedAt: null, status: 'idle', lastError: null };
+    let store: SyncStoreData = { owner: { id: owner, name: owner }, cursor: '1', versions: {}, outbox: createEmptyOutbox(), lastSyncedAt: null, status: 'idle', lastError: null, epoch: 'epoch-1' };
     const storeListeners = new Set<() => void>();
     const club = {
       getData: () => data,

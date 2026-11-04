@@ -5,4 +5,6 @@ export const SYNC_MESSAGES = {
   invalidBody: 'Los cambios enviados no tienen un formato válido.',
   payloadTooLarge: 'Demasiados cambios en un solo envío. Envíalos en partes más pequeñas.',
   invalidCursor: 'El cursor de sincronización no es válido.',
+  epochMismatch:
+    'Los datos del servidor se reemplazaron. Los cambios de este dispositivo no se guardaron; vuelve a cargar los datos.',
 } as const;

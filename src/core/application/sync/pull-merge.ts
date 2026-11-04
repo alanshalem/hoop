@@ -187,6 +187,11 @@ function applyRecord(collections: Collections, record: SyncRecord, touchedMatche
   }
 }
 
+/** Club data without any synced record. */
+export function createEmptyClubData(): SyncableClubData {
+  return { divisions: [], teams: [], players: [], matches: [], chartCodes: [], rivalTeams: [], coaches: [] };
+}
+
 /**
  * Full sync (first sync of a device, or after a server reset): the server
  * snapshot replaces the local data, then every pending local change is
@@ -196,8 +201,7 @@ function applyRecord(collections: Collections, record: SyncRecord, touchedMatche
  * newer or equal version of is dropped, exactly as in an incremental pull.
  */
 export function applyServerSnapshot(pulled: PulledChanges, outbox: Outbox = createEmptyOutbox()): MergeState {
-  const empty: SyncableClubData = { divisions: [], teams: [], players: [], matches: [], chartCodes: [], rivalTeams: [], coaches: [] };
-  const merged = mergePulledChanges({ data: empty, versions: {}, outbox }, pulled);
+  const merged = mergePulledChanges({ data: createEmptyClubData(), versions: {}, outbox }, pulled);
   return reapplyOutbox(merged);
 }
 

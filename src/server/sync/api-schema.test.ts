@@ -30,6 +30,12 @@ describe('push body schema', () => {
     assert.deepStrictEqual(parsePushBody({}), { ok: true, value: { records: [], events: [] } });
   });
 
+  it('keeps the data epoch of the push; a missing one is refused later by the push (S1, L5)', () => {
+    assert.deepStrictEqual(parsePushBody({ epoch: 'epoch-1' }), { ok: true, value: { records: [], events: [], epoch: 'epoch-1' } });
+    assert.deepStrictEqual(parsePushBody({ epoch: '' }), { ok: false, status: 400 });
+    assert.deepStrictEqual(parsePushBody({ epoch: 5 }), { ok: false, status: 400 });
+  });
+
   it('parses match field versions: known fields only, normalized to UTC (S13.1)', () => {
     const record = {
       ...RECORD,

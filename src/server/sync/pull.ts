@@ -1,5 +1,6 @@
 import 'server-only';
 import type { Database } from '../db/client';
+import { readDataEpoch } from './epoch';
 import type { SyncRecordKind } from './record-kinds';
 import { listEventsSince, listRecordsSince } from './repository';
 
@@ -30,16 +31,20 @@ export interface PullResult {
   cursor: string;
   /** More changes remain after `cursor`: pull again with `since=cursor`. */
   hasMore: boolean;
+  /** Data epoch of this page (S1, L5); pushes must send it back. */
+  epoch: string;
 }
 
 /**
  * Everything (records and events, tombstones included) with seq > `since`,
- * in seq order, at most `limit` items per page. Both tables are read in one
- * repeatable-read snapshot so a concurrent commit cannot fall between them.
+ * in seq order, at most `limit` items per page, with the data epoch. Both
+ * tables and the epoch are read in one repeatable-read snapshot so a concurrent
+ * commit cannot fall between them.
  */
 export async function pullChanges(db: Database, since: number, limit: number = PULL_PAGE_SIZE): Promise<PullResult> {
-  const [recordRows, eventRows] = await db.transaction(
-    (tx) => Promise.all([listRecordsSince(tx, since, limit + 1), listEventsSince(tx, since, limit + 1)]),
+  const [recordRows, eventRows, epoch] = await db.transaction(
+    (tx) =>
+      Promise.all([listRecordsSince(tx, since, limit + 1), listEventsSince(tx, since, limit + 1), readDataEpoch(tx)]),
     { isolationLevel: 'repeatable read', accessMode: 'read only' }
   );
 
@@ -67,5 +72,6 @@ export async function pullChanges(db: Database, since: number, limit: number = P
     events,
     cursor: String(page.at(-1)?.seq ?? since),
     hasMore: merged.length > limit,
+    epoch,
   };
 }

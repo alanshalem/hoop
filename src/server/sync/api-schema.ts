@@ -51,6 +51,8 @@ export type PushEventInput = z.output<typeof PushEventSchema>;
 export const PushBodySchema = z.object({
   records: z.array(PushRecordSchema).max(MAX_PUSH_RECORDS).default([]),
   events: z.array(PushEventSchema).max(MAX_PUSH_EVENTS).default([]),
+  /** Data epoch of the last pull (S1, L5); a missing or old epoch refuses the whole push. */
+  epoch: z.string().min(1).max(200).optional(),
 });
 export type PushBody = z.output<typeof PushBodySchema>;
 

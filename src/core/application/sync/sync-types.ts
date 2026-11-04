@@ -128,9 +128,15 @@ export interface PulledChanges {
 export interface PullPage extends PulledChanges {
   cursor: string;
   hasMore: boolean;
+  /**
+   * Server data epoch (S1, L5): changes when the server data is replaced. Local
+   * data, cursor and outbox of another epoch are dropped, never pushed.
+   */
+  epoch: string;
 }
 
-export type ApiError = 'UNAUTHORIZED' | 'NETWORK' | 'HTTP' | 'INVALID_RESPONSE';
+/** `EPOCH_MISMATCH`: the push was refused because the server data was replaced (409). */
+export type ApiError = 'UNAUTHORIZED' | 'NETWORK' | 'HTTP' | 'INVALID_RESPONSE' | 'EPOCH_MISMATCH';
 
 export type ApiResult<T> =
   | { ok: true; value: T }
@@ -138,7 +144,8 @@ export type ApiResult<T> =
 
 /** Port implemented by the HTTP adapter (src/core/infrastructure/sync-api). */
 export interface SyncApi {
-  push(payload: PushPayload): Promise<ApiResult<PushResult>>;
+  /** `epoch`: the data epoch the pushed changes were made in (see `PullPage.epoch`). */
+  push(payload: PushPayload, epoch: string): Promise<ApiResult<PushResult>>;
   /** `since: null` asks for the full snapshot. */
   pull(since: string | null): Promise<ApiResult<PullPage>>;
 }
@@ -164,6 +171,8 @@ export interface SyncPersistedData {
   versions: VersionMap;
   outbox: Outbox;
   lastSyncedAt: string | null;
+  /** Server data epoch of `cursor`, `versions` and `outbox`; `null` until the first pull. */
+  epoch: string | null;
 }
 
 export interface SyncStoreData extends SyncPersistedData {

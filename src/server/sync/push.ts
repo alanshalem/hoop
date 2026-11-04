@@ -3,6 +3,7 @@ import type { UserRole } from '@/core/domain/entities/club.types';
 import { authorizeWrite } from '../auth/authorize';
 import type { Database } from '../db/client';
 import type { PushBody } from './api-schema';
+import { readDataEpoch } from './epoch';
 import {
   decideEventWrite,
   decideRecordWrite,
@@ -40,7 +41,15 @@ export interface PushResult {
 }
 
 /**
- * Applies one push in a single transaction. Each item is checked in order:
+ * `EPOCH_MISMATCH`: the push was made in another data epoch (missing or old),
+ * so nothing was written (S1, L5).
+ */
+export type PushOutcome = { ok: true; value: PushResult } | { ok: false; reason: 'EPOCH_MISMATCH' };
+
+/**
+ * Applies one push in a single transaction. Under the write lock, a push whose
+ * `epoch` is not the current data epoch is refused whole (nothing is written).
+ * Then each item is checked in order:
  * domain schema and, for records, an `updatedAt` at most 5 minutes ahead of
  * `now` and no field version after it (INVALID); for events, a match that is
  * stored live or accepted earlier in this batch (INVALID, S13.2); role
@@ -53,7 +62,7 @@ export async function applyPush(
   user: { role: UserRole },
   body: PushBody,
   now: Date = new Date()
-): Promise<PushResult> {
+): Promise<PushOutcome> {
   // Schema validation needs no database, so it runs before the write lock is taken.
   const records = dedupeRecords(body.records).map((input) => ({
     input,
@@ -68,8 +77,10 @@ export async function applyPush(
     parsed: parseEventData(input.id, input.matchId, input.data),
   }));
 
-  return db.transaction(async (tx) => {
+  return db.transaction(async (tx): Promise<PushOutcome> => {
     await lockSyncWrites(tx);
+    // Read under the lock: a data replacement that committed first is always seen.
+    if (body.epoch !== (await readDataEpoch(tx))) return { ok: false, reason: 'EPOCH_MISMATCH' };
     const accepted: string[] = [];
     const rejected: PushResult['rejected'] = [];
     const reject = (id: string, reason: RejectReason) => rejected.push({ id, reason });
@@ -160,6 +171,6 @@ export async function applyPush(
 
     const cursor = await readCurrentCursor(tx);
     if (writtenRecords.size + writtenEvents.size > 0) await notifySyncChanged(tx, cursor);
-    return { accepted, rejected, cursor };
+    return { ok: true, value: { accepted, rejected, cursor } };
   });
 }

@@ -4,8 +4,7 @@ import type { UserRole } from '@/core/domain/entities/club.types';
 import { createSeedState } from '@/core/infrastructure/mocks/seed-data';
 import { hashPassword, needsRehash, verifyPassword } from '../auth/password';
 import { normalizeEmail } from '../auth/users';
-import type { SyncRecordKind } from '../sync/record-kinds';
-import { parseEventData, parseRecordData } from '../sync/records';
+import { parseEventData, validRecordWrite } from '../sync/records';
 import {
   insertEventsIfNew,
   insertRecordsIfNew,
@@ -28,12 +27,6 @@ export interface SeedSummary {
   accounts: { email: string; name: string; role: UserRole }[];
   recordsInserted: number;
   eventsInserted: number;
-}
-
-function validRecord(kind: SyncRecordKind, entity: { id: string }, now: Date): RecordWrite {
-  const parsed = parseRecordData(kind, entity.id, entity);
-  if (!parsed.ok) throw new Error(`Seed ${kind} ${entity.id} is invalid: ${parsed.reason}`);
-  return { kind, id: entity.id, data: parsed.value, updatedAt: now, deleted: false, fieldVersions: null };
 }
 
 /**
@@ -74,11 +67,11 @@ export async function seedDatabase(db: Database, { now, demoPassword }: SeedOpti
   );
 
   const records: RecordWrite[] = [
-    ...seed.divisions.map((division) => validRecord('division', division, now)),
-    ...seed.teams.map((team) => validRecord('team', team, now)),
-    ...seed.players.map((player) => validRecord('player', player, now)),
-    ...seed.matches.map((match) => validRecord('match', match, now)),
-    ...seed.rivalTeams.map((team) => validRecord('rivalTeam', team, now)),
+    ...seed.divisions.map((division) => validRecordWrite('division', division, now)),
+    ...seed.teams.map((team) => validRecordWrite('team', team, now)),
+    ...seed.players.map((player) => validRecordWrite('player', player, now)),
+    ...seed.matches.map((match) => validRecordWrite('match', match, now)),
+    ...seed.rivalTeams.map((team) => validRecordWrite('rivalTeam', team, now)),
   ];
 
   const events: EventWrite[] = seed.matches.flatMap((match) =>

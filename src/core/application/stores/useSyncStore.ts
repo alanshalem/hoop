@@ -4,8 +4,11 @@ import { createEmptyOutbox } from '@/core/application/sync/outbox';
 import type { SyncPersistedData, SyncStoreData } from '@/core/application/sync/sync-types';
 import { gatedLocalStorage, SYNC_STORAGE_KEY } from './persistence-gate';
 
-/** Bump when the persisted sync shape changes; older storage restarts with a full resync. */
-export const SYNC_STORE_VERSION = 2;
+/**
+ * Bump when the persisted sync shape changes; older storage restarts with a full resync.
+ * v3: data epoch (S1, L5); older outboxes belong to replaced server data and are dropped.
+ */
+export const SYNC_STORE_VERSION = 3;
 
 export function createInitialSyncData(): SyncStoreData {
   return {
@@ -14,9 +17,21 @@ export function createInitialSyncData(): SyncStoreData {
     versions: {},
     outbox: createEmptyOutbox(),
     lastSyncedAt: null,
+    epoch: null,
     status: 'idle',
     lastError: null,
   };
+}
+
+/**
+ * Persist migration: storage of any older version restarts empty (no owner,
+ * cursor, versions or outbox), so changes made on replaced server data are
+ * never pushed; the next sync pulls a full snapshot.
+ */
+export function migrateSyncStore(persisted: unknown, version: number): SyncPersistedData {
+  if (version === SYNC_STORE_VERSION) return persisted as SyncPersistedData;
+  const { owner, cursor, versions, outbox, lastSyncedAt, epoch } = createInitialSyncData();
+  return { owner, cursor, versions, outbox, lastSyncedAt, epoch };
 }
 
 export interface SyncStoreState extends SyncStoreData {
@@ -42,15 +57,10 @@ export const useSyncStore = create<SyncStoreState>()(
         versions: state.versions,
         outbox: state.outbox,
         lastSyncedAt: state.lastSyncedAt,
+        epoch: state.epoch,
       }),
       // A cursor-less store does a full resync: the server snapshot replaces local data.
-      // Version 1 had no owner: its outbox is claimed by the next user who logs in.
-      migrate: (persisted, version): SyncPersistedData => {
-        if (version === SYNC_STORE_VERSION) return persisted as SyncPersistedData;
-        if (version === 1) return { ...(persisted as Omit<SyncPersistedData, 'owner'>), owner: null };
-        const { owner, cursor, versions, outbox, lastSyncedAt } = createInitialSyncData();
-        return { owner, cursor, versions, outbox, lastSyncedAt };
-      },
+      migrate: migrateSyncStore,
     }
   )
 );

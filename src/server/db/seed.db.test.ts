@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { createSeedState } from '@/core/infrastructure/mocks/seed-data';
 import { authenticateUser } from '../auth/authenticate';
+import { readDataEpoch } from '../sync/epoch';
 import { applyPush } from '../sync/push';
 import { openTestDatabase } from '../testing/test-database';
 import type { DatabaseConnection } from './client';
@@ -87,9 +88,14 @@ describe('database seed', () => {
       const result = await applyPush(
         connection.db,
         { role: 'ADMIN' },
-        { records: [{ kind: 'division', id: division.id, data: { ...division, name: renamed }, updatedAt: deletedAt, deleted: true }], events: [] }
+        {
+          records: [{ kind: 'division', id: division.id, data: { ...division, name: renamed }, updatedAt: deletedAt, deleted: true }],
+          events: [],
+          epoch: await readDataEpoch(connection.db),
+        }
       );
-      assert.deepStrictEqual(result.accepted, [division.id]);
+      assert.ok(result.ok);
+      assert.deepStrictEqual(result.value.accepted, [division.id]);
       const tombstone = await storedDivision();
 
       const later = await seedDatabase(connection.db, {

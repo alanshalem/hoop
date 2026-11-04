@@ -1,6 +1,12 @@
 import type { AuthApi } from '@/core/application/auth/auth-session';
 import type { ApiResult, SyncApi } from '@/core/application/sync/sync-types';
-import { parseAuthUser, parseErrorMessage, parsePullPage, parsePushResult } from './sync-api-schemas';
+import {
+  parseAuthUser,
+  parseErrorMessage,
+  parsePullPage,
+  parsePushResult,
+  parseRejectionReason,
+} from './sync-api-schemas';
 
 /**
  * =============================================================================
@@ -43,6 +49,9 @@ async function request<T>(
   if (response.status === 401) {
     return { ok: false, error: 'UNAUTHORIZED', status: 401, message: parseErrorMessage(body) };
   }
+  if (response.status === 409 && parseRejectionReason(body) === 'EPOCH_MISMATCH') {
+    return { ok: false, error: 'EPOCH_MISMATCH', status: 409, message: parseErrorMessage(body) };
+  }
   if (!response.ok) {
     return { ok: false, error: 'HTTP', status: response.status, message: parseErrorMessage(body) };
   }
@@ -58,7 +67,7 @@ const postJson = (body: unknown): RequestInit => ({
 
 export function createHttpSyncApi(fetchImpl: typeof fetch = (...args) => fetch(...args)): SyncApi {
   return {
-    push: (payload) => request(fetchImpl, '/api/sync/push', postJson(payload), parsePushResult),
+    push: (payload, epoch) => request(fetchImpl, '/api/sync/push', postJson({ ...payload, epoch }), parsePushResult),
     pull: (since) =>
       request(
         fetchImpl,

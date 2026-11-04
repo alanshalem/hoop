@@ -6,14 +6,15 @@ import { chartCodeRecordId } from '@/core/domain/entities/chart.types';
 import type { UserRole } from '@/core/domain/entities/club.types';
 import { resolveFieldVersions } from '@/core/application/sync/match-fields';
 import { createSeedState } from '@/core/infrastructure/mocks/seed-data';
-import type { DatabaseConnection } from '../db/client';
+import type { Database, DatabaseConnection } from '../db/client';
 import { matchEvents, syncRecords } from '../db/schema';
 import { openTestDatabase } from '../testing/test-database';
 import type { PushBody, PushEventInput, PushRecordInput } from './api-schema';
+import { readDataEpoch, rotateDataEpoch } from './epoch';
 import { createSyncChangeListener, SYNC_CHANNEL, type SyncChangeListener } from './listener';
 import { pullChanges } from './pull';
-import { applyPush } from './push';
-import { readCurrentCursor } from './repository';
+import { applyPush, type PushResult } from './push';
+import { lockSyncWrites, readCurrentCursor } from './repository';
 
 const ADMIN = { role: 'ADMIN' as UserRole };
 const COACH = { role: 'HEAD_COACH' as UserRole };
@@ -69,6 +70,13 @@ function body(records: PushRecordInput[] = [], events: PushEventInput[] = []): P
   return { records, events };
 }
 
+/** Pushes in the current data epoch (the epoch check has its own tests below). */
+async function pushInCurrentEpoch(db: Database, user: { role: UserRole }, payload: PushBody): Promise<PushResult> {
+  const outcome = await applyPush(db, user, { ...payload, epoch: await readDataEpoch(db) });
+  if (!outcome.ok) throw new Error(`push refused: ${outcome.reason}`);
+  return outcome.value;
+}
+
 describe('sync push / pull (database)', () => {
   let connection: DatabaseConnection;
   const createdRecordIds: string[] = [];
@@ -77,7 +85,7 @@ describe('sync push / pull (database)', () => {
   const push = async (user: { role: UserRole }, payload: PushBody) => {
     createdRecordIds.push(...payload.records.map((record) => record.id));
     createdEventIds.push(...payload.events.map((event) => event.id));
-    return applyPush(connection.db, user, payload);
+    return pushInCurrentEpoch(connection.db, user, payload);
   };
 
   const storedRecord = async (kind: 'player' | 'match' | 'division' | 'chartCode' | 'rivalTeam' | 'coach', id: string) => {
@@ -142,7 +150,53 @@ describe('sync push / pull (database)', () => {
       events: [],
       cursor: pulled.cursor,
       hasMore: false,
+      epoch: await readDataEpoch(connection.db),
     });
+  });
+
+  it('returns the data epoch with every pull (S1, L5)', async () => {
+    const epoch = await readDataEpoch(connection.db);
+    assert.match(epoch, /^\S+$/);
+    assert.strictEqual((await pullChanges(connection.db, 0, 1)).epoch, epoch);
+    assert.strictEqual((await pullChanges(connection.db, Number(await readCurrentCursor(connection.db)))).epoch, epoch);
+  });
+
+  it('refuses a push without the data epoch or with another one, writing nothing (S1, L5)', async () => {
+    const id = uid('epoch');
+    createdRecordIds.push(id);
+    const cursor = await readCurrentCursor(connection.db);
+    const record = playerRecord(id, at(1));
+
+    assert.deepStrictEqual(await applyPush(connection.db, ADMIN, body([record])), { ok: false, reason: 'EPOCH_MISMATCH' });
+    assert.deepStrictEqual(await applyPush(connection.db, ADMIN, { ...body([record]), epoch: 'another-epoch' }), {
+      ok: false,
+      reason: 'EPOCH_MISMATCH',
+    });
+    assert.strictEqual(await storedRecord('player', id), undefined);
+    assert.strictEqual(await readCurrentCursor(connection.db), cursor);
+
+    const accepted = await applyPush(connection.db, ADMIN, { ...body([record]), epoch: await readDataEpoch(connection.db) });
+    assert.ok(accepted.ok);
+    assert.deepStrictEqual(accepted.value.accepted, [id]);
+  });
+
+  it('refuses pushes made in the previous epoch once the epoch rotates (S1, L5)', async () => {
+    const previous = await readDataEpoch(connection.db);
+    const rotated = await connection.db.transaction(async (tx) => {
+      await lockSyncWrites(tx);
+      return rotateDataEpoch(tx);
+    });
+    assert.notStrictEqual(rotated, previous);
+    assert.strictEqual(await readDataEpoch(connection.db), rotated);
+    assert.strictEqual((await pullChanges(connection.db, 0, 1)).epoch, rotated);
+
+    const id = uid('epoch');
+    createdRecordIds.push(id);
+    assert.deepStrictEqual(await applyPush(connection.db, ADMIN, { ...body([playerRecord(id, at(1))]), epoch: previous }), {
+      ok: false,
+      reason: 'EPOCH_MISMATCH',
+    });
+    assert.strictEqual(await storedRecord('player', id), undefined);
   });
 
   it('returns everything (including seed data) on a full snapshot from 0', async () => {
@@ -538,7 +592,7 @@ describe('field-level merge of match records (database, S13.1)', () => {
 
   const push = async (payload: PushBody) => {
     createdRecordIds.push(...payload.records.map((record) => record.id));
-    return applyPush(connection.db, ADMIN, payload);
+    return pushInCurrentEpoch(connection.db, ADMIN, payload);
   };
 
   /** A device push: the whole record, with only `fields` stamped at `minute`. */
@@ -707,7 +761,7 @@ describe('sync change notifications (database)', () => {
     await listener.ready();
     const id = uid('notify');
     createdRecordIds.push(id);
-    const result = await applyPush(connection.db, ADMIN, body([playerRecord(id, at(1))]));
+    const result = await pushInCurrentEpoch(connection.db, ADMIN, body([playerRecord(id, at(1))]));
     assert.strictEqual(await waiting.cursor, result.cursor);
   });
 
@@ -716,12 +770,12 @@ describe('sync change notifications (database)', () => {
     createdRecordIds.push(id);
     const setup = nextCursor();
     await listener.ready();
-    const created = await applyPush(connection.db, ADMIN, body([playerRecord(id, at(2))]));
+    const created = await pushInCurrentEpoch(connection.db, ADMIN, body([playerRecord(id, at(2))]));
     assert.strictEqual(await setup.cursor, created.cursor);
 
     const waiting = nextCursor(400);
     await listener.ready();
-    const stale = await applyPush(connection.db, ADMIN, body([playerRecord(id, at(2))]));
+    const stale = await pushInCurrentEpoch(connection.db, ADMIN, body([playerRecord(id, at(2))]));
     assert.deepStrictEqual(stale.rejected, [{ id, reason: 'STALE' }]);
     assert.strictEqual(await waiting.cursor, null);
   });
@@ -739,7 +793,7 @@ describe('sync change notifications (database)', () => {
     await listener.ready();
     const id = uid('notify');
     createdRecordIds.push(id);
-    const result = await applyPush(connection.db, ADMIN, body([playerRecord(id, at(3))]));
+    const result = await pushInCurrentEpoch(connection.db, ADMIN, body([playerRecord(id, at(3))]));
     assert.strictEqual(await after.cursor, result.cursor);
   });
 });

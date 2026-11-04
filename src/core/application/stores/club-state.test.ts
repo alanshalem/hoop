@@ -13,26 +13,43 @@ import { CHART_CATALOG } from '@/core/domain/entities/chart.types';
 import { createSeedState } from '@/core/infrastructure/mocks/seed-data';
 import { makeChartCode, makeCoach, makeMatch, makeRivalTeam } from '@/core/testing/fixtures';
 
+const EMPTY_COLLECTIONS = {
+  users: [],
+  divisions: [],
+  teams: [],
+  players: [],
+  matches: [],
+  chartCodes: [],
+  rivalTeams: [],
+  coaches: [],
+};
+
 const NOW = new Date('2026-10-30T18:00:00.000Z');
 
 describe('club store state', () => {
-  it('starts from the seed with the live match and Primera selected', () => {
+  it('starts without club data or selection: the data comes from the server (S1, L5)', () => {
     const state = createInitialClubState(NOW);
-    assert.strictEqual(state.activeMatchId, 'match-live-today');
-    assert.strictEqual(state.activeDivisionId, 'div-primera');
-    assert.strictEqual(state.currentUser.role, 'HEAD_COACH');
-    assert.ok(state.users.length >= 5);
+    const { currentUser, activeDivisionId, activeMatchId, ...collections } = state;
+    assert.deepStrictEqual(collections, EMPTY_COLLECTIONS);
+    assert.strictEqual(activeDivisionId, '');
+    assert.strictEqual(activeMatchId, '');
+    assert.strictEqual(currentUser.role, 'ASSISTANT_STATISTICIAN', 'the placeholder user has the fewest permissions');
+    assert.strictEqual(currentUser.createdAt, NOW.toISOString());
   });
 
-  it('reseeds when the persisted version is older (S5.14)', () => {
+  it('drops storage of an older version, demo seed included, instead of keeping it (S1, L5)', () => {
+    assert.strictEqual(CLUB_STORE_VERSION, 4);
     const legacy = { matches: [{ id: 'broken' }] };
-    const migrated = migrateClubState(legacy, CLUB_STORE_VERSION - 1, NOW);
+    assert.deepStrictEqual(migrateClubState(legacy, CLUB_STORE_VERSION - 1, NOW), createInitialClubState(NOW));
+    const seeded = { ...createSeedState(NOW), activeDivisionId: 'div-primera', activeMatchId: 'match-live-today' };
+    const migrated = migrateClubState(seeded, 3, NOW);
     assert.deepStrictEqual(migrated, createInitialClubState(NOW));
+    assert.deepStrictEqual(migrated.players, []);
   });
 
-  it('reseeds unversioned (version 0) storage', () => {
+  it('drops unversioned (version 0) storage', () => {
     const migrated = migrateClubState(undefined, 0, NOW);
-    assert.ok(migrated.matches.some((m) => m.id === 'match-live-today'));
+    assert.deepStrictEqual(migrated.matches, []);
   });
 
   it('starts without chart code records (built-in catalog)', () => {
@@ -62,10 +79,6 @@ describe('club store state', () => {
     assert.strictEqual(catalog.TURNOVER[0].label, 'Pase errado');
     assert.strictEqual(selectChartCatalog({ chartCodes }), catalog);
     assert.notStrictEqual(selectChartCatalog({ chartCodes: [...chartCodes] }), catalog);
-  });
-
-  it('starts with the seed rival teams (S14)', () => {
-    assert.deepStrictEqual(createInitialClubState(NOW).rivalTeams, createSeedState(NOW).rivalTeams);
   });
 
   it('rehydrates data persisted before rival teams existed with its data and no rival teams (S14, L18)', () => {
