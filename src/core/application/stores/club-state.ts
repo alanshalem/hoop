@@ -1,6 +1,7 @@
 import type { ChartCatalog, ChartCodeRecord } from '@/core/domain/entities/chart.types';
 import { resolveChartCatalog } from '@/core/domain/rules/chart-catalog';
 import type { Division, Player, Team, User } from '@/core/domain/entities/club.types';
+import type { Coach } from '@/core/domain/entities/coach.types';
 import type { Match } from '@/core/domain/entities/match.types';
 import type { RivalPlayer, RivalTeam } from '@/core/domain/entities/rival.types';
 import { findRivalTeam } from '@/core/domain/rules/rival-teams';
@@ -26,6 +27,8 @@ export interface ClubDataState {
   chartCodes: ChartCodeRecord[];
   /** Rival teams and their players, per division (S14). */
   rivalTeams: RivalTeam[];
+  /** Coaches without login, assigned to division teams (S5). */
+  coaches: Coach[];
 }
 
 /**
@@ -48,6 +51,7 @@ export function createInitialClubState(now: Date = new Date()): ClubDataState {
     // No records: the seed club uses the built-in catalog.
     chartCodes: [],
     rivalTeams: seed.rivalTeams,
+    coaches: [],
   };
 }
 
@@ -82,12 +86,18 @@ export function selectRivalRoster(
 /**
  * Persist merge: stored data of the current version over the in-memory state.
  * Fields added without a version bump get their default, so older storage keeps
- * its data instead of being reseeded (chart codes L9, rival teams L18).
+ * its data instead of being reseeded (chart codes L9, rival teams L18, coaches S5).
  */
 export function mergePersistedClubState<S extends ClubDataState>(persisted: unknown, current: S): S {
   if (!persisted || typeof persisted !== 'object') return current;
   const stored = persisted as Partial<ClubDataState>;
-  return { ...current, ...stored, chartCodes: stored.chartCodes ?? [], rivalTeams: stored.rivalTeams ?? [] };
+  return {
+    ...current,
+    ...stored,
+    chartCodes: stored.chartCodes ?? [],
+    rivalTeams: stored.rivalTeams ?? [],
+    coaches: stored.coaches ?? [],
+  };
 }
 
 /**

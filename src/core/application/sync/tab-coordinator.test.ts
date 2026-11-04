@@ -36,6 +36,7 @@ function harness({ withLock = true, withChannel = true, realEngine = false, lock
     matches: [makeMatch()],
     chartCodes: [],
     rivalTeams: [],
+    coaches: [],
   };
   const clubListeners = new Set<() => void>();
   const setData = (next: SyncableClubData) => {

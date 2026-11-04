@@ -56,6 +56,11 @@ function rivalTeamRecord(id: string, updatedAt: Date, overrides: Record<string, 
   return { kind: 'rivalTeam', id, data: { ...data, ...overrides }, updatedAt, deleted };
 }
 
+function coachRecord(id: string, updatedAt: Date, overrides: Record<string, unknown> = {}, deleted = false): PushRecordInput {
+  const data = { id, clubId: seed.divisions[0].clubId, name: 'PEREZ, J.', license: '123', role: 'HEAD' };
+  return { kind: 'coach', id, data: { ...data, ...overrides }, updatedAt, deleted };
+}
+
 function eventInput(id: string, matchId: string, deleted = false, overrides: Record<string, unknown> = {}): PushEventInput {
   return { id, matchId, data: { ...seedEvents[0], id, matchId, ...overrides }, deleted };
 }
@@ -75,7 +80,7 @@ describe('sync push / pull (database)', () => {
     return applyPush(connection.db, user, payload);
   };
 
-  const storedRecord = async (kind: 'player' | 'match' | 'division' | 'chartCode' | 'rivalTeam', id: string) => {
+  const storedRecord = async (kind: 'player' | 'match' | 'division' | 'chartCode' | 'rivalTeam' | 'coach', id: string) => {
     const [row] = await connection.db
       .select()
       .from(syncRecords)
@@ -296,6 +301,36 @@ describe('sync push / pull (database)', () => {
     const deleted = await push(COACH, body([rivalTeamRecord(id, at(30), {}, true)]));
     assert.deepStrictEqual(deleted.accepted, [id]);
     assert.strictEqual((await storedRecord('rivalTeam', id)).deleted, true);
+  });
+
+  it('stores coaches only from roles that manage divisions and pulls them back (S5)', async () => {
+    const id = uid('coach');
+    const record = coachRecord(id, at(31));
+
+    const statistician = await push(STATISTICIAN, body([record]));
+    assert.deepStrictEqual(statistician.accepted, []);
+    assert.deepStrictEqual(statistician.rejected, [{ id, reason: 'FORBIDDEN' }]);
+    assert.strictEqual(await storedRecord('coach', id), undefined);
+
+    const start = await readCurrentCursor(connection.db);
+    const admin = await push(ADMIN, body([record]));
+    assert.deepStrictEqual(admin.accepted, [id]);
+    assert.deepStrictEqual(admin.rejected, []);
+
+    const pulled = await pullChanges(connection.db, Number(start));
+    assert.deepStrictEqual(
+      pulled.records.map(({ kind, id, data, updatedAt, deleted }) => ({ kind, id, data, updatedAt, deleted })),
+      [{ kind: 'coach', id, data: record.data, updatedAt: at(31).toISOString(), deleted: false }]
+    );
+
+    const removal = await push(STATISTICIAN, body([coachRecord(id, at(32), {}, true)]));
+    assert.deepStrictEqual(removal.rejected, [{ id, reason: 'FORBIDDEN' }]);
+    assert.strictEqual((await storedRecord('coach', id)).deleted, false);
+
+    const malformed = await push(ADMIN, body([coachRecord(id, at(33), { name: 'A', role: 'COACH' })]));
+    assert.deepStrictEqual(malformed.accepted, []);
+    assert.deepStrictEqual(malformed.rejected, [{ id, reason: 'INVALID' }]);
+    assert.deepStrictEqual((await storedRecord('coach', id)).data, record.data);
   });
 
   it('rejects data that fails the domain schema as INVALID and never stores match events in records', async () => {

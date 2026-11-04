@@ -1,6 +1,7 @@
 import React from 'react';
 import clsx from 'clsx';
 import { BasketballPosition, BASKETBALL_POSITION_LABELS } from '@/core/domain/entities/club.types';
+import { MISSING_VALUE } from '@/presentation/player-display';
 import styles from './StatBadge.module.css';
 
 export interface StatBadgeProps {
@@ -24,7 +25,8 @@ export const StatBadge: React.FC<StatBadgeProps> = ({
       }[position]
     : undefined;
 
-  const displayLabel = label || (position ? BASKETBALL_POSITION_LABELS[position]?.short : '');
+  // A player without a position shows a dash (S4).
+  const displayLabel = label || (position ? BASKETBALL_POSITION_LABELS[position]?.short : MISSING_VALUE);
 
   return (
     <span className={clsx(styles.statBadge, positionClass, className)}>

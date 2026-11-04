@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useId } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Save } from 'lucide-react';
 import { Division, DivisionCategorySchema } from '@/core/domain/entities/club.types';
+import { COACH_ROLE_LABELS } from '@/core/domain/entities/coach.types';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { CLUB_PROFILE } from '@/core/infrastructure/mocks/seed-data';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
@@ -13,16 +14,21 @@ import { ModalSheet } from '@/presentation/molecules/ModalSheet/ModalSheet';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
 import { TextField } from '@/presentation/atoms/TextField/TextField';
 import { SelectField, type SelectFieldOption } from '@/presentation/atoms/SelectField/SelectField';
+import { FilterChip } from '@/presentation/atoms/FilterChip/FilterChip';
+import { FilterChipGroup } from '@/presentation/molecules/FilterChipGroup/FilterChipGroup';
 import { notify } from '@/presentation/organisms/DialogHost/dialog-store';
 import { DIVISION_CATEGORY_LABELS } from './division-labels';
+import { COACH_REFUSAL_MESSAGES, toDivisionStaff } from './division-staff';
 import styles from './DivisionFormModal.module.css';
 
 const DivisionFormSchema = z.object({
   name: z.string().trim().min(2, 'El nombre debe tener al menos 2 caracteres'),
   category: DivisionCategorySchema,
   description: z.string().trim().max(120, 'Máximo 120 caracteres'),
-  /** Empty string = no head coach. */
+  /** Coach id (S5); empty string = no head coach. */
   headCoachId: z.string(),
+  /** Coach ids (S5). */
+  assistantCoachIds: z.array(z.string()),
 });
 
 type DivisionFormData = z.infer<typeof DivisionFormSchema>;
@@ -37,6 +43,7 @@ const EMPTY_FORM: DivisionFormData = {
   category: 'U15',
   description: '',
   headCoachId: '',
+  assistantCoachIds: [],
 };
 
 export interface DivisionFormModalProps {
@@ -49,28 +56,46 @@ export interface DivisionFormModalProps {
 export const DivisionFormModal: React.FC<DivisionFormModalProps> = ({ isOpen, onClose, divisionToEdit }) => {
   const formId = useId();
   const teams = useClubStore((state) => state.teams);
-  const users = useClubStore((state) => state.users);
+  const coaches = useClubStore((state) => state.coaches);
   const addDivision = useClubStore((state) => state.addDivision);
   const updateDivision = useClubStore((state) => state.updateDivision);
   const assignHeadCoach = useClubStore((state) => state.assignHeadCoach);
+  const assignAssistantCoaches = useClubStore((state) => state.assignAssistantCoaches);
 
   const team = divisionToEdit ? teams.find((t) => t.divisionId === divisionToEdit.id) : undefined;
+  // Any coach can lead a division (S5); the role is shown as a hint.
   const coachOptions: SelectFieldOption[] = [
     { value: '', label: 'Sin entrenador asignado' },
-    ...users.filter((u) => u.role === 'HEAD_COACH').map((u) => ({ value: u.id, label: u.name })),
+    ...coaches.map((coach) => ({ value: coach.id, label: `${coach.name} · ${COACH_ROLE_LABELS[coach.role]}` })),
   ];
 
   const {
     register,
     handleSubmit,
     reset,
+    control,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<DivisionFormData>({
     resolver: zodResolver(DivisionFormSchema),
     defaultValues: EMPTY_FORM,
   });
 
+  const selectedHeadCoachId = useWatch({ control, name: 'headCoachId' });
+  const selectedAssistantIds = useWatch({ control, name: 'assistantCoachIds' });
+  const assistantChoices = coaches.filter((coach) => coach.id !== selectedHeadCoachId);
+
+  const toggleAssistant = (coachId: string) =>
+    setValue(
+      'assistantCoachIds',
+      selectedAssistantIds.includes(coachId)
+        ? selectedAssistantIds.filter((id) => id !== coachId)
+        : [...selectedAssistantIds, coachId],
+      { shouldDirty: true }
+    );
+
   const currentCoachId = team?.headCoachId ?? '';
+  const currentAssistantIds = team?.assistantCoachIds;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -81,17 +106,27 @@ export const DivisionFormModal: React.FC<DivisionFormModalProps> = ({ isOpen, on
             category: divisionToEdit.category,
             description: divisionToEdit.description ?? '',
             headCoachId: currentCoachId,
+            assistantCoachIds: currentAssistantIds ?? [],
           }
         : EMPTY_FORM
     );
-  }, [isOpen, divisionToEdit, currentCoachId, reset]);
+  }, [isOpen, divisionToEdit, currentCoachId, currentAssistantIds, reset]);
+
+  const warnRefusal = async (reason: keyof typeof COACH_REFUSAL_MESSAGES) => {
+    onClose();
+    await notify({
+      title: 'No se pudo asignar el cuerpo técnico',
+      message: COACH_REFUSAL_MESSAGES[reason],
+      tone: 'warning',
+    });
+  };
 
   const onSubmit = async (data: DivisionFormData) => {
     const description = data.description || undefined;
-    const headCoachId = data.headCoachId || null;
+    const staff = toDivisionStaff(data.headCoachId, data.assistantCoachIds);
 
     if (!divisionToEdit) {
-      addDivision(
+      const created = addDivision(
         {
           name: data.name,
           category: data.category,
@@ -99,8 +134,12 @@ export const DivisionFormModal: React.FC<DivisionFormModalProps> = ({ isOpen, on
           clubId: CLUB_PROFILE.id,
           description,
         },
-        headCoachId ?? undefined
+        staff
       );
+      if (!created.ok) {
+        await warnRefusal(created.reason);
+        return;
+      }
       onClose();
       return;
     }
@@ -113,17 +152,17 @@ export const DivisionFormModal: React.FC<DivisionFormModalProps> = ({ isOpen, on
     });
 
     if (team && data.headCoachId !== currentCoachId) {
-      const result = assignHeadCoach(team.id, headCoachId);
+      const result = assignHeadCoach(team.id, staff.headCoachId ?? null);
       if (!result.ok) {
-        onClose();
-        await notify({
-          title: 'No se pudo asignar el entrenador',
-          message:
-            result.reason === 'USER_NOT_HEAD_COACH'
-              ? 'El usuario elegido no tiene el rol de entrenador principal.'
-              : 'La división no tiene un equipo asociado.',
-          tone: 'warning',
-        });
+        await warnRefusal(result.reason);
+        return;
+      }
+    }
+    const assistantsChanged = staff.assistantCoachIds.join() !== (currentAssistantIds ?? []).join();
+    if (team && assistantsChanged) {
+      const result = assignAssistantCoaches(team.id, staff.assistantCoachIds);
+      if (!result.ok) {
+        await warnRefusal(result.reason);
         return;
       }
     }
@@ -169,10 +208,28 @@ export const DivisionFormModal: React.FC<DivisionFormModalProps> = ({ isOpen, on
         <SelectField
           label="Entrenador principal"
           options={coachOptions}
-          hint={divisionToEdit ? undefined : 'Puedes asignarlo más tarde.'}
+          hint={
+            coaches.length === 0
+              ? 'Todavía no hay entrenadores cargados.'
+              : divisionToEdit
+                ? undefined
+                : 'Puedes asignarlo más tarde.'
+          }
           error={errors.headCoachId?.message}
           {...register('headCoachId')}
         />
+        {assistantChoices.length > 0 && (
+          <FilterChipGroup label="Ayudantes" className={styles.fullRow}>
+            {assistantChoices.map((coach) => (
+              <FilterChip
+                key={coach.id}
+                label={coach.name}
+                pressed={selectedAssistantIds.includes(coach.id)}
+                onClick={() => toggleAssistant(coach.id)}
+              />
+            ))}
+          </FilterChipGroup>
+        )}
         <TextField
           label="Descripción o torneo"
           placeholder="Ej. Liga Formativa U15"

@@ -25,6 +25,7 @@ function harness(initial: Partial<SyncStoreData> = {}) {
     matches: [],
     chartCodes: [],
     rivalTeams: [],
+    coaches: [],
   };
   const clubListeners = new Set<() => void>();
   let store: SyncStoreData = {

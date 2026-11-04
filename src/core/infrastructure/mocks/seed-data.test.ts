@@ -80,7 +80,7 @@ describe('seed data', () => {
     assert.strictEqual(match.status, 'FINISHED');
     assert.deepStrictEqual(getOwnRivalScore(match), { own: 84, rival: 78 });
     assert.deepStrictEqual(
-      getQuarterPartials(match.events, match.condition).map((p) => [p.own, p.rival]),
+      getQuarterPartials(match).map((p) => [p.own, p.rival]),
       [
         [22, 19],
         [14, 12],

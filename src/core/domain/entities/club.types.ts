@@ -81,9 +81,10 @@ export const TeamSchema = z.object({
   divisionId: z.string().min(1, 'Division ID is required'),
   season: z.string().min(4, 'Season identifier is required'), // e.g., "2025/2026"
   /**
-   * Head coach user ID. Optional: a newly created division has no coach until one is assigned.
+   * Head coach ID (a `Coach` record, S5). Optional: a newly created division has no coach until one is assigned.
    */
   headCoachId: z.string().min(1).optional(),
+  /** Assistant coach IDs (`Coach` records, S5). */
   assistantCoachIds: z.array(z.string()).default([]),
   playerIds: z.array(z.string()).default([]),
   clubId: z.string().min(1, 'Club ID is required'),
@@ -116,6 +117,11 @@ export type PlayerPhysicalStatus = z.infer<typeof PlayerPhysicalStatusSchema>;
 export const DominantHandSchema = z.enum(['RIGHT', 'LEFT', 'AMBIDEXTROUS']);
 export type DominantHand = z.infer<typeof DominantHandSchema>;
 
+export const LICENSE_MAX_LENGTH = 20;
+
+/** Federation license number of a player or coach, as printed on the match report. */
+export const LicenseSchema = z.string().trim().min(1).max(LICENSE_MAX_LENGTH);
+
 export const PlayerSchema = z.object({
   id: z.string().min(1, 'Player ID is required'),
   firstName: z.string().min(1, 'First name is required'),
@@ -130,13 +136,16 @@ export const PlayerSchema = z.object({
     .int('Height must be an integer in cm')
     .positive('Height must be positive')
     .min(120, 'Minimum height is 120 cm')
-    .max(240, 'Maximum height is 240 cm'),
+    .max(240, 'Maximum height is 240 cm')
+    .optional(),
   weightKg: z
     .number()
     .positive('Weight must be positive')
     .optional(),
   dominantHand: DominantHandSchema.default('RIGHT'),
-  position: BasketballPositionSchema,
+  position: BasketballPositionSchema.optional(),
+  /** Federation license number from the match reports (S4). */
+  license: LicenseSchema.optional(),
   status: PlayerPhysicalStatusSchema.default('ACTIVE'),
   birthDate: z.string().optional(),
   teamId: z.string().optional(),

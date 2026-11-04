@@ -39,6 +39,11 @@ describe('match field classification (S13.1)', () => {
     assert.deepStrictEqual([...MATCH_DERIVED_FIELDS].sort(), ['awayFoulsQuarter', 'awayScore', 'homeFoulsQuarter', 'homeScore']);
   });
 
+  it('versions the official result as one field of its own (S3)', () => {
+    assert.ok((MATCH_VERSIONED_FIELDS as readonly string[]).includes('officialResult'));
+    assert.strictEqual(versionKeyOf('officialResult'), 'officialResult');
+  });
+
   it('versions status, quarter and clock as one group (the game state); every other field on its own', () => {
     assert.deepStrictEqual(MATCH_FIELD_GROUPS, { 'game-state': ['status', 'currentQuarter', 'quarterTimeRemainingSeconds'] });
     assert.strictEqual(versionKeyOf('status'), 'game-state');
@@ -64,6 +69,16 @@ describe('changedMatchFields', () => {
       status: 'HALFTIME' as const,
     };
     assert.deepStrictEqual(changedMatchFields(before, after), ['status']);
+  });
+
+  it('reports a new or corrected official result (S3)', () => {
+    const before = toMatchRecord(makeMatch());
+    const official = { home: 58, away: 90, quarters: [] };
+    const after = { ...before, officialResult: official };
+    assert.deepStrictEqual(changedMatchFields(before, after), ['officialResult']);
+    assert.deepStrictEqual(changedMatchFields(after, { ...after, officialResult: { ...official, away: 91 } }), [
+      'officialResult',
+    ]);
   });
 
   it('reports a removed optional field and a changed nested value', () => {
@@ -127,6 +142,16 @@ describe('mergeMatchFields (field-level last-write-wins)', () => {
     const server = { data: { ...base, homeTimeouts: { ...base.homeTimeouts, firstHalfRemaining: 1 } }, fieldVersions: { ...allAt(T1), homeTimeouts: T2 } };
     const incoming = { data: { ...base, homeTimeouts: { ...base.homeTimeouts, secondHalfRemaining: 2 } }, fieldVersions: { ...allAt(T1), homeTimeouts: T3 } };
     assert.deepStrictEqual(mergeMatchFields<MatchRecord>(server, incoming).data.homeTimeouts, incoming.data.homeTimeouts);
+  });
+
+  it('keeps the newer official result and the other device venue (S3)', () => {
+    const official = { home: 58, away: 90, quarters: [] };
+    const server = { data: { ...base, venue: 'Club' }, fieldVersions: { ...allAt(T1), venue: T2 } };
+    const incoming = { data: { ...base, officialResult: official }, fieldVersions: { ...allAt(T1), officialResult: T3 } };
+    const merged = mergeMatchFields<MatchRecord>(server, incoming);
+    assert.deepStrictEqual(merged.data.officialResult, official);
+    assert.strictEqual(merged.data.venue, 'Club');
+    assert.deepStrictEqual(merged.taken, ['officialResult']);
   });
 
   it('lets the newer version of the same field win', () => {

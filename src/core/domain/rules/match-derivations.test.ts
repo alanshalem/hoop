@@ -12,12 +12,13 @@ import {
   getOwnRivalScore,
   getQuarterPartials,
   getStartingLineup,
+  withDerivedScoreboard,
 } from './match-derivations';
 import {
   PLAY_BY_PLAY_EVENT_LABELS,
   PlayByPlayEventTypeSchema,
 } from '../entities/match.types';
-import { MatchSchema } from '../entities/match.types';
+import { MatchSchema, OfficialResultSchema, type OfficialResult } from '../entities/match.types';
 import { PlayerSchema } from '../entities/club.types';
 import { makeEvent, makeMatch } from '@/core/testing/fixtures';
 
@@ -84,6 +85,25 @@ describe('Schemas', () => {
       medicalNote: 'Esguince de tobillo',
     });
     assert.strictEqual(parsed.medicalNote, 'Esguince de tobillo');
+  });
+
+  it('Player height and position are optional; given values keep their limits (S4)', () => {
+    const base = { id: 'p1', firstName: 'A', lastName: 'B', dorsal: 4, clubId: 'c1' };
+    const parsed = PlayerSchema.parse(base);
+    assert.strictEqual(parsed.heightCm, undefined);
+    assert.strictEqual(parsed.position, undefined);
+    assert.strictEqual(PlayerSchema.parse({ ...base, heightCm: 190, position: 'PG' }).heightCm, 190);
+    assert.strictEqual(PlayerSchema.safeParse({ ...base, heightCm: 119 }).success, false);
+    assert.strictEqual(PlayerSchema.safeParse({ ...base, position: 'XX' }).success, false);
+  });
+
+  it('Player license is optional, trimmed, 1 to 20 characters (S4)', () => {
+    const base = { id: 'p1', firstName: 'A', lastName: 'B', dorsal: 4, clubId: 'c1' };
+    assert.strictEqual(PlayerSchema.parse(base).license, undefined);
+    assert.strictEqual(PlayerSchema.parse({ ...base, license: ' 1234567 ' }).license, '1234567');
+    assert.strictEqual(PlayerSchema.parse({ ...base, license: 'x'.repeat(20) }).license, 'x'.repeat(20));
+    assert.strictEqual(PlayerSchema.safeParse({ ...base, license: '   ' }).success, false);
+    assert.strictEqual(PlayerSchema.safeParse({ ...base, license: 'x'.repeat(21) }).success, false);
   });
 });
 
@@ -169,12 +189,14 @@ describe('getOwnRivalScore', () => {
 describe('getQuarterPartials', () => {
   it('always lists Q1-Q4 and only the overtimes that have events', () => {
     const partials = getQuarterPartials(
-      [
-        makeEvent({ quarter: 'Q1', type: 'FG2_MADE', isOwnTeam: true }),
-        makeEvent({ quarter: 'Q3', type: 'FG3_MADE', isOwnTeam: false }),
-        makeEvent({ quarter: 'OT1', type: 'FT_MADE', isOwnTeam: true }),
-      ],
-      'AWAY'
+      makeMatch({
+        condition: 'AWAY',
+        events: [
+          makeEvent({ quarter: 'Q1', type: 'FG2_MADE', isOwnTeam: true }),
+          makeEvent({ quarter: 'Q3', type: 'FG3_MADE', isOwnTeam: false }),
+          makeEvent({ quarter: 'OT1', type: 'FT_MADE', isOwnTeam: true }),
+        ],
+      })
     );
     assert.deepStrictEqual(
       partials.map((p) => p.quarter),
@@ -186,9 +208,174 @@ describe('getQuarterPartials', () => {
   });
 
   it('returns four empty regulation quarters when there are no events', () => {
-    const partials = getQuarterPartials([], 'HOME');
+    const partials = getQuarterPartials(makeMatch({ condition: 'HOME', events: [] }));
     assert.strictEqual(partials.length, 4);
     assert.ok(partials.every((p) => p.own === 0 && p.rival === 0));
+  });
+});
+
+/** Acta 681080: home 58 - away 90, points per quarter in order. */
+const OFFICIAL: OfficialResult = {
+  home: 58,
+  away: 90,
+  quarters: [
+    { home: 11, away: 19 },
+    { home: 23, away: 28 },
+    { home: 9, away: 18 },
+    { home: 15, away: 25 },
+  ],
+};
+
+describe('OfficialResultSchema (S3)', () => {
+  it('accepts a final score whose quarters add up to it, and one without quarters', () => {
+    assert.deepStrictEqual(OfficialResultSchema.parse(OFFICIAL), OFFICIAL);
+    assert.deepStrictEqual(OfficialResultSchema.parse({ home: 3, away: 0, quarters: [] }), {
+      home: 3,
+      away: 0,
+      quarters: [],
+    });
+  });
+
+  it('refuses quarters that do not add up to the final score, on either side', () => {
+    const home = OfficialResultSchema.safeParse({ ...OFFICIAL, home: 59 });
+    const away = OfficialResultSchema.safeParse({ ...OFFICIAL, away: 89 });
+    assert.strictEqual(home.success, false);
+    assert.strictEqual(away.success, false);
+    assert.strictEqual(home.error?.issues[0]?.message, 'Official quarters must add up to the final score');
+  });
+
+  it('refuses negative or fractional points and more periods than Q1-Q4 plus four overtimes', () => {
+    assert.strictEqual(OfficialResultSchema.safeParse({ home: -1, away: 0, quarters: [] }).success, false);
+    assert.strictEqual(OfficialResultSchema.safeParse({ home: 1.5, away: 0, quarters: [] }).success, false);
+    assert.strictEqual(
+      OfficialResultSchema.safeParse({ home: 0, away: 0, quarters: [{ home: -1, away: 0 }, { home: 1, away: 0 }] })
+        .success,
+      false
+    );
+    const nine = Array.from({ length: 9 }, () => ({ home: 0, away: 0 }));
+    assert.strictEqual(OfficialResultSchema.safeParse({ home: 0, away: 0, quarters: nine }).success, false);
+  });
+
+  it('is an optional match field: a match parses with and without it, and refuses an inconsistent one', () => {
+    const { officialResult, ...withoutResult } = makeMatch({ officialResult: OFFICIAL });
+    assert.deepStrictEqual(MatchSchema.parse({ ...withoutResult, officialResult }).officialResult, OFFICIAL);
+    assert.strictEqual(MatchSchema.parse(withoutResult).officialResult, undefined);
+    assert.strictEqual(MatchSchema.safeParse({ ...withoutResult, officialResult: { ...OFFICIAL, home: 1 } }).success, false);
+  });
+});
+
+describe('official result without play-by-play (S3)', () => {
+  const finished = (overrides: Parameters<typeof makeMatch>[0] = {}) =>
+    makeMatch({ status: 'FINISHED', currentQuarter: 'Q4', officialResult: OFFICIAL, ...overrides });
+
+  it('deriveScoreboard shows the official final score when the match has no scoring events', () => {
+    assert.deepStrictEqual(deriveScoreboard(finished()), {
+      homeScore: 58,
+      awayScore: 90,
+      homeFoulsQuarter: 0,
+      awayFoulsQuarter: 0,
+    });
+  });
+
+  it('keeps team fouls event-based and ignores events without points (misses, fouls) as scoring', () => {
+    const match = finished({
+      events: [
+        makeEvent({ quarter: 'Q4', type: 'FOUL_PERSONAL', isOwnTeam: true }),
+        makeEvent({ quarter: 'Q4', type: 'FG3_MISS', isOwnTeam: false }),
+        makeEvent({ quarter: 'Q4', type: 'FT_MISS', isOwnTeam: true }),
+      ],
+    });
+    assert.deepStrictEqual(deriveScoreboard(match), {
+      homeScore: 58,
+      awayScore: 90,
+      homeFoulsQuarter: 1,
+      awayFoulsQuarter: 0,
+    });
+  });
+
+  it('lets scoring events win over the official result', () => {
+    const match = finished({
+      events: [
+        makeEvent({ type: 'FT_MADE', isOwnTeam: true }),
+        makeEvent({ type: 'FG2_MADE', isOwnTeam: false }),
+      ],
+    });
+    assert.deepStrictEqual(deriveScoreboard(match), {
+      homeScore: 1,
+      awayScore: 2,
+      homeFoulsQuarter: 0,
+      awayFoulsQuarter: 0,
+    });
+    assert.deepStrictEqual(getOwnRivalScore(match), { own: 1, rival: 2 });
+    assert.deepStrictEqual(
+      getQuarterPartials(match).map(({ home, away }) => ({ home, away })),
+      [
+        { home: 1, away: 2 },
+        { home: 0, away: 0 },
+        { home: 0, away: 0 },
+        { home: 0, away: 0 },
+      ]
+    );
+  });
+
+  it('withDerivedScoreboard stores the official score on the match', () => {
+    const match = withDerivedScoreboard(finished({ homeScore: 0, awayScore: 0 }));
+    assert.strictEqual(match.homeScore, 58);
+    assert.strictEqual(match.awayScore, 90);
+  });
+
+  it('getOwnRivalScore maps the scoreboard sides to own and rival by condition', () => {
+    assert.deepStrictEqual(getOwnRivalScore(finished({ condition: 'HOME' })), { own: 58, rival: 90 });
+    assert.deepStrictEqual(getOwnRivalScore(finished({ condition: 'AWAY' })), { own: 90, rival: 58 });
+  });
+
+  it('getQuarterPartials falls back to the official quarters, overtimes included', () => {
+    const partials = getQuarterPartials(finished({ condition: 'AWAY' }));
+    assert.deepStrictEqual(partials, [
+      { quarter: 'Q1', own: 19, rival: 11, home: 11, away: 19 },
+      { quarter: 'Q2', own: 28, rival: 23, home: 23, away: 28 },
+      { quarter: 'Q3', own: 18, rival: 9, home: 9, away: 18 },
+      { quarter: 'Q4', own: 25, rival: 15, home: 15, away: 25 },
+    ]);
+    const overtime = getQuarterPartials(
+      finished({
+        officialResult: {
+          home: 80,
+          away: 75,
+          quarters: [
+            { home: 20, away: 20 },
+            { home: 20, away: 20 },
+            { home: 15, away: 20 },
+            { home: 15, away: 10 },
+            { home: 10, away: 5 },
+          ],
+        },
+      })
+    );
+    assert.deepStrictEqual(
+      overtime.map((p) => [p.quarter, p.own, p.rival]),
+      [
+        ['Q1', 20, 20],
+        ['Q2', 20, 20],
+        ['Q3', 15, 20],
+        ['Q4', 15, 10],
+        ['OT1', 10, 5],
+      ]
+    );
+  });
+
+  it('getQuarterPartials lists empty regulation quarters when the official result has no quarters', () => {
+    const partials = getQuarterPartials(finished({ officialResult: { home: 58, away: 90, quarters: [] } }));
+    assert.deepStrictEqual(
+      partials.map((p) => [p.quarter, p.home, p.away]),
+      [
+        ['Q1', 0, 0],
+        ['Q2', 0, 0],
+        ['Q3', 0, 0],
+        ['Q4', 0, 0],
+      ]
+    );
+    assert.deepStrictEqual(deriveScoreboard(finished({ officialResult: { home: 58, away: 90, quarters: [] } })).homeScore, 58);
   });
 });
 

@@ -25,7 +25,7 @@ export default function DivisionsPage() {
   const divisions = useClubStore((state) => state.divisions);
   const teams = useClubStore((state) => state.teams);
   const players = useClubStore((state) => state.players);
-  const users = useClubStore((state) => state.users);
+  const coaches = useClubStore((state) => state.coaches);
   const role = useClubStore((state) => state.currentUser.role);
   const deleteDivision = useClubStore((state) => state.deleteDivision);
 
@@ -102,7 +102,7 @@ export default function DivisionsPage() {
             {divisions.map((division) => {
               const team = teams.find((t) => t.divisionId === division.id);
               const playerCount = getTeamRosterPlayers(team, players).length;
-              const coach = users.find((u) => u.id === team?.headCoachId);
+              const coach = coaches.find((c) => c.id === team?.headCoachId);
 
               return (
                 <li key={division.id} className={styles.divisionCard} data-reveal data-tour="division-card">

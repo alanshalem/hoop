@@ -117,7 +117,7 @@ function MatchStats({ match }: { match: Match }) {
   const inPlay = isMatchInPlay(match);
   const { date, time } = formatMatchDate(match.date);
 
-  const partials = useMemo(() => getQuarterPartials(match.events, match.condition), [match.events, match.condition]);
+  const partials = useMemo(() => getQuarterPartials(match), [match]);
   const box = useMemo(() => calculateMatchBoxScore(match), [match]);
 
   const boxRows = useMemo(

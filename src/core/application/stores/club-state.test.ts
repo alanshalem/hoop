@@ -11,7 +11,7 @@ import {
 } from './club-state';
 import { CHART_CATALOG } from '@/core/domain/entities/chart.types';
 import { createSeedState } from '@/core/infrastructure/mocks/seed-data';
-import { makeChartCode, makeMatch, makeRivalTeam } from '@/core/testing/fixtures';
+import { makeChartCode, makeCoach, makeMatch, makeRivalTeam } from '@/core/testing/fixtures';
 
 const NOW = new Date('2026-10-30T18:00:00.000Z');
 
@@ -90,6 +90,24 @@ describe('club store state', () => {
     const none = selectRivalRoster(state, makeMatch({ rivalTeamName: 'Boca Juniors' }));
     assert.deepStrictEqual(none, []);
     assert.strictEqual(selectRivalRoster({ rivalTeams: [] }, makeMatch()), none, 'the empty roster is one stable value');
+  });
+
+  it('starts without coaches (S5)', () => {
+    assert.deepStrictEqual(createInitialClubState(NOW).coaches, []);
+  });
+
+  it('rehydrates data persisted before coaches existed with its data and no coaches (S5)', () => {
+    const older: Partial<ClubDataState> = { ...createInitialClubState(NOW), activeMatchId: 'match-past-1' };
+    delete older.coaches;
+    const current = { ...createInitialClubState(NOW), coaches: [makeCoach()] };
+    const rehydrated = mergePersistedClubState(older, current);
+    assert.deepStrictEqual(rehydrated, { ...older, coaches: [] });
+  });
+
+  it('rehydrates persisted coaches', () => {
+    const coaches = [makeCoach({ name: 'ROSSI, L.M.', role: 'ASSISTANT' })];
+    const persisted = { ...createInitialClubState(NOW), coaches };
+    assert.deepStrictEqual(mergePersistedClubState(persisted, createInitialClubState(NOW)).coaches, coaches);
   });
 
   it('keeps persisted data of the current version', () => {

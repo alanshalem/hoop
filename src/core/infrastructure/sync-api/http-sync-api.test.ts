@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { createHttpAuthApi, createHttpSyncApi } from './http-sync-api';
 import { parseChangedEventData } from './sync-api-schemas';
 import { toMatchRecord } from '@/core/application/sync/sync-records';
-import { makeChartCode, makeDivision, makeEvent, makeMatch, makeRivalTeam } from '@/core/testing/fixtures';
+import { makeChartCode, makeCoach, makeDivision, makeEvent, makeMatch, makeRivalTeam } from '@/core/testing/fixtures';
 
 interface Call {
   url: string;
@@ -107,6 +107,28 @@ describe('http sync api', () => {
     assert.ok(result.ok);
     assert.deepStrictEqual(result.value.records, [
       { kind: 'rivalTeam', id: valid.id, data: valid, updatedAt: T, deleted: false },
+    ]);
+  });
+
+  it('accepts a valid coach record and drops an invalid one (S5)', async () => {
+    const valid = makeCoach();
+    const invalid = makeCoach({ id: 'coach-bad', name: 'A' });
+    const T = '2026-10-30T18:00:00.000Z';
+    const { fetchImpl } = fakeFetch(() =>
+      json({
+        records: [
+          { kind: 'coach', id: valid.id, data: valid, updatedAt: T, deleted: false },
+          { kind: 'coach', id: invalid.id, data: invalid, updatedAt: T, deleted: false },
+        ],
+        events: [],
+        cursor: '9',
+        hasMore: false,
+      })
+    );
+    const result = await createHttpSyncApi(fetchImpl).pull('1');
+    assert.ok(result.ok);
+    assert.deepStrictEqual(result.value.records, [
+      { kind: 'coach', id: valid.id, data: valid, updatedAt: T, deleted: false },
     ]);
   });
 

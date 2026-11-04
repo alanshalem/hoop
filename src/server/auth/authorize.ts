@@ -34,6 +34,8 @@ const REQUIRED_PERMISSIONS: Record<SyncEntityKind, Record<WriteOperation, readon
   chartCode: { create: ['MANAGE_CHART_CATALOG'], update: ['MANAGE_CHART_CATALOG'], delete: [] },
   // Rival rosters belong to match preparation (S14, L18).
   rivalTeam: ALL_OPERATIONS(['MANAGE_MATCHES']),
+  // Coaches are the staff assigned to divisions (S5).
+  coach: ALL_OPERATIONS(['MANAGE_DIVISIONS']),
   event: ALL_OPERATIONS(['RECORD_LIVE']),
 };
 

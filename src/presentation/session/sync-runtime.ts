@@ -32,8 +32,8 @@ export const authApi = createHttpAuthApi();
 
 const clubPort: ClubDataPort = {
   getData: () => {
-    const { divisions, teams, players, matches, chartCodes, rivalTeams } = useClubStore.getState();
-    return { divisions, teams, players, matches, chartCodes, rivalTeams };
+    const { divisions, teams, players, matches, chartCodes, rivalTeams, coaches } = useClubStore.getState();
+    return { divisions, teams, players, matches, chartCodes, rivalTeams, coaches };
   },
   applyData: (data) => useClubStore.getState().applySyncedData(data),
   subscribe: (listener) => useClubStore.subscribe(listener),

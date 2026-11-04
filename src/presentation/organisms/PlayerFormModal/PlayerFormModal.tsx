@@ -3,7 +3,6 @@
 import React, { useEffect, useId } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Save, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 import {
@@ -11,6 +10,7 @@ import {
   BasketballPositionSchema,
   DominantHand,
   DominantHandSchema,
+  LICENSE_MAX_LENGTH,
   PLAYER_STATUS_LABELS,
   Player,
   PlayerPhysicalStatusSchema,
@@ -29,6 +29,14 @@ import {
   useFieldIds,
 } from '@/presentation/atoms/FormField/FormField';
 import { confirm } from '@/presentation/organisms/DialogHost/dialog-store';
+import {
+  MEDICAL_NOTE_MAX,
+  optionalNumber,
+  PlayerFormSchema,
+  toPlayerFormData,
+  toPlayerInput,
+  type PlayerFormData,
+} from './player-form';
 import styles from './PlayerFormModal.module.css';
 
 export const DOMINANT_HAND_LABELS: Record<DominantHand, string> = {
@@ -36,32 +44,6 @@ export const DOMINANT_HAND_LABELS: Record<DominantHand, string> = {
   LEFT: 'Zurdo',
   AMBIDEXTROUS: 'Ambidiestro',
 };
-
-const MEDICAL_NOTE_MAX = 240;
-
-const PlayerFormSchema = z.object({
-  firstName: z.string().trim().min(1, 'El nombre es obligatorio'),
-  lastName: z.string().trim().min(1, 'El apellido es obligatorio'),
-  dorsal: z
-    .number({ message: 'Ingresa un número' })
-    .int('Debe ser un número entero')
-    .min(0, 'Mínimo 0')
-    .max(99, 'Máximo 99'),
-  heightCm: z
-    .number({ message: 'Ingresa la altura en cm' })
-    .int('Debe ser un número entero')
-    .min(120, 'Mínimo 120 cm')
-    .max(240, 'Máximo 240 cm'),
-  weightKg: z.number({ message: 'Ingresa el peso en kg' }).positive('Debe ser positivo').optional(),
-  position: BasketballPositionSchema,
-  dominantHand: DominantHandSchema,
-  status: PlayerPhysicalStatusSchema,
-  /** Empty string = no team. */
-  teamId: z.string(),
-  medicalNote: z.string().trim().max(MEDICAL_NOTE_MAX, `Máximo ${MEDICAL_NOTE_MAX} caracteres`),
-});
-
-type PlayerFormData = z.infer<typeof PlayerFormSchema>;
 
 const POSITION_OPTIONS: SelectFieldOption[] = BasketballPositionSchema.options.map((position) => ({
   value: position,
@@ -77,37 +59,6 @@ const STATUS_OPTIONS: SelectFieldOption[] = PlayerPhysicalStatusSchema.options.m
   value: status,
   label: PLAYER_STATUS_LABELS[status],
 }));
-
-const toFormData = (player: Player | null | undefined, teamId: string): PlayerFormData =>
-  player
-    ? {
-        firstName: player.firstName,
-        lastName: player.lastName,
-        dorsal: player.dorsal,
-        heightCm: player.heightCm,
-        weightKg: player.weightKg,
-        position: player.position,
-        dominantHand: player.dominantHand,
-        status: player.status,
-        teamId: player.teamId ?? '',
-        medicalNote: player.medicalNote ?? '',
-      }
-    : {
-        firstName: '',
-        lastName: '',
-        dorsal: 0,
-        heightCm: 190,
-        weightKg: undefined,
-        position: 'PG',
-        dominantHand: 'RIGHT',
-        status: 'ACTIVE',
-        teamId,
-        medicalNote: '',
-      };
-
-/** Empty number inputs become `undefined` instead of NaN. */
-const optionalNumber = (value: unknown): number | undefined =>
-  value === '' || value === null || value === undefined ? undefined : Number(value);
 
 export interface PlayerFormModalProps {
   isOpen: boolean;
@@ -144,23 +95,18 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
     formState: { errors, isSubmitting },
   } = useForm<PlayerFormData>({
     resolver: zodResolver(PlayerFormSchema),
-    defaultValues: toFormData(null, ''),
+    defaultValues: toPlayerFormData(null, ''),
   });
 
   const initialTeamId = defaultTeamId ?? teams[0]?.id ?? '';
 
   useEffect(() => {
     if (!isOpen) return;
-    reset(toFormData(playerToEdit, initialTeamId));
+    reset(toPlayerFormData(playerToEdit, initialTeamId));
   }, [isOpen, playerToEdit, initialTeamId, reset]);
 
   const onSubmit = (data: PlayerFormData) => {
-    const player: Omit<Player, 'id'> = {
-      ...data,
-      teamId: data.teamId || undefined,
-      medicalNote: data.medicalNote || undefined,
-      clubId: playerToEdit?.clubId ?? CLUB_PROFILE.id,
-    };
+    const player = toPlayerInput(data, playerToEdit?.clubId ?? CLUB_PROFILE.id);
     if (playerToEdit) {
       updatePlayer(playerToEdit.id, player);
     } else {
@@ -244,6 +190,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
         />
         <SelectField
           label="Posición"
+          placeholder="Sin posición"
           options={POSITION_OPTIONS}
           error={errors.position?.message}
           {...register('position')}
@@ -252,9 +199,9 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
           label="Altura (cm)"
           type="number"
           inputMode="numeric"
-          required
+          placeholder="Opcional"
           error={errors.heightCm?.message}
-          {...register('heightCm', { valueAsNumber: true })}
+          {...register('heightCm', { setValueAs: optionalNumber })}
         />
         <TextField
           label="Peso (kg)"
@@ -263,6 +210,15 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
           placeholder="Opcional"
           error={errors.weightKg?.message}
           {...register('weightKg', { setValueAs: optionalNumber })}
+        />
+        <TextField
+          label="Licencia"
+          placeholder="Opcional"
+          autoComplete="off"
+          maxLength={LICENSE_MAX_LENGTH}
+          hint="Número de licencia de la federación"
+          error={errors.license?.message}
+          {...register('license')}
         />
         <SelectField
           label="Mano hábil"
