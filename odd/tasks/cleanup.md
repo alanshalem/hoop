@@ -9,7 +9,7 @@ Branch: `refactor/cleanup` (from main 7b853e2), merged into main at the end. UI 
 - **S2** — "las rutas si quieres tambien dejalas todas en un idioma" Routes in one language (English, like the code): `/rivales` -> `/rivals`, `/entrenadores` -> `/coaches`, `/planilla` -> `/chart-codes`, `/ayuda` -> `/help`; every link, tour route, manual reference and test updated. No redirects (app not in production).
 - **S3** — "piensa que la app todavia esta en desarrollo no la esta usando gente entonces tenes libertad para hacer mas cambios de los normales hasta que salga la app a prod" Schema pruning is allowed: the dev DB has 0 live events (L3), so `SUBSTITUTION` events and event `coordinates` can leave the model.
 
-- **S4** — "Quiero hostear todo el proyecto 100% gratis si es posible" + decision L5 (Vercel + Supabase): the app runs on serverless functions. Live sync without long-lived connections: SSE and LISTEN/NOTIFY are replaced by polling (every few seconds while the page is visible, immediately on focus/online/after a push), with a small DB pool suited to Supabase pooled connections. Same data behavior (outbox, LWW, epoch guard).  describes Vercel + Supabase step by step.
+- **S4** — "Quiero hostear todo el proyecto 100% gratis si es posible" + decision L5 (Vercel + Supabase): the app runs on serverless functions. Live sync without long-lived connections: SSE and LISTEN/NOTIFY are replaced by polling (every few seconds while the page is visible, immediately on focus/online/after a push), with a small DB pool suited to Supabase pooled connections. Same data behavior (outbox, LWW, epoch guard). `docs/DEPLOY.md` describes Vercel + Supabase step by step.
 
 ## Tasks
 
