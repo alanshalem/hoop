@@ -10,7 +10,7 @@ Branch: `feat/simplify-stats` (from main c1da78f). UI copy Spanish; code English
 
 ## Tasks
 
-- T1 [S1,S2] Remove the shot map, simplify BoxScoreTable and the stats page, update tours and manual. Route: worker. Commit: _pending_
+- [x] T1 [S1,S2] Remove the shot map, simplify BoxScoreTable and the stats page, update tours and manual. Route: worker. Commit: de6da9f
 
 ## Log
 
