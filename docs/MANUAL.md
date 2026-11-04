@@ -154,7 +154,7 @@ Cada club tiene su propio catálogo de códigos. Mientras nadie lo edite, es el 
 
 ### Planteles rivales
 
-El club puede cargar el plantel de cada rival, por división, en la pantalla [Rivales](#rivales-rivales). Con ese plantel, una entrada de **Puntos recibidos** puede guardar quién convirtió y una **Acción ofensiva** quién defendió (ver el paso **Rival (opcional)** en [Cargar la planilla durante el partido](#cargar-la-planilla-durante-el-partido)).
+El club puede cargar el plantel de cada rival, por división, en la pantalla [Rivales](#rivales-rivales) o directamente en el formulario del partido (sección **Plantel rival**, ver [Partidos](#partidos-matches)); los dos lugares editan los mismos planteles. Con ese plantel, una entrada de **Puntos recibidos** puede guardar quién convirtió y una **Acción ofensiva** quién defendió (ver el paso **Rival (opcional)** en [Cargar la planilla durante el partido](#cargar-la-planilla-durante-el-partido)).
 
 **Cómo encuentra la consola el plantel.** El partido no se vincula a mano: la consola usa el rival de la **misma división** del partido cuyo nombre es **igual al nombre del rival del partido**, sin importar mayúsculas, acentos ni espacios al principio o al final. Por ejemplo, el partido de Primera División contra "Obras Sanitarias" usa el rival "obras sanitarias" de Primera División, pero no el de Sub-19 ni uno llamado "Obras". Si el nombre no coincide, la consola no ofrece el paso del rival; para arreglarlo se renombra el rival (o el partido) hasta que coincidan.
 
@@ -380,6 +380,22 @@ Acciones de cada tarjeta según su estado:
 
 Campos del formulario: **División** (el equipo propio se deduce de ella), **Equipo rival**, **Fecha y hora**, **Condición** (Local o Visitante), **Torneo o competencia** y **Estadio o cancha** (opcional). Si al editar se cambia la división, se vacían la convocatoria y el quinteto del partido.
 
+**Rivales de esta división.** Debajo de **Equipo rival** aparece un chip por cada rival cargado en la división elegida, ordenados por nombre. Tocar un chip escribe ese nombre en el campo; también se puede escribir cualquier otro nombre. Si la división no tiene rivales cargados, la fila no aparece.
+
+**Plantel rival.** Al final del formulario, en crear y en editar, una sección muestra el plantel del rival escrito, buscado igual que en la consola: el rival de la **misma división** con el mismo nombre, sin importar mayúsculas, acentos ni espacios (ver [Planteles rivales](#planteles-rivales)). Son los mismos planteles de la pantalla [Rivales](#rivales-rivales): lo que se cambia acá se ve allá y al revés.
+
+| Situación                                  | Qué muestra la sección                                                                                                                                       |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Equipo rival vacío                         | Nada.                                                                                                                                                           |
+| El rival tiene plantel en la división      | Sus jugadores ordenados por dorsal (dorsal, nombre y apellido), con lápiz y papelera por jugador y el botón **Agregar jugador**.                                |
+| El rival no tiene plantel en la división   | El texto "Boca Juniors no tiene plantel en Primera División." (con el nombre y la división elegidos) y el botón **Agregar jugador**.                            |
+
+**Agregar jugador** y el lápiz abren el mismo formulario del jugador de [Rivales](#rivales-rivales) (**Dorsal**, **Nombre** y **Apellido**, con los mismos mensajes, incluido "Ya hay un jugador con ese dorsal en este equipo."). La papelera quita al jugador sin confirmación, porque nada se guarda todavía.
+
+**Cuándo se guarda.** Los cambios del plantel quedan en el formulario (un aviso en amarillo lo recuerda) y se guardan recién al pulsar **Crear partido** o **Guardar cambios**, después de guardar el partido. Si el rival no tenía plantel, se crea con el nombre escrito y la división elegida y se le agregan los jugadores. **Cancelar**, la cruz, Escape o tocar fuera del formulario descartan los cambios del plantel. Sin cambios en el plantel, el formulario no toca los rivales. Si algún cambio del plantel es rechazado (por ejemplo, otra tablet ya usó ese dorsal), el partido queda guardado igual y un aviso "El partido se guardó, pero no todo el plantel rival" lista cada jugador rechazado con su motivo.
+
+Solo quien tiene `MANAGE_MATCHES` abre este formulario, así que solo el administrador y los entrenadores principales editan el plantel desde acá.
+
 ### Quinteto y convocatoria (`/matches/[id]/lineup`)
 
 La pantalla tiene tres modos según el estado del partido:
@@ -524,8 +540,9 @@ Renombrar la división también renombra su equipo.
 ### Crear un partido
 
 1. Rol Administrador o Entrenador principal. Ir a **Partidos** y pulsar **Nuevo partido**.
-2. Elegir la división (viene preseleccionada la del filtro de división, o la división activa del Dashboard), el rival, la fecha y hora, la condición, el torneo y el estadio.
-3. Pulsar **Crear partido**. El partido queda **Programado** y se ordena por fecha.
+2. Elegir la división (viene preseleccionada la del filtro de división, o la división activa del Dashboard), el rival (escrito o tocando un chip de **Rivales de esta división**), la fecha y hora, la condición, el torneo y el estadio.
+3. Opcional: en **Plantel rival**, revisar los jugadores del rival y agregar, corregir o quitar los que haga falta (ver [Partidos](#partidos-matches)).
+4. Pulsar **Crear partido**. El partido queda **Programado** y se ordena por fecha; los cambios del plantel rival se guardan en ese momento.
 
 ### Armar la convocatoria y el quinteto, e iniciar el partido
 
@@ -593,6 +610,8 @@ Con varias tablets en el mismo partido, cada **Deshacer** quita la última de la
 3. En la tarjeta del rival, pulsar **Agregar jugador**, completar dorsal, nombre y apellido y pulsar **Agregar jugador**. Repetir por cada jugador.
 4. Revisar la línea del enlace: debe decir "1 partido con este nombre" (o más). Si dice "Ningún partido con este nombre", renombrar el rival con el lápiz.
 5. En la consola en vivo de ese partido, en **Puntos recibidos** y **Acciones ofensivas**, aparece el paso **Rival (opcional)** con los jugadores cargados.
+
+También se puede cargar desde el formulario del partido (crear o editar): con la división elegida y el nombre del rival escrito, la sección **Plantel rival** muestra el plantel o permite armarlo, y el rival se crea al guardar el partido (ver [Partidos](#partidos-matches)). Como el nombre es el mismo del partido, el enlace queda hecho.
 
 ---
 

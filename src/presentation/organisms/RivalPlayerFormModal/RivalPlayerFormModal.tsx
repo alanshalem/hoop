@@ -16,6 +16,7 @@ import {
   RivalPlayerFormSchema,
   rivalPlayerRefusalField,
   type RivalPlayerFormData,
+  type RivalPlayerRefusal,
 } from '@/presentation/organisms/RivalTeamFormModal/rival-roster';
 import styles from './RivalPlayerFormModal.module.css';
 
@@ -28,9 +29,20 @@ export interface RivalPlayerFormModalProps {
   team: RivalTeam | null;
   /** Edits this player; adds a new one to `team` when absent. */
   playerToEdit?: RivalPlayer | null;
+  /** Title name when there is no stored `team` (a roster drafted in the match form, S16). */
+  teamName?: string;
+  /** Draft mode (S16): saves through this instead of the store; a refusal shows like a store refusal. */
+  onSave?: (data: RivalPlayerFormData) => { ok: true } | { ok: false; reason: RivalPlayerRefusal };
 }
 
-export const RivalPlayerFormModal: React.FC<RivalPlayerFormModalProps> = ({ isOpen, onClose, team, playerToEdit }) => {
+export const RivalPlayerFormModal: React.FC<RivalPlayerFormModalProps> = ({
+  isOpen,
+  onClose,
+  team,
+  playerToEdit,
+  teamName,
+  onSave,
+}) => {
   const formId = useId();
   const addRivalPlayer = useClubStore((state) => state.addRivalPlayer);
   const updateRivalPlayer = useClubStore((state) => state.updateRivalPlayer);
@@ -57,10 +69,13 @@ export const RivalPlayerFormModal: React.FC<RivalPlayerFormModalProps> = ({ isOp
   }, [isOpen, playerToEdit, reset]);
 
   const onSubmit = async (data: RivalPlayerFormData) => {
-    if (!team) return;
-    const result = playerToEdit
-      ? updateRivalPlayer(team.id, playerToEdit.id, data)
-      : addRivalPlayer(team.id, data);
+    let result: { ok: true } | { ok: false; reason: RivalPlayerRefusal };
+    if (onSave) {
+      result = onSave(data);
+    } else {
+      if (!team) return;
+      result = playerToEdit ? updateRivalPlayer(team.id, playerToEdit.id, data) : addRivalPlayer(team.id, data);
+    }
     if (result.ok) {
       onClose();
       return;
@@ -78,11 +93,13 @@ export const RivalPlayerFormModal: React.FC<RivalPlayerFormModalProps> = ({ isOp
     });
   };
 
+  const titleTeam = team?.name ?? teamName;
+
   return (
     <ModalSheet
       isOpen={isOpen}
       onClose={onClose}
-      title={`${playerToEdit ? 'Editar jugador' : 'Nuevo jugador'}${team ? ` · ${team.name}` : ''}`}
+      title={`${playerToEdit ? 'Editar jugador' : 'Nuevo jugador'}${titleTeam ? ` · ${titleTeam}` : ''}`}
       footer={
         <>
           <TouchButton variant="ghost" onClick={onClose}>

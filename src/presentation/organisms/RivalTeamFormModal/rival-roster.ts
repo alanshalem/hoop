@@ -56,7 +56,7 @@ export function rivalPlayerRefusalField(reason: RivalPlayerRefusal): 'dorsal' | 
 }
 
 /** Roster in jersey order, as read on a scoresheet. */
-export function sortRivalPlayers(players: readonly RivalPlayer[]): RivalPlayer[] {
+export function sortRivalPlayers<T extends Pick<RivalPlayer, 'dorsal'>>(players: readonly T[]): T[] {
   return [...players].sort((a, b) => a.dorsal - b.dorsal);
 }
 
