@@ -5,6 +5,7 @@ import {
   buildPushBatch,
   countPending,
   createEmptyOutbox,
+  dropUnknownMatchFields,
   enqueueChanges,
   markBatchAttempted,
   nextUpdatedAt,
@@ -144,6 +145,79 @@ describe('enqueueChanges: match field versions (S13.1)', () => {
     const entry = outbox.records['match:m-test'];
     assert.strictEqual(entry.deleted, true);
     assert.ok(!('fieldVersions' in entry));
+  });
+
+  it('ignores changed fields this version no longer knows (an edit an older tab handed over, L6)', () => {
+    const known = writeFieldVersions({ 'match:m-test': T0 }, 'm-test', resolveFieldVersions(undefined, T0));
+    const legacy = ['activeLineupOwn', 'venue'] as MatchField[];
+    const { outbox, versions } = enqueue({ records: [matchChange(legacy)] }, createEmptyOutbox(), known);
+    const entry = outbox.records['match:m-test'];
+    assert.ok(entry.kind === 'match' && entry.fieldVersions);
+    assert.ok(!('activeLineupOwn' in entry.fieldVersions));
+    assert.strictEqual(entry.fieldVersions.venue, stamp);
+    assert.strictEqual(entry.fieldVersions.rivalTeamName, T0);
+    assert.ok(!Object.keys(versions).some((key) => key.endsWith('#activeLineupOwn')));
+  });
+});
+
+describe('dropUnknownMatchFields (outbox of an older app version, L6)', () => {
+  const T0 = '2026-10-30T17:00:00.000Z';
+  const T1 = '2026-10-30T17:30:00.000Z';
+
+  /** What an older version persisted: a match field the model dropped since (`activeLineupOwn`). */
+  function legacyState() {
+    const created = enqueue({
+      records: [
+        { kind: 'match', id: 'm-old', data: toMatchRecord(makeMatch({ id: 'm-old' })), deleted: false },
+        playerChange('p1'),
+      ],
+      events: [eventChange('ev-1')],
+    });
+    const match = created.outbox.records['match:m-old'];
+    assert.ok(match.kind === 'match' && match.fieldVersions);
+    const legacyMatch = {
+      ...match,
+      data: { ...match.data, activeLineupOwn: ['p1'] },
+      fieldVersions: { ...match.fieldVersions, activeLineupOwn: T1 },
+    };
+    return {
+      outbox: { ...created.outbox, records: { ...created.outbox.records, 'match:m-old': legacyMatch } } as Outbox,
+      versions: {
+        ...created.versions,
+        'match:m-old#activeLineupOwn': T1,
+        'match:m-old#status': T0,
+        'player:p1#activeLineupOwn': T0,
+      },
+      match,
+    };
+  }
+
+  it('drops unknown fields from queued match records and from the field versions', () => {
+    const { outbox, versions, match } = legacyState();
+    const cleaned = dropUnknownMatchFields({ outbox, versions });
+
+    const entry = cleaned.outbox.records['match:m-old'];
+    assert.deepStrictEqual(entry, match, 'the queued match is what this version would have queued');
+    assert.ok(!('match:m-old#activeLineupOwn' in cleaned.versions));
+    assert.strictEqual(cleaned.versions['match:m-old#status'], T0, 'per-field names of a group stay readable');
+    assert.strictEqual(cleaned.versions['player:p1#activeLineupOwn'], T0, 'only match entries are touched');
+    assert.deepStrictEqual(cleaned.outbox.records['player:p1'], outbox.records['player:p1']);
+    assert.deepStrictEqual(cleaned.outbox.events, outbox.events);
+    assert.strictEqual(cleaned.outbox.nextRev, outbox.nextRev);
+  });
+
+  it('pushes only current fields after the cleanup', () => {
+    const { outbox, versions } = legacyState();
+    const batch = buildPushBatch(dropUnknownMatchFields({ outbox, versions }).outbox);
+    const pushed = batch.payload.records.find((record) => record.kind === 'match');
+    assert.ok(pushed && pushed.kind === 'match');
+    assert.ok(!('activeLineupOwn' in pushed.data));
+    assert.ok(!('activeLineupOwn' in (pushed.fieldVersions ?? {})));
+  });
+
+  it('keeps a state with nothing to drop as it is', () => {
+    const created = enqueue({ records: [{ kind: 'match', id: 'm-new', data: toMatchRecord(makeMatch({ id: 'm-new' })), deleted: false }] });
+    assert.deepStrictEqual(dropUnknownMatchFields(created), created);
   });
 });
 

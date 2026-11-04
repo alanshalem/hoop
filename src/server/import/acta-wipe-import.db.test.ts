@@ -7,7 +7,6 @@ import { matchEvents, sessions, syncRecords, users } from '../db/schema';
 import { seedDatabase } from '../db/seed';
 import { readDataEpoch } from '../sync/epoch';
 import { applyPush } from '../sync/push';
-import { createSyncChangeListener, type SyncChangeListener } from '../sync/listener';
 import { pullChanges } from '../sync/pull';
 import { readCurrentCursor } from '../sync/repository';
 import { buildFixture } from '../testing/acta-fixtures';
@@ -22,7 +21,6 @@ import { KEPT_ACCOUNT_EMAIL, wipeAndImportActas } from './acta-wipe-import';
  */
 describe('acta wipe + import (database, S1, S2)', () => {
   let connection: DatabaseConnection;
-  let listener: SyncChangeListener;
   const data = buildFixture();
   const NOW = new Date('2030-04-01T12:00:00.000Z');
 
@@ -62,14 +60,10 @@ describe('acta wipe + import (database, S1, S2)', () => {
 
   before(async () => {
     connection = await openTestDatabase();
-    const { connectionString } = connection.pool.options;
-    assert.ok(connectionString);
-    listener = createSyncChangeListener({ connectionString, retryMs: 50 });
     await restoreDemoSeed();
   });
 
   after(async () => {
-    await listener.close();
     await connection.db.delete(syncRecords).where(sql`${syncRecords.id} LIKE 'acta-%'`);
     await restoreDemoSeed();
     await connection.pool.end();
@@ -111,11 +105,6 @@ describe('acta wipe + import (database, S1, S2)', () => {
     const cursorBefore = Number(await readCurrentCursor(connection.db));
     const usersBefore = await count(users);
     const sessionsBefore = await count(sessions);
-    let notified: string | null = null;
-    await listener.ready();
-    const unsubscribe = listener.subscribe((cursor) => {
-      notified = cursor;
-    });
 
     const summary = await wipeAndImportActas(connection.db, data, { now: NOW });
 
@@ -156,10 +145,5 @@ describe('acta wipe + import (database, S1, S2)', () => {
       cursor: await readCurrentCursor(connection.db),
     });
     assert.ok(summary.deleted.records >= 1 && summary.deleted.events >= 1);
-
-    // The notification is delivered after the commit, asynchronously.
-    for (let i = 0; i < 50 && notified === null; i += 1) await new Promise((resolve) => setTimeout(resolve, 20));
-    unsubscribe();
-    assert.strictEqual(notified, summary.cursor);
   });
 });

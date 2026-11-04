@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { createEditHandoff, type HandoffEdit } from './edit-handoff';
 import { createLeaseLeaderLock, LEASE_RENEW_MS, LEASE_SETTLE_MS, LEASE_TTL_MS, SYNC_LEADER_LEASE_KEY } from './leader-lease';
 import { createEmptyOutbox, enqueueChanges } from './outbox';
-import { createSyncEngine, type SyncEngine } from './sync-engine';
+import { createSyncEngine, SYNC_POLL_INTERVAL_MS, type SyncEngine, type SyncEngineDeps } from './sync-engine';
 import {
   createSyncTabCoordinator,
   TAB_PROTOCOL_VERSION,
@@ -23,12 +23,14 @@ interface HarnessOptions {
   withLock?: boolean;
   withChannel?: boolean;
   realEngine?: boolean;
+  /** Overrides of the real engine's offline defaults (with `realEngine`). */
+  engineDeps?: Partial<SyncEngineDeps>;
   /** Replaces the scripted fake lock (e.g. a real lease lock). */
   lock?: LeaderLockPort;
   handoff?: EditHandoffPort;
 }
 
-function harness({ withLock = true, withChannel = true, realEngine = false, lock, handoff }: HarnessOptions = {}) {
+function harness({ withLock = true, withChannel = true, realEngine = false, engineDeps, lock, handoff }: HarnessOptions = {}) {
   const log: string[] = [];
   let data: SyncableClubData = makeClubData({
     divisions: [makeDivision()],
@@ -172,6 +174,7 @@ function harness({ withLock = true, withChannel = true, realEngine = false, lock
       onUnauthorized: () => undefined,
       now: () => Date.parse('2026-10-30T18:00:00.000Z'),
       timers: { setTimeout: () => 0, clearTimeout: () => undefined },
+      ...engineDeps,
     });
     deps.engine = engine;
   }
@@ -318,6 +321,51 @@ describe('sync tab coordinator (S13.3)', () => {
     assert.strictEqual(tab.coordinator.role(), 'follower');
     assert.strictEqual(tab.writable, false);
     assert.ok(!tab.log.includes('engine.start'));
+  });
+
+  it('only the leader polls the server: a follower never pulls, a leader that steps down stops (S4)', async () => {
+    const pulls: (string | null)[] = [];
+    const timers: { ms: number; cleared: boolean }[] = [];
+    const pendingPolls = () => timers.filter((timer) => timer.ms === SYNC_POLL_INTERVAL_MS && !timer.cleared).length;
+    const tab = harness({
+      realEngine: true,
+      engineDeps: {
+        api: {
+          pull: async (since) => {
+            pulls.push(since);
+            return { ok: true, value: { records: [], events: [], cursor: since ?? '0', hasMore: false, epoch: 'epoch-1' } };
+          },
+          push: async () => ({ ok: false, error: 'NETWORK' }),
+        },
+        connectivity: { isOnline: () => true, subscribe: () => () => undefined },
+        timers: {
+          setTimeout: (_callback, ms) => {
+            const timer = { ms, cleared: false };
+            timers.push(timer);
+            return timer;
+          },
+          clearTimeout: (handle) => {
+            (handle as { cleared: boolean }).cleared = true;
+          },
+        },
+      },
+    });
+    tab.coordinator.start();
+    tab.queue();
+    await tab.flushMicrotasks();
+    assert.strictEqual(tab.coordinator.role(), 'follower');
+    assert.deepStrictEqual(pulls, []);
+    assert.strictEqual(pendingPolls(), 0);
+
+    await tab.acquire();
+    await tab.flushMicrotasks();
+    assert.strictEqual(tab.coordinator.role(), 'leader');
+    assert.deepStrictEqual(pulls, ['5']);
+    assert.strictEqual(pendingPolls(), 1);
+
+    tab.lose();
+    assert.strictEqual(tab.coordinator.role(), 'follower');
+    assert.strictEqual(pendingPolls(), 0, 'the poll stops with the engine');
   });
 
   it('a follower sends its local edits to the leader as a club diff', () => {

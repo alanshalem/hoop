@@ -30,18 +30,11 @@ import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
 import { notify } from '@/presentation/organisms/DialogHost/dialog-store';
 import { LineupPlayerRow } from '@/presentation/organisms/LineupPlayerRow/LineupPlayerRow';
 import { MatchStatusBadge } from '@/presentation/organisms/MatchCard/MatchStatusBadge';
-import { formatMatchDate, isMatchInPlay } from '@/presentation/organisms/MatchCard/match-display';
+import { formatMatchDate } from '@/presentation/organisms/MatchCard/match-display';
 import { getTeamRosterPlayers } from '@/presentation/organisms/DivisionRosterModal/team-roster';
 import { useScreenTour } from '@/presentation/tour/useScreenTour';
+import { getLineupMode, initialStarterIds } from './lineup-state';
 import styles from './page.module.css';
-
-/** SETUP: before tip-off. IN_PLAY: starters locked, roster can grow. FINISHED: read-only. */
-type LineupMode = 'SETUP' | 'IN_PLAY' | 'FINISHED';
-
-const getMode = (match: Match): LineupMode => {
-  if (match.status === 'SCHEDULED') return 'SETUP';
-  return isMatchInPlay(match) ? 'IN_PLAY' : 'FINISHED';
-};
 
 const byDorsal = (a: Player, b: Player) => a.dorsal - b.dorsal;
 
@@ -97,7 +90,7 @@ function LineupEditor({ match }: { match: Match }) {
   const updateMatch = useClubStore((state) => state.updateMatch);
   const setActiveMatch = useClubStore((state) => state.setActiveMatch);
 
-  const mode = getMode(match);
+  const mode = getLineupMode(match);
   useScreenTour('lineup');
   const canEdit = can(role, 'MANAGE_LINEUP') && mode !== 'FINISHED';
   const committedRoster = match.rosterOwnPlayerIds;
@@ -118,9 +111,7 @@ function LineupEditor({ match }: { match: Match }) {
   const [rosterIds, setRosterIds] = useState<string[]>(() =>
     mode === 'SETUP' ? committedRoster.filter((pid) => candidateSet.has(pid)) : committedRoster
   );
-  const [starterIds, setStarterIds] = useState<string[]>(() => {
-    return match.startingLineupOwn.filter((pid) => mode !== 'SETUP' || rosterIds.includes(pid));
-  });
+  const [starterIds, setStarterIds] = useState<string[]>(() => initialStarterIds(match, mode, rosterIds));
 
   const rosterPlayers = candidates.filter((p) => rosterIds.includes(p.id));
   const issues = mode === 'SETUP' ? validateLineup(rosterIds, starterIds) : [];

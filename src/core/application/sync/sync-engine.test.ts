@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { createSyncEngine, SYNC_ERROR_MESSAGES, type SyncEngineDeps } from './sync-engine';
+import { createSyncEngine, SYNC_ERROR_MESSAGES, SYNC_POLL_INTERVAL_MS, type SyncEngineDeps } from './sync-engine';
 import { createEmptyOutbox } from './outbox';
 import { toMatchRecord } from './sync-records';
 import type { SyncableClubData } from './record-kinds';
@@ -37,8 +37,11 @@ function harness(initial: Partial<SyncStoreData> = {}) {
   const pushQueue: Responder<PushResult>[] = [];
   const timers: { fn: () => void; ms: number; cleared: boolean }[] = [];
   const connectivityListeners = new Set<(online: boolean) => void>();
-  let streamListener: ((cursor: string) => void) | null = null;
+  const visibilityListeners = new Set<(visible: boolean) => void>();
+  /** Every API call in order: `pull:<since>` or `push`. */
+  const calls: string[] = [];
   let online = true;
+  let visible = true;
   let unauthorized = 0;
 
   const respond = <T>(queue: Responder<T>[], fallback: ApiResult<T>): ApiResult<T> => {
@@ -50,10 +53,12 @@ function harness(initial: Partial<SyncStoreData> = {}) {
     api: {
       pull: async (since) => {
         pulls.push(since);
+        calls.push(`pull:${since}`);
         return respond(pullQueue, { ok: true, value: { records: [], events: [], cursor: since ?? '0', hasMore: false, epoch: TEST_EPOCH } });
       },
       push: async (payload, epoch) => {
         pushes.push(payload);
+        calls.push('push');
         pushEpochs.push(epoch);
         const ids = [...payload.records.map((r) => r.id), ...payload.events.map((e) => e.id)];
         return respond(pushQueue, { ok: true, value: { accepted: ids, rejected: [], cursor: '999' } });
@@ -83,30 +88,35 @@ function harness(initial: Partial<SyncStoreData> = {}) {
         return () => connectivityListeners.delete(listener);
       },
     },
-    openChangeStream: (listener) => {
-      streamListener = listener;
-      return () => {
-        streamListener = null;
-      };
+    visibility: {
+      isVisible: () => visible,
+      subscribe: (listener) => {
+        visibilityListeners.add(listener);
+        return () => visibilityListeners.delete(listener);
+      },
     },
     onUnauthorized: () => {
       unauthorized += 1;
     },
     now: () => NOW,
     timers: {
+      // The handle is the timer itself, so clearing never depends on its place in the list.
       setTimeout: (fn, ms) => {
-        timers.push({ fn, ms, cleared: false });
-        return timers.length - 1;
+        const timer = { fn, ms, cleared: false };
+        timers.push(timer);
+        return timer;
       },
       clearTimeout: (handle) => {
-        if (typeof handle === 'number' && timers[handle]) timers[handle].cleared = true;
+        (handle as { cleared: boolean }).cleared = true;
       },
     },
   };
 
   const engine = createSyncEngine(deps);
+  const isPoll = (timer: { ms: number }) => timer.ms === SYNC_POLL_INTERVAL_MS;
   return {
     engine,
+    calls,
     pulls,
     pushes,
     pushEpochs,
@@ -131,11 +141,26 @@ function harness(initial: Partial<SyncStoreData> = {}) {
       online = value;
       connectivityListeners.forEach((listener) => listener(value));
     },
-    emitChanged(cursor: string) {
-      streamListener?.(cursor);
+    setVisible(value: boolean) {
+      visible = value;
+      visibilityListeners.forEach((listener) => listener(value));
     },
+    /** Poll timers still waiting. */
+    pendingPolls() {
+      return timers.filter((timer) => isPoll(timer) && !timer.cleared).length;
+    },
+    /** Runs the debounce and retry timers due so far; polls only fire through `runPolls`. */
     async runPendingTimers() {
-      for (const timer of timers.splice(0)) if (!timer.cleared) timer.fn();
+      const due = timers.filter((timer) => !isPoll(timer));
+      timers.splice(0, timers.length, ...timers.filter(isPoll));
+      for (const timer of due) if (!timer.cleared) timer.fn();
+      await engine.whenIdle();
+    },
+    /** One poll interval elapses. */
+    async runPolls() {
+      const due = timers.filter(isPoll);
+      timers.splice(0, timers.length, ...timers.filter((timer) => !isPoll(timer)));
+      for (const timer of due) if (!timer.cleared) timer.fn();
       await engine.whenIdle();
     },
   };
@@ -182,7 +207,7 @@ describe('sync engine: data epoch (S1, L5)', () => {
     h.engine.start();
     await h.engine.whenIdle();
 
-    assert.deepStrictEqual(h.pulls, [null], 'an unknown epoch restarts from a snapshot, not from the cursor');
+    assert.deepStrictEqual(h.pulls, [null, '40'], 'an unknown epoch restarts from a snapshot, not from the cursor');
     assert.deepStrictEqual(h.pushes.map((p) => p.records.map((r) => r.id)), [['p-pending']]);
     assert.deepStrictEqual(h.pushEpochs, [TEST_EPOCH]);
     h.engine.stop();
@@ -199,8 +224,7 @@ describe('sync engine: data epoch (S1, L5)', () => {
       { ok: true, value: { records: [], events: [], cursor: '50', hasMore: false, epoch: 'epoch-2' } },
       snapshotPage('60', false, 'epoch-2')
     );
-    h.emitChanged('50');
-    await h.engine.whenIdle();
+    await h.runPolls();
 
     assert.deepStrictEqual(h.pulls.slice(-2), ['10', null]);
     assert.deepStrictEqual(h.data.divisions.map((d) => d.id), ['div-server']);
@@ -410,19 +434,17 @@ describe('sync engine (S10.7)', () => {
     h.engine.stop();
   });
 
-  it('pulls on a change notification and does a full resync when the server cursor went back', async () => {
+  it('does a full resync when a push answers a server cursor behind the local one', async () => {
     const h = harness({ cursor: '1200', versions: { 'division:div-local-seed': '2026-10-01T00:00:00.000Z' } });
     h.engine.start();
     await h.engine.whenIdle();
 
-    h.emitChanged('1300');
-    await h.engine.whenIdle();
-    assert.deepStrictEqual(h.pulls, ['1200', '1200']);
-
+    h.edit({ players: [{ ...h.data.players[0], dorsal: 5 }] });
+    h.pushQueue.push({ ok: true, value: { accepted: ['p1'], rejected: [], cursor: '25' } });
     h.pullQueue.push(snapshotPage('30'));
-    h.emitChanged('25');
-    await h.engine.whenIdle();
-    assert.deepStrictEqual(h.pulls.at(-1), null);
+    await h.runPendingTimers();
+
+    assert.deepStrictEqual(h.calls, ['pull:1200', 'push', 'pull:null']);
     assert.strictEqual(h.store.cursor, '30');
     assert.deepStrictEqual(h.data.divisions.map((d) => d.id), ['div-server']);
     assert.strictEqual(h.store.versions['division:div-local-seed'], undefined);
@@ -445,7 +467,7 @@ describe('sync engine (S10.7)', () => {
     h.setOnline(true);
     await h.engine.whenIdle();
 
-    assert.deepStrictEqual(h.pulls, [null, null]);
+    assert.deepStrictEqual(h.calls, ['pull:null', 'pull:null', 'push', 'pull:40']);
     assert.deepStrictEqual(h.data.players.map((p) => p.id), ['p-offline'], 'the snapshot replaces the seed, the edit is re-applied');
     assert.deepStrictEqual(h.data.divisions.map((d) => d.id), ['div-server']);
     assert.strictEqual(h.pushes.length, 1);
@@ -461,22 +483,25 @@ describe('sync engine (S10.7)', () => {
     h.engine.start();
     await h.engine.whenIdle();
 
-    h.edit({ players: [{ ...h.data.players[0], dorsal: 77 }] });
+    h.edit({ players: [{ ...h.data.players[0], dorsal: 76 }] });
+    // An edit made while the push is in flight stays pending; the answer reveals a server reset.
+    h.pushQueue.push(() => {
+      h.edit({ players: [{ ...h.data.players[0], dorsal: 77 }] });
+      return { ok: true, value: { accepted: ['p1'], rejected: [], cursor: '25' } };
+    });
     h.pullQueue.push(snapshotPage('30'));
-    h.emitChanged('25');
-    await h.engine.whenIdle();
+    await h.runPendingTimers();
 
-    assert.strictEqual(h.pulls.at(-1), null);
-    assert.strictEqual(h.store.cursor, '30');
+    assert.deepStrictEqual(h.calls.slice(0, 3), ['pull:1200', 'push', 'pull:null']);
     assert.deepStrictEqual(h.data.divisions.map((d) => d.id), ['div-server']);
     assert.strictEqual(h.data.players.find((p) => p.id === 'p1')?.dorsal, 77);
-    assert.strictEqual(h.store.versions['player:p1'], '2026-10-30T18:00:00.000Z');
+    const pushed = h.pushes.flatMap((push) => push.records);
+    assert.deepStrictEqual(pushed.map((r) => [r.kind, r.id]), [['player', 'p1'], ['player', 'p1']]);
+    assert.strictEqual(pushed[1].kind === 'player' ? pushed[1].data.dorsal : -1, 77, 'the pending edit is pushed after the snapshot');
+    assert.deepStrictEqual(h.store.outbox.records, {});
 
     await h.runPendingTimers(); // the pending debounce finds nothing left to push
-    const pushed = h.pushes.flatMap((push) => push.records);
-    assert.deepStrictEqual(pushed.map((r) => [r.kind, r.id]), [['player', 'p1']]);
-    assert.strictEqual(pushed[0].kind === 'player' ? pushed[0].data.dorsal : -1, 77);
-    assert.deepStrictEqual(h.store.outbox.records, {});
+    assert.strictEqual(h.pushes.length, 2);
     h.engine.stop();
   });
 
@@ -501,7 +526,7 @@ describe('sync engine (S10.7)', () => {
       h.engine.start();
       await h.engine.whenIdle();
 
-      assert.deepStrictEqual(h.pulls, [cursor]);
+      assert.deepStrictEqual(h.pulls.slice(0, 1), [cursor]);
       assert.ok(h.data.divisions.some((d) => d.id === 'div-x'));
       assert.strictEqual(h.data.players.find((p) => p.id === 'p1')?.dorsal, 55);
 
@@ -521,5 +546,116 @@ describe('sync engine (S10.7)', () => {
     h.engine.stop();
     h.edit({ players: [] });
     assert.deepStrictEqual(h.store.outbox, createEmptyOutbox());
+  });
+});
+
+describe('sync engine: polling (S4)', () => {
+  it('pulls on start and then every SYNC_POLL_INTERVAL_MS while the page is visible', async () => {
+    const h = harness({ cursor: '10' });
+    h.engine.start();
+    await h.engine.whenIdle();
+    assert.deepStrictEqual(h.pulls, ['10']);
+    assert.strictEqual(SYNC_POLL_INTERVAL_MS, 10_000);
+    assert.strictEqual(h.pendingPolls(), 1);
+
+    await h.runPolls();
+    assert.deepStrictEqual(h.pulls, ['10', '10']);
+    assert.strictEqual(h.pendingPolls(), 1, 'the next poll is scheduled after each pull');
+
+    await h.runPolls();
+    assert.deepStrictEqual(h.pulls, ['10', '10', '10']);
+    assert.deepStrictEqual(h.pushes, []);
+    assert.strictEqual(h.store.status, 'idle');
+    h.engine.stop();
+  });
+
+  it('pauses while the page is hidden and pulls at once when it is visible again', async () => {
+    const h = harness({ cursor: '10' });
+    h.engine.start();
+    await h.engine.whenIdle();
+
+    h.setVisible(false);
+    assert.strictEqual(h.pendingPolls(), 0);
+    await h.runPolls();
+    assert.deepStrictEqual(h.pulls, ['10'], 'no poll while hidden');
+
+    h.setVisible(true);
+    await h.engine.whenIdle();
+    assert.deepStrictEqual(h.pulls, ['10', '10'], 'pulled without waiting for an interval');
+    assert.strictEqual(h.pendingPolls(), 1, 'polling resumes');
+    h.engine.stop();
+  });
+
+  it('started hidden: pulls once and schedules no poll until the page is shown', async () => {
+    const h = harness({ cursor: '10' });
+    h.setVisible(false);
+    h.engine.start();
+    await h.engine.whenIdle();
+    assert.deepStrictEqual(h.pulls, ['10']);
+    assert.strictEqual(h.pendingPolls(), 0);
+
+    h.setVisible(true);
+    await h.engine.whenIdle();
+    assert.deepStrictEqual(h.pulls, ['10', '10']);
+    h.engine.stop();
+  });
+
+  it('pulls at once when the connection returns', async () => {
+    const h = harness({ cursor: '10' });
+    h.engine.start();
+    await h.engine.whenIdle();
+    h.setOnline(false);
+    assert.strictEqual(h.store.status, 'offline');
+
+    h.setOnline(true);
+    await h.engine.whenIdle();
+    assert.deepStrictEqual(h.pulls, ['10', '10']);
+    assert.strictEqual(h.store.status, 'idle');
+    h.engine.stop();
+  });
+
+  it('pulls right after a successful push', async () => {
+    const h = harness({ cursor: '10' });
+    h.engine.start();
+    await h.engine.whenIdle();
+
+    h.edit({ players: [{ ...h.data.players[0], dorsal: 9 }] });
+    await h.runPendingTimers();
+    assert.deepStrictEqual(h.calls, ['pull:10', 'push', 'pull:10']);
+    assert.deepStrictEqual(h.store.outbox.records, {});
+    h.engine.stop();
+  });
+
+  it('keeps the exponential backoff on errors: no poll and no visible-page pull jump the retry', async () => {
+    const h = harness({ cursor: '10' });
+    h.pullQueue.push({ ok: false, error: 'HTTP', status: 500 });
+    h.engine.start();
+    await h.engine.whenIdle();
+    assert.strictEqual(h.store.status, 'error');
+    assert.strictEqual(h.pendingPolls(), 0);
+    assert.strictEqual(h.timers.at(-1)?.ms, 1000);
+
+    h.setVisible(false);
+    h.setVisible(true);
+    await h.engine.whenIdle();
+    assert.deepStrictEqual(h.pulls, ['10'], 'the retry wait is respected');
+
+    await h.runPendingTimers();
+    assert.deepStrictEqual(h.pulls, ['10', '10']);
+    assert.strictEqual(h.store.status, 'idle');
+    assert.strictEqual(h.pendingPolls(), 1, 'polling resumes after the retry succeeds');
+    h.engine.stop();
+  });
+
+  it('stops polling after stop()', async () => {
+    const h = harness({ cursor: '10' });
+    h.engine.start();
+    await h.engine.whenIdle();
+    h.engine.stop();
+    assert.strictEqual(h.pendingPolls(), 0);
+    h.setVisible(false);
+    h.setVisible(true);
+    await h.runPolls();
+    assert.deepStrictEqual(h.pulls, ['10']);
   });
 });

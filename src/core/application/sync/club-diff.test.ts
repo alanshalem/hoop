@@ -174,3 +174,21 @@ describe('diffClubState (S10.7)', () => {
     assert.deepStrictEqual(removed.events, []);
   });
 });
+
+describe('diffClubState record order (T4 verify)', () => {
+  it('lists record changes in registry order, matches last', () => {
+    const next = makeClubData({
+      coaches: [makeCoach()],
+      matches: [makeMatch()],
+      divisions: [makeDivision()],
+      rivalTeams: [makeRivalTeam()],
+      chartCodes: [makeChartCode()],
+      players: [makePlayer()],
+      teams: [makeTeam()],
+    });
+    assert.deepStrictEqual(
+      diffClubState(makeClubData(), next).records.map((r) => r.kind),
+      ['division', 'team', 'player', 'chartCode', 'rivalTeam', 'coach', 'match']
+    );
+  });
+});

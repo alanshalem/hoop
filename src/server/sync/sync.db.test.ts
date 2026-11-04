@@ -11,7 +11,6 @@ import { matchEvents, syncRecords } from '../db/schema';
 import { openTestDatabase } from '../testing/test-database';
 import type { PushBody, PushEventInput, PushRecordInput } from './api-schema';
 import { readDataEpoch, rotateDataEpoch } from './epoch';
-import { createSyncChangeListener, SYNC_CHANNEL, type SyncChangeListener } from './listener';
 import { pullChanges } from './pull';
 import { applyPush, type PushResult } from './push';
 import { lockSyncWrites, readCurrentCursor } from './repository';
@@ -120,6 +119,17 @@ describe('sync push / pull (database)', () => {
       await connection.db.delete(matchEvents).where(inArray(matchEvents.id, createdEventIds));
     }
     await connection.pool.end();
+  });
+
+  it('releases the sync write lock with its transaction, so a transaction pooler can serve pushes (S4)', async () => {
+    const id = uid('pooler');
+    const result = await push(ADMIN, body([playerRecord(id, at(1))]));
+    assert.deepStrictEqual(result.accepted, [id]);
+    const held = await connection.db.execute<{ n: number }>(sql`
+      SELECT count(*)::int AS n FROM pg_locks
+      WHERE locktype = 'advisory' AND database = (SELECT oid FROM pg_database WHERE datname = current_database())
+    `);
+    assert.strictEqual(held.rows[0].n, 0, 'no advisory lock outlives the push transaction');
   });
 
   it('deleting a match also deletes its plays, so none stay orphaned on the server', async () => {
@@ -733,88 +743,5 @@ describe('field-level merge of match records (database, S13.1)', () => {
     const result = await devicePush(id, 2, {}, { status: 3 });
     assert.deepStrictEqual(result.rejected, [{ id, reason: 'INVALID' }]);
     assert.strictEqual(await stored(id), undefined);
-  });
-});
-
-describe('sync change notifications (database)', () => {
-  let connection: DatabaseConnection;
-  let listener: SyncChangeListener;
-  const createdRecordIds: string[] = [];
-
-  before(async () => {
-    connection = await openTestDatabase();
-    const { connectionString } = connection.pool.options;
-    assert.ok(connectionString);
-    listener = createSyncChangeListener({ connectionString, retryMs: 50 });
-  });
-
-  after(async () => {
-    await listener.close();
-    if (createdRecordIds.length > 0) {
-      await connection.db.delete(syncRecords).where(inArray(syncRecords.id, createdRecordIds));
-    }
-    await connection.pool.end();
-  });
-
-  function nextCursor(timeoutMs = 2000): { cursor: Promise<string | null>; stop: () => void } {
-    let stop = () => {};
-    const cursor = new Promise<string | null>((resolve) => {
-      const timer = setTimeout(() => {
-        unsubscribe();
-        resolve(null);
-      }, timeoutMs);
-      const unsubscribe = listener.subscribe((value) => {
-        clearTimeout(timer);
-        unsubscribe();
-        resolve(value);
-      });
-      stop = () => {
-        clearTimeout(timer);
-        unsubscribe();
-        resolve(null);
-      };
-    });
-    return { cursor, stop };
-  }
-
-  it(`notifies ${SYNC_CHANNEL} with the cursor after a push with accepted writes`, async () => {
-    const waiting = nextCursor();
-    await listener.ready();
-    const id = uid('notify');
-    createdRecordIds.push(id);
-    const result = await pushInCurrentEpoch(connection.db, ADMIN, body([playerRecord(id, at(1))]));
-    assert.strictEqual(await waiting.cursor, result.cursor);
-  });
-
-  it('does not notify when nothing was written', async () => {
-    const id = uid('notify');
-    createdRecordIds.push(id);
-    const setup = nextCursor();
-    await listener.ready();
-    const created = await pushInCurrentEpoch(connection.db, ADMIN, body([playerRecord(id, at(2))]));
-    assert.strictEqual(await setup.cursor, created.cursor);
-
-    const waiting = nextCursor(400);
-    await listener.ready();
-    const stale = await pushInCurrentEpoch(connection.db, ADMIN, body([playerRecord(id, at(2))]));
-    assert.deepStrictEqual(stale.rejected, [{ id, reason: 'STALE' }]);
-    assert.strictEqual(await waiting.cursor, null);
-  });
-
-  it('reconnects after losing its connection and reports the current cursor', async () => {
-    await listener.ready();
-    const waiting = nextCursor(5000);
-    await connection.db.execute(sql`
-      SELECT pg_terminate_backend(pid) FROM pg_stat_activity
-      WHERE datname = current_database() AND pid <> pg_backend_pid() AND query = ${`LISTEN ${SYNC_CHANNEL}`}
-    `);
-    assert.strictEqual(await waiting.cursor, await readCurrentCursor(connection.db));
-
-    const after = nextCursor();
-    await listener.ready();
-    const id = uid('notify');
-    createdRecordIds.push(id);
-    const result = await pushInCurrentEpoch(connection.db, ADMIN, body([playerRecord(id, at(3))]));
-    assert.strictEqual(await after.cursor, result.cursor);
   });
 });

@@ -15,18 +15,17 @@ import type { SyncRecordKind } from '@/core/application/sync/record-kinds';
  * Cursor safety: writers take `lockSyncWrites` first, so they run one at a
  * time and commit in seq order. Without it, a transaction that drew seq 10 but
  * committed after one that drew seq 11 would be skipped by a client that had
- * already pulled up to 11.
+ * already pulled up to 11. The lock is transaction-scoped and nothing here
+ * keeps session state between statements, so a transaction-mode pooler
+ * (Supabase's, S4) can hand each transaction a different connection.
  * =============================================================================
  */
-
-/** Postgres channel for change notifications; the payload is the new cursor. */
-export const SYNC_CHANNEL = 'hoop_sync';
 
 // Arbitrary app-wide advisory lock key ("hoop" in ASCII).
 const SYNC_WRITE_LOCK_KEY = 0x686f6f70;
 
 /** Highest seq stored in either table, as text (seq is bigint). '0' when empty. */
-export const CURRENT_CURSOR_SQL = `SELECT greatest(
+const CURRENT_CURSOR_SQL = `SELECT greatest(
   coalesce((SELECT max(seq) FROM sync_records), 0),
   coalesce((SELECT max(seq) FROM match_events), 0)
 )::text AS cursor`;
@@ -42,11 +41,6 @@ export async function lockSyncWrites(tx: DbExecutor): Promise<void> {
 export async function readCurrentCursor(db: DbExecutor): Promise<string> {
   const result = await db.execute<{ cursor: string }>(sql.raw(CURRENT_CURSOR_SQL));
   return result.rows[0]?.cursor ?? '0';
-}
-
-/** Queues a `changed` notification; Postgres delivers it only if the transaction commits. */
-export async function notifySyncChanged(tx: DbExecutor, cursor: string): Promise<void> {
-  await tx.execute(sql`SELECT pg_notify(${SYNC_CHANNEL}, ${cursor})`);
 }
 
 export interface RecordWrite {

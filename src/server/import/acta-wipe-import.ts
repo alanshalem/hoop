@@ -9,7 +9,6 @@ import { validRecordWrite } from '../sync/records';
 import {
   insertRecordsIfNew,
   lockSyncWrites,
-  notifySyncChanged,
   readCurrentCursor,
   type RecordWrite,
 } from '../sync/repository';
@@ -39,7 +38,7 @@ export interface WipeImportSummary {
   inserted: Partial<Record<SyncRecordKind, number>>;
   /** The new data epoch. */
   epoch: string;
-  /** Sync cursor after the import (also sent as the `hoop_sync` notification). */
+  /** Sync cursor after the import. */
   cursor: string;
 }
 
@@ -81,7 +80,6 @@ export async function wipeAndImportActas(
     const inserted: WipeImportSummary['inserted'] = {};
     for (const row of await insertRecordsIfNew(tx, records)) inserted[row.kind] = (inserted[row.kind] ?? 0) + 1;
     const cursor = await readCurrentCursor(tx);
-    await notifySyncChanged(tx, cursor);
 
     return {
       keptAccount,

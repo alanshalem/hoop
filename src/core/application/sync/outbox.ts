@@ -1,4 +1,13 @@
-import { fieldVersionEntries, MATCH_VERSIONED_FIELDS, readFieldVersions, versionKeyOf } from './match-fields';
+import {
+  fieldVersionEntries,
+  isKnownFieldVersionEntry,
+  isMatchField,
+  MATCH_VERSIONED_FIELDS,
+  pickFieldVersions,
+  pickKnownMatchFields,
+  readFieldVersions,
+  versionKeyOf,
+} from './match-fields';
 import { recordKey, timeOf } from './sync-records';
 import type {
   ClubDiff,
@@ -76,12 +85,36 @@ export function enqueueChanges({ outbox, versions }: OutboxState, diff: ClubDiff
 /** The record to push for a local change; stamps match field versions into `versions`. */
 function toSyncRecord(change: RecordChange, updatedAt: string, versions: VersionMap): SyncRecord {
   if (change.kind !== 'match') return { ...change, updatedAt };
-  const { changedFields, ...record } = change;
+  // An edit an older tab handed over may name fields this version no longer has.
+  const { changedFields, ...rest } = change;
+  const record = { ...rest, data: pickKnownMatchFields(rest.data) };
   if (record.deleted) return { ...record, updatedAt };
   const fieldVersions = readFieldVersions(versions, record.id);
-  for (const field of changedFields ?? MATCH_VERSIONED_FIELDS) fieldVersions[versionKeyOf(field)] = updatedAt;
+  for (const field of changedFields?.filter(isMatchField) ?? MATCH_VERSIONED_FIELDS) {
+    fieldVersions[versionKeyOf(field)] = updatedAt;
+  }
   Object.assign(versions, fieldVersionEntries(record.id, fieldVersions));
   return { ...record, updatedAt, fieldVersions };
+}
+
+/**
+ * Drops the match fields this app version no longer knows from queued match
+ * records and from the versions map (L6): storage written by an older version
+ * may still hold a field the model removed, such as `activeLineupOwn`.
+ */
+export function dropUnknownMatchFields({ outbox, versions }: OutboxState): OutboxState {
+  const records = Object.fromEntries(
+    Object.entries(outbox.records).map(([key, entry]): [string, OutboxRecordEntry] => {
+      if (entry.kind !== 'match') return [key, entry];
+      const data = pickKnownMatchFields(entry.data);
+      if (!entry.fieldVersions) return [key, { ...entry, data }];
+      return [key, { ...entry, data, fieldVersions: pickFieldVersions(entry.fieldVersions as Record<string, string>) }];
+    })
+  );
+  return {
+    outbox: { ...outbox, records },
+    versions: Object.fromEntries(Object.entries(versions).filter(([key]) => isKnownFieldVersionEntry(key))),
+  };
 }
 
 export interface PushBatch {

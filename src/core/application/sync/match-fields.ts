@@ -72,6 +72,21 @@ function isGroup(key: string): key is MatchFieldGroup {
   return Object.hasOwn(MATCH_FIELD_GROUPS, key);
 }
 
+/** Every top-level field of a match record this app version knows. */
+const MATCH_RECORD_FIELDS: ReadonlySet<string> = new Set(['id', ...MATCH_VERSIONED_FIELDS, ...MATCH_DERIVED_FIELDS]);
+
+export function isMatchField(field: string): field is MatchField {
+  return MATCH_VERSIONED_FIELDS.some((known) => known === field);
+}
+
+/**
+ * The record without fields this app version does not know: data persisted by
+ * an older version may still carry fields the model dropped (`activeLineupOwn`, L6).
+ */
+export function pickKnownMatchFields<T extends FieldValues>(data: T): T {
+  return Object.fromEntries(Object.entries(data).filter(([field]) => MATCH_RECORD_FIELDS.has(field))) as T;
+}
+
 /** The fields a version key covers. */
 function fieldsOf(key: MatchVersionKey): readonly MatchField[] {
   return isGroup(key) ? MATCH_FIELD_GROUPS[key] : [key];
@@ -84,6 +99,9 @@ function fieldsOf(key: MatchVersionKey): readonly MatchField[] {
 function storedNamesOf(key: MatchVersionKey): readonly string[] {
   return isGroup(key) ? [key, ...MATCH_FIELD_GROUPS[key]] : [key];
 }
+
+/** Every name a match field version may be stored under. */
+const STORED_VERSION_NAMES: ReadonlySet<string> = new Set(MATCH_VERSION_KEYS.flatMap(storedNamesOf));
 
 /** The newest version found under `names`, or undefined when there is none. */
 function newestStored(names: readonly string[], read: (name: string) => string | undefined): string | undefined {
@@ -218,6 +236,13 @@ export function readFieldVersions(versions: VersionMap, matchId: string): Comple
       newestStored(storedNamesOf(key), (name) => versions[fieldVersionKey(matchId, name)]) ?? recordVersion,
     ])
   ) as CompleteFieldVersions;
+}
+
+/** False for a `match:<id>#<name>` entry whose name this app version does not know. */
+export function isKnownFieldVersionEntry(key: string): boolean {
+  const separator = key.lastIndexOf('#');
+  if (!key.startsWith(recordKey('match', '')) || separator === -1) return true;
+  return STORED_VERSION_NAMES.has(key.slice(separator + 1));
 }
 
 /** The versions-map entries that store `fieldVersions` for a match. */

@@ -20,7 +20,11 @@ import type { ApiResult, ClubDiff, PullPage, SyncApi, SyncStoreData } from './sy
  * =============================================================================
  * HOOP - SYNC ENGINE (S10.7)
  * Watches the club store, stamps local changes into the persisted outbox and
- * flushes it; pulls server changes on start, on reconnect and on SSE `changed`.
+ * flushes it. Server changes are polled (S4, serverless hosting has no
+ * long-lived connections): a pull on start, every SYNC_POLL_INTERVAL_MS while
+ * the page is visible (paused while hidden), at once when the page becomes
+ * visible again or the connection returns, and right after every push. Only
+ * the leader tab runs the engine (./tab-coordinator.ts), so followers never poll.
  * Data epoch (S1, L5): pushes carry the epoch of the last pull. When a pull or
  * a refused push reveals another epoch (the server data was replaced), the
  * outbox, cursor, versions and local club data are dropped and a snapshot is
@@ -32,6 +36,8 @@ import type { ApiResult, ClubDiff, PullPage, SyncApi, SyncStoreData } from './sy
 export const FLUSH_DEBOUNCE_MS = 500;
 export const RETRY_BASE_MS = 1000;
 export const RETRY_MAX_MS = 60_000;
+/** Pull interval while the page is visible (S4). */
+export const SYNC_POLL_INTERVAL_MS = 10_000;
 /** Guard against a server that keeps answering `hasMore`. */
 const MAX_PULL_PAGES = 1000;
 
@@ -66,6 +72,12 @@ export interface ConnectivityPort {
   subscribe(listener: (online: boolean) => void): () => void;
 }
 
+/** Whether the page is shown (Page Visibility API); polling pauses while it is hidden. */
+export interface VisibilityPort {
+  isVisible(): boolean;
+  subscribe(listener: (visible: boolean) => void): () => void;
+}
+
 export interface TimerPort {
   setTimeout(callback: () => void, ms: number): unknown;
   clearTimeout(handle: unknown): void;
@@ -76,8 +88,8 @@ export interface SyncEngineDeps {
   club: ClubDataPort;
   store: SyncStorePort;
   connectivity: ConnectivityPort;
-  /** Opens the server change stream (SSE); returns its close function. */
-  openChangeStream?: (onChanged: (cursor: string) => void) => () => void;
+  /** Defaults to always visible. */
+  visibility?: VisibilityPort;
   /** The session is gone (401): the app moves to login; the outbox is kept. */
   onUnauthorized: () => void;
   now?: () => number;
@@ -102,6 +114,11 @@ export interface SyncEngine {
 
 type StepOutcome = 'ok' | 'offline' | 'error' | 'unauthorized';
 
+const alwaysVisible: VisibilityPort = {
+  isVisible: () => true,
+  subscribe: () => () => undefined,
+};
+
 const defaultTimers: TimerPort = {
   setTimeout: (callback, ms) => setTimeout(callback, ms),
   clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
@@ -111,6 +128,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   const { api, club, store, connectivity } = deps;
   const now = deps.now ?? Date.now;
   const timers = deps.timers ?? defaultTimers;
+  const visibility = deps.visibility ?? alwaysVisible;
 
   let started = false;
   /** Bumped by stop(): late responses of a stopped session are discarded. */
@@ -125,6 +143,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   let failures = 0;
   let flushTimer: unknown = null;
   let retryTimer: unknown = null;
+  let pollTimer: unknown = null;
 
   const isCurrent = (gen: number) => started && gen === generation;
 
@@ -177,6 +196,8 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     const gen = generation;
     let didWork = false;
     let errorMessage: string | null = null;
+    // A poll due while syncing is redundant: the next one is scheduled once this run ends.
+    clearPoll();
 
     while (isCurrent(gen) && (wantFlush || wantPull)) {
       if (!connectivity.isOnline()) {
@@ -214,6 +235,31 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       lastError: errorMessage,
       ...(didWork ? { lastSyncedAt: new Date(now()).toISOString() } : {}),
     });
+    schedulePoll();
+  }
+
+  function clearPoll(): void {
+    clearTimer(pollTimer);
+    pollTimer = null;
+  }
+
+  /** The next pull, one interval after the last run; none while the page is hidden. */
+  function schedulePoll(): void {
+    clearPoll();
+    if (!started || !visibility.isVisible()) return;
+    pollTimer = timers.setTimeout(() => {
+      pollTimer = null;
+      request({ pull: true });
+    }, SYNC_POLL_INTERVAL_MS);
+  }
+
+  function onVisibility(visible: boolean): void {
+    if (!visible) {
+      clearPoll();
+      return;
+    }
+    // Back on screen: pull now (a pending retry keeps its backoff and picks the pull up).
+    request({ pull: true });
   }
 
   function handleFailure(outcome: Exclude<StepOutcome, 'ok'>, message?: string): void {
@@ -261,6 +307,8 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
 
     const { outbox, settledCount, errorCount } = applyPushResult(store.getState().outbox, batch, result.value);
     store.setState({ outbox });
+    // Pull right after a push: other devices' changes (and newer versions behind STALE) arrive at once.
+    wantPull = true;
 
     if (isServerCursorBehind(store.getState().cursor, result.value.cursor)) {
       requireFullResync();
@@ -339,11 +387,6 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     wantPull = true;
   }
 
-  function onRemoteChange(cursor: string): void {
-    if (isServerCursorBehind(store.getState().cursor, cursor)) requireFullResync();
-    request({ pull: true });
-  }
-
   function onConnectivity(online: boolean): void {
     if (!online) {
       store.setState({ status: 'offline' });
@@ -370,8 +413,11 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       if (started) return;
       started = true;
       baseline = club.getData();
-      cleanups = [club.subscribe(onClubChange), connectivity.subscribe(onConnectivity)];
-      if (deps.openChangeStream) cleanups.push(deps.openChangeStream(onRemoteChange));
+      cleanups = [
+        club.subscribe(onClubChange),
+        connectivity.subscribe(onConnectivity),
+        visibility.subscribe(onVisibility),
+      ];
       void syncNow();
     },
 
@@ -383,6 +429,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       cleanups = [];
       clearTimer(flushTimer);
       clearTimer(retryTimer);
+      clearPoll();
       flushTimer = null;
       retryTimer = null;
       wantFlush = false;

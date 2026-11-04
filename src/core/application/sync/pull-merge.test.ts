@@ -479,3 +479,16 @@ describe('reconcileSelection', () => {
     assert.strictEqual(reconcileSelection({ activeDivisionId: 'div-test', activeMatchId: 'gone' }, data).activeMatchId, 'm-half');
   });
 });
+
+describe('mergePulledChanges with an echoed live event (T4 verify)', () => {
+  it('leaves the data untouched when a pulled live event is already present', () => {
+    const event = makeEvent({ id: 'e1', matchId: 'm-test' });
+    const data = makeClubData({ matches: [makeMatch({ events: [event] })] });
+    const result = mergePulledChanges(
+      { data, versions: {}, outbox: createEmptyOutbox() },
+      { records: [], events: [{ id: 'e1', matchId: 'm-test', data: event, deleted: false }] }
+    );
+    assert.strictEqual(result.changed, false);
+    assert.strictEqual(result.data, data);
+  });
+});

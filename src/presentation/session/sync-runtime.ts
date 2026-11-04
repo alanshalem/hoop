@@ -17,8 +17,8 @@ import {
   browserKeyValueStorage,
   browserStorageEvents,
   createBrowserLeaderElection,
+  browserVisibility,
   createBrowserTabChannel,
-  openSyncChangeStream,
 } from '@/core/infrastructure/sync-api/browser-adapters';
 import { createHttpAuthApi, createHttpSyncApi } from '@/core/infrastructure/sync-api/http-sync-api';
 import { claimSyncData } from './sync-ownership';
@@ -50,7 +50,7 @@ export function getSyncEngine(): SyncEngine {
     club: clubPort,
     store: syncStorePort,
     connectivity: browserConnectivity,
-    openChangeStream: openSyncChangeStream,
+    visibility: browserVisibility,
     // The outbox stays persisted: it is pushed after the next login.
     onUnauthorized: () => useAuthStore.getState().clearUser(),
   });

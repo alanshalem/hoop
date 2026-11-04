@@ -272,3 +272,27 @@ describe('decideEventWrite (append-only events with permanent tombstones)', () =
     assert.strictEqual(decideEventWrite({ deleted: false, data: changed }, { deleted: false, data }), 'stale');
   });
 });
+
+describe('decideEventWrite resend comparison (T4 verify)', () => {
+  const data = { id: 'e-1', matchId: 'm-1', type: 'FG2_MADE', quarterTimeRemainingSeconds: 300, scoreAtEvent: { home: 2, away: 0 } };
+
+  it('still treats JSON-visible differences in a resend as stale', () => {
+    const withoutClock: Partial<typeof data> = { ...data };
+    delete withoutClock.quarterTimeRemainingSeconds;
+    for (const changed of [
+      { ...data, assistedByPlayerId: null },
+      { ...data, extra: 1 },
+      withoutClock,
+      { ...data, quarterTimeRemainingSeconds: String(data.quarterTimeRemainingSeconds) },
+    ]) {
+      assert.strictEqual(decideEventWrite({ deleted: false, data: changed }, { deleted: false, data }), 'stale');
+    }
+  });
+
+  it('treats an undefined key like a missing one (stored JSON drops it)', () => {
+    assert.strictEqual(
+      decideEventWrite({ deleted: false, data: { ...data, assistedByPlayerId: undefined } }, { deleted: false, data }),
+      'unchanged'
+    );
+  });
+});

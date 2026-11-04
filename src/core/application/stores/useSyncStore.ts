@@ -1,14 +1,15 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { createEmptyOutbox } from '@/core/application/sync/outbox';
+import { createEmptyOutbox, dropUnknownMatchFields } from '@/core/application/sync/outbox';
 import type { SyncPersistedData, SyncStoreData } from '@/core/application/sync/sync-types';
 import { gatedLocalStorage, SYNC_STORAGE_KEY } from './persistence-gate';
 
 /**
  * Bump when the persisted sync shape changes; older storage restarts with a full resync.
  * v3: data epoch (S1, L5); older outboxes belong to replaced server data and are dropped.
+ * v4: match fields removed from the model (`activeLineupOwn`) leave the outbox and versions (L6).
  */
-export const SYNC_STORE_VERSION = 3;
+export const SYNC_STORE_VERSION = 4;
 
 export function createInitialSyncData(): SyncStoreData {
   return {
@@ -24,12 +25,17 @@ export function createInitialSyncData(): SyncStoreData {
 }
 
 /**
- * Persist migration: storage of any older version restarts empty (no owner,
+ * Persist migration: version 3 keeps its data without the match fields the
+ * model dropped since. Storage of any older version restarts empty (no owner,
  * cursor, versions or outbox), so changes made on replaced server data are
  * never pushed; the next sync pulls a full snapshot.
  */
 export function migrateSyncStore(persisted: unknown, version: number): SyncPersistedData {
   if (version === SYNC_STORE_VERSION) return persisted as SyncPersistedData;
+  if (version === 3) {
+    const data = persisted as SyncPersistedData;
+    return { ...data, ...dropUnknownMatchFields({ outbox: data.outbox, versions: data.versions }) };
+  }
   const { owner, cursor, versions, outbox, lastSyncedAt, epoch } = createInitialSyncData();
   return { owner, cursor, versions, outbox, lastSyncedAt, epoch };
 }

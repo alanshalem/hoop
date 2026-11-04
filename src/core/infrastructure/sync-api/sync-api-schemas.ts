@@ -110,12 +110,3 @@ export function parseErrorMessage(body: unknown): string | undefined {
   return parsed.success ? parsed.data.error : undefined;
 }
 
-/** Cursor of an SSE `changed` event (`data: {"cursor":"<seq>"}`), or null. */
-export function parseChangedEventData(data: string): string | null {
-  try {
-    const parsed = z.object({ cursor: CursorSchema }).safeParse(JSON.parse(data));
-    return parsed.success ? parsed.data.cursor : null;
-  } catch {
-    return null;
-  }
-}

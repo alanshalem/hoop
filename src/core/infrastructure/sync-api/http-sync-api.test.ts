@@ -1,7 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { createHttpAuthApi, createHttpSyncApi } from './http-sync-api';
-import { parseChangedEventData } from './sync-api-schemas';
 import { toMatchRecord } from '@/core/application/sync/sync-records';
 import { makeChartCode, makeCoach, makeDivision, makeEvent, makeMatch, makeRivalTeam } from '@/core/testing/fixtures';
 
@@ -256,13 +255,5 @@ describe('http auth api', () => {
     assert.deepStrictEqual(await api.logout(), { ok: true, value: undefined });
     assert.strictEqual(calls[1].init?.method, 'POST');
     assert.strictEqual(new Headers(calls[1].init?.headers).get('Content-Type'), 'application/json');
-  });
-});
-
-describe('parseChangedEventData', () => {
-  it('reads the cursor of an SSE `changed` event', () => {
-    assert.strictEqual(parseChangedEventData('{"cursor":"120"}'), '120');
-    assert.strictEqual(parseChangedEventData('{"cursor":12}'), null);
-    assert.strictEqual(parseChangedEventData('not json'), null);
   });
 });
