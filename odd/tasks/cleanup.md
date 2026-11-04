@@ -9,6 +9,8 @@ Branch: `refactor/cleanup` (from main 7b853e2), merged into main at the end. UI 
 - **S2** — "las rutas si quieres tambien dejalas todas en un idioma" Routes in one language (English, like the code): `/rivales` -> `/rivals`, `/entrenadores` -> `/coaches`, `/planilla` -> `/chart-codes`, `/ayuda` -> `/help`; every link, tour route, manual reference and test updated. No redirects (app not in production).
 - **S3** — "piensa que la app todavia esta en desarrollo no la esta usando gente entonces tenes libertad para hacer mas cambios de los normales hasta que salga la app a prod" Schema pruning is allowed: the dev DB has 0 live events (L3), so `SUBSTITUTION` events and event `coordinates` can leave the model.
 
+- **S4** — "Quiero hostear todo el proyecto 100% gratis si es posible" + decision L5 (Vercel + Supabase): the app runs on serverless functions. Live sync without long-lived connections: SSE and LISTEN/NOTIFY are replaced by polling (every few seconds while the page is visible, immediately on focus/online/after a push), with a small DB pool suited to Supabase pooled connections. Same data behavior (outbox, LWW, epoch guard).  describes Vercel + Supabase step by step.
+
 ## Tasks
 
 - T1 [S1] #1 #5: shrink the box score to a scoring line; remove PIR, +/-, player/team foul helpers only used by tests, unused event helpers, `setStartingLineup`, unused `RecordEventInput` fields, `calculateNormalizedDistance`, `PLAY_BY_PLAY_EVENT_LABELS`; update tests and manual. Route: worker. Commit: _pending_
@@ -18,6 +20,8 @@ Branch: `refactor/cleanup` (from main 7b853e2), merged into main at the end. UI 
 - T5 [S1] #6 #7: `FormModalSheet` template + `useModalForm`; `useEditModal`; division chips helper. Route: worker. Commit: _pending_
 - T6 [S1] #8 + oversized files: domain rules out of presentation/pages (`isMatchInPlay`, roster helpers, season points); split `acta-parser.ts`, `app/page.tsx`, lineup page, `MatchFormModal`. Route: worker. Commit: _pending_
 - T7 [S2] Single-language routes. Route: worker. Commit: _pending_
+- T9 [S4] Replace SSE/LISTEN with polling; serverless-friendly DB pool. Route: worker after T4; independent verify. Commit: _pending_
+- T10 [S4] Rewrite docs/DEPLOY.md for Vercel + Supabase (free). Route: inline/worker. Commit: _pending_
 - T8 Merge into main after a full check (tests, db tests, build, read-only browser check). Route: inline. Commit: merge
 
 ## Log
@@ -26,3 +30,4 @@ Branch: `refactor/cleanup` (from main 7b853e2), merged into main at the end. UI 
 - L2 (audit, read-only explore): #1 box score fields/PIR/+/-/foul helpers only used by tests (basketball-rules.ts); #2 record kinds hand-listed in ~10 places, same switch 3x; #3 apply-event-changes loop copied (apply-club-diff, pull-merge); #4 unused barrels (infrastructure/index re-exports the demo seed); #5 setStartingLineup, RecordEventInput playerId/assistedByPlayerId/coordinates, calculateNormalizedDistance, PLAY_BY_PLAY_EVENT_LABELS unused; #6 seven ModalSheet forms repeat the same structure; #7 five list pages repeat edit-modal state and division chips; #8 isMatchInPlay, isYouthCategory, getTeamRosterPlayers, season points and lineup candidates live in presentation/pages; #9 application imports CLUB_PROFILE from infrastructure; #10 eight tests rebuild an empty SyncableClubData. Others: demo seed generates coordinates/substitutions; store action boilerplate; oversized files; stale "FIBA PIR" banners; mixed-language routes.
 - L3 (evidence): dev DB `select ... from match_events where not deleted` -> 0 SUBSTITUTION, 0 with coordinates, 0 live events.
 - L4 (hosting, research): free options checked against vendor docs: Render free sleeps after 15 min and its Postgres expires after 30 days; Koyeb free scales to zero after 60 min; Neon free suspends after 5 min and drops LISTEN; Supabase free pauses after 7 days of low activity; Vercel Hobby functions last at most 300 s and Hobby is personal/non-commercial; Oracle Always Free gives an always-on ARM VM (now 2 OCPU / 12 GB). Pending user decision.
+- L5 (user decision): hosting -> "Vercel + Supabase (Recomendado)".
