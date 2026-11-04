@@ -10,7 +10,6 @@ import {
   deriveScoreboard,
   getOwnRivalScore,
   getQuarterPartials,
-  getStartingLineup,
   withDerivedScoreboard,
 } from './match-derivations';
 import { MatchSchema, OfficialResultSchema, type OfficialResult } from '../entities/match.types';
@@ -24,7 +23,7 @@ describe('Event rules', () => {
     assert.strictEqual(getEventPoints('FG3_MADE'), 3);
     assert.strictEqual(getEventPoints('FG3_MISS'), 0);
     assert.strictEqual(getEventPoints('FOUL_PERSONAL'), 0);
-    assert.strictEqual(getEventPoints('SUBSTITUTION'), 0);
+    assert.strictEqual(getEventPoints('CHART'), 0);
   });
 
   it('isFoulEvent detects personal, technical and unsportsmanlike fouls only', () => {
@@ -362,33 +361,5 @@ describe('official result without play-by-play (S3)', () => {
       ]
     );
     assert.deepStrictEqual(deriveScoreboard(finished({ officialResult: { home: 58, away: 90, quarters: [] } })).homeScore, 58);
-  });
-});
-
-describe('getStartingLineup', () => {
-  const events = [
-    makeEvent({
-      type: 'SUBSTITUTION',
-      substitution: { playerOutId: 'p1', playerInId: 'p6' },
-    }),
-    makeEvent({ type: 'FG2_MADE', isOwnTeam: false }),
-  ];
-
-  it('prefers startingLineupOwn when present', () => {
-    const match = makeMatch({
-      startingLineupOwn: ['p1', 'p2', 'p3', 'p4', 'p5'],
-      activeLineupOwn: ['p6', 'p2', 'p3', 'p4', 'p5'],
-      events,
-    });
-    assert.deepStrictEqual(getStartingLineup(match), ['p1', 'p2', 'p3', 'p4', 'p5']);
-  });
-
-  it('reconstructs the starters by reverting substitutions when startingLineupOwn is empty', () => {
-    const match = makeMatch({
-      startingLineupOwn: [],
-      activeLineupOwn: ['p6', 'p2', 'p3', 'p4', 'p5'],
-      events,
-    });
-    assert.deepStrictEqual(getStartingLineup(match), ['p1', 'p2', 'p3', 'p4', 'p5']);
   });
 });

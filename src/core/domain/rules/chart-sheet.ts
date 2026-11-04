@@ -11,7 +11,7 @@ import { QUARTER_SEQUENCE, isFirstHalf, isOvertime } from './game-clock';
 
 /**
  * =============================================================================
- * HOOP OS - CHARTING SHEET AGGREGATION
+ * HOOP - CHARTING SHEET AGGREGATION
  * Turns CHART events into the paper sheet grid: category x quarter, with
  * per-quarter, per-half and match totals. Chart events never feed statistics.
  * =============================================================================

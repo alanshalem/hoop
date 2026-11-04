@@ -143,25 +143,6 @@ export function getQuarterPartials(match: ScoreSource): QuarterPartial[] {
 }
 
 /**
- * Starting five of the own team. Falls back to rebuilding it from the current
- * lineup by reverting own substitutions (matches stored before the field existed).
- */
-export function getStartingLineup(
-  match: Pick<Match, 'startingLineupOwn' | 'activeLineupOwn' | 'events'>
-): string[] {
-  if (match.startingLineupOwn.length > 0) return match.startingLineupOwn;
-
-  const lineup = [...match.activeLineupOwn];
-  for (let i = match.events.length - 1; i >= 0; i--) {
-    const { substitution, isOwnTeam } = match.events[i];
-    if (!substitution || !isOwnTeam) continue;
-    const index = lineup.indexOf(substitution.playerInId);
-    if (index >= 0) lineup[index] = substitution.playerOutId;
-  }
-  return lineup;
-}
-
-/**
  * Own-team box score for a match: the scoring line of each roster player.
  */
 export function calculateMatchBoxScore(

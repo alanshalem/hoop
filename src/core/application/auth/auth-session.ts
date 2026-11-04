@@ -3,7 +3,7 @@ import type { ApiResult } from '@/core/application/sync/sync-types';
 
 /**
  * =============================================================================
- * HOOP OS - CLIENT AUTH SESSION (S10.8)
+ * HOOP - CLIENT AUTH SESSION (S10.8)
  * The session itself is an httpOnly cookie the browser never exposes; the
  * client only caches the public profile so the app also opens offline.
  * =============================================================================

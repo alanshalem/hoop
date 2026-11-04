@@ -5,7 +5,7 @@ import { SYNC_RECORD_KINDS } from './record-kinds';
 
 /**
  * =============================================================================
- * HOOP OS - SYNC API REQUEST SCHEMAS
+ * HOOP - SYNC API REQUEST SCHEMAS
  * Envelopes are validated here (a malformed envelope fails the whole request
  * with 400). Each `data` payload is validated per item against its domain
  * schema later (see ./records.ts), so one bad entity only rejects itself.

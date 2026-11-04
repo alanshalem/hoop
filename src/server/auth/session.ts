@@ -7,7 +7,7 @@ import { toPublicUser, type PublicUser } from './users';
 
 /**
  * =============================================================================
- * HOOP OS - DATABASE SESSIONS
+ * HOOP - DATABASE SESSIONS
  * The cookie holds a random 32-byte token; the database stores only its
  * SHA-256, so a leaked sessions table cannot be replayed as cookies.
  * =============================================================================

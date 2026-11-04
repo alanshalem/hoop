@@ -12,6 +12,7 @@ import { createEmptyOutbox, enqueueChanges } from './outbox';
 import type { PulledChanges, SyncableClubData, SyncEvent, SyncRecord } from './sync-types';
 import {
   makeChartCode,
+  makeClubData,
   makeCoach,
   makeDivision,
   makeEvent,
@@ -26,16 +27,13 @@ const T1 = '2026-10-30T18:00:01.000Z';
 const T2 = '2026-10-30T18:00:02.000Z';
 
 function club(overrides: Partial<SyncableClubData> = {}): SyncableClubData {
-  return {
+  return makeClubData({
     divisions: [makeDivision()],
     teams: [makeTeam()],
     players: [makePlayer({ id: 'p1' })],
     matches: [makeMatch({ events: [] })],
-    chartCodes: [],
-    rivalTeams: [],
-    coaches: [],
     ...overrides,
-  };
+  });
 }
 
 const pulled = (changes: Partial<PulledChanges>): PulledChanges => ({ records: [], events: [], ...changes });

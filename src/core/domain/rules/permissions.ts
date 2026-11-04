@@ -2,7 +2,7 @@ import type { UserRole } from '../entities/club.types';
 
 /**
  * =============================================================================
- * HOOP OS - ROLE-BASED PERMISSIONS
+ * HOOP - ROLE-BASED PERMISSIONS
  * =============================================================================
  */
 

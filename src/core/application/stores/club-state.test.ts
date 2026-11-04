@@ -11,18 +11,9 @@ import {
 } from './club-state';
 import { CHART_CATALOG } from '@/core/domain/entities/chart.types';
 import { createSeedState } from '@/core/infrastructure/mocks/seed-data';
-import { makeChartCode, makeCoach, makeMatch, makeRivalTeam } from '@/core/testing/fixtures';
+import { makeChartCode, makeClubData, makeCoach, makeMatch, makeRivalTeam } from '@/core/testing/fixtures';
 
-const EMPTY_COLLECTIONS = {
-  users: [],
-  divisions: [],
-  teams: [],
-  players: [],
-  matches: [],
-  chartCodes: [],
-  rivalTeams: [],
-  coaches: [],
-};
+const EMPTY_COLLECTIONS = { users: [], ...makeClubData() };
 
 const NOW = new Date('2026-10-30T18:00:00.000Z');
 

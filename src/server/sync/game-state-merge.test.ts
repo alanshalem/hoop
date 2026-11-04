@@ -7,7 +7,7 @@ import { createEmptyOutbox, enqueueChanges } from '@/core/application/sync/outbo
 import { mergePulledChanges } from '@/core/application/sync/pull-merge';
 import { toMatchRecord } from '@/core/application/sync/sync-records';
 import type { OutboxRecordEntry, SyncableClubData } from '@/core/application/sync/sync-types';
-import { makeDivision, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
+import { makeClubData, makeDivision, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
 import { decideRecordWrite, type StoredRecord } from './merge';
 
 /**
@@ -23,15 +23,8 @@ const T3 = '2026-10-30T18:00:03.000Z';
 
 const base = makeMatch({ status: 'LIVE', currentQuarter: 'Q1', quarterTimeRemainingSeconds: 45, events: [] });
 
-const club = (match: Match): SyncableClubData => ({
-  divisions: [makeDivision()],
-  teams: [makeTeam()],
-  players: [makePlayer({ id: 'p1' })],
-  matches: [match],
-  chartCodes: [],
-  rivalTeams: [],
-  coaches: [],
-});
+const club = (match: Match): SyncableClubData =>
+  makeClubData({ divisions: [makeDivision()], teams: [makeTeam()], players: [makePlayer({ id: 'p1' })], matches: [match] });
 
 /** A tablet that knew `base` at T0 and edited it at `at`: its state and its pending outbox entry. */
 function tabletEdit(edited: Match, at: string) {

@@ -59,7 +59,7 @@ export interface RecordEventInput {
 }
 
 /** HALFTIME: the interval after Q2 (FIBA) accepts no plays and no timeouts. */
-export type RecordEventReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'INVALID_EVENT';
+export type RecordEventReason = 'MATCH_NOT_LIVE' | 'HALFTIME';
 export type UndoRivalFoulReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'NO_RIVAL_FOULS';
 
 export interface RecordChartEntryInput {
@@ -154,7 +154,6 @@ export function createMatch(input: CreateMatchInput, ctx: Pick<UseCaseContext, '
     homeTimeouts: createInitialTimeouts(),
     awayTimeouts: createInitialTimeouts(),
     startingLineupOwn: [],
-    activeLineupOwn: [],
     rosterOwnPlayerIds: [],
     events: [],
     ...input,
@@ -176,7 +175,6 @@ export function recordEvent(
 ): MatchResult<RecordEventReason> {
   const refusal = notLiveReason(match);
   if (refusal) return { ok: false, reason: refusal };
-  if (input.type === 'SUBSTITUTION') return { ok: false, reason: 'INVALID_EVENT' };
 
   const clocked =
     input.clockSeconds === undefined ? match : setClock(match, input.clockSeconds);
@@ -365,7 +363,6 @@ export function startMatch(
       quarterTimeRemainingSeconds: getQuarterLengthSeconds('Q1'),
       rosterOwnPlayerIds: [...rosterIds],
       startingLineupOwn: [...starterIds],
-      activeLineupOwn: [...starterIds],
     }),
   };
 }

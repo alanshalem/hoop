@@ -8,7 +8,7 @@ import {
 
 /**
  * =============================================================================
- * HOOP OS - RIVAL ROSTER USE-CASES (S14)
+ * HOOP - RIVAL ROSTER USE-CASES (S14)
  * Pure functions over the club's rival teams: teams in, new teams (or a typed
  * refusal) out. Untouched teams and players keep their reference so the sync
  * diff only sends the team that changed.

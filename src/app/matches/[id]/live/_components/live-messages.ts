@@ -25,7 +25,6 @@ export const REFUSAL_MESSAGES: Record<ConsoleRefusal, string> = {
   HALFTIME: 'Es el entretiempo: no se registran jugadas ni tiempos muertos hasta comenzar el 3.er cuarto.',
   NOT_END_OF_FIRST_HALF: 'El entretiempo solo empieza al terminar el 2.º cuarto.',
   NOT_HALFTIME: 'El partido no está en el entretiempo.',
-  INVALID_EVENT: 'La acción no es válida para este registro.',
   NO_RIVAL_FOULS: 'No hay faltas del rival para deshacer.',
   INVALID_CHART_CODE: 'El código no corresponde a esa categoría de la planilla.',
   INVALID_CHART_RESULT: 'Elige si la acción ofensiva convirtió y cuántos puntos.',

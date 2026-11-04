@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * HOOP OS - LINEUP RULES (FIBA Art. 4)
+ * HOOP - LINEUP RULES (FIBA Art. 4)
  * A team plays with 5 players and may register up to 12 for a game.
  * =============================================================================
  */

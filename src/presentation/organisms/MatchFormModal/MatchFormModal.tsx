@@ -9,7 +9,7 @@ import { Match, MatchConditionSchema } from '@/core/domain/entities/match.types'
 import type { RivalPlayer } from '@/core/domain/entities/rival.types';
 import { can } from '@/core/domain/rules/permissions';
 import { useClubStore } from '@/core/application/stores/useClubStore';
-import { CLUB_PROFILE } from '@/core/infrastructure/club-profile';
+import { CLUB_PROFILE } from '@/core/domain/club-profile';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { ModalSheet } from '@/presentation/molecules/ModalSheet/ModalSheet';
 import { FilterChipGroup } from '@/presentation/molecules/FilterChipGroup/FilterChipGroup';
@@ -238,7 +238,7 @@ export const MatchFormModal: React.FC<MatchFormModalProps> = ({
       const teamChanged = matchToEdit.ownTeamId !== team.id;
       updateMatch(matchToEdit.id, {
         ...fields,
-        ...(teamChanged && { rosterOwnPlayerIds: [], startingLineupOwn: [], activeLineupOwn: [] }),
+        ...(teamChanged && { rosterOwnPlayerIds: [], startingLineupOwn: [] }),
       });
     } else {
       addMatch({ ...fields, clubId: CLUB_PROFILE.id });

@@ -66,13 +66,6 @@ describe('recordEvent', () => {
       reason: 'MATCH_NOT_LIVE',
     });
   });
-
-  it('rejects substitutions (the live console records none)', () => {
-    assert.deepStrictEqual(
-      recordEvent(makeMatch(), { type: 'SUBSTITUTION', isOwnTeam: true }, ctx),
-      { ok: false, reason: 'INVALID_EVENT' }
-    );
-  });
 });
 
 describe('undoLastRivalFoul (S15)', () => {
@@ -676,7 +669,6 @@ describe('startMatch & finishMatch', () => {
     const scheduled = makeMatch({
       status: 'SCHEDULED',
       startingLineupOwn: [],
-      activeLineupOwn: [],
       rosterOwnPlayerIds: [],
     });
     const { match: next } = expectOk(startMatch(scheduled, roster, starters));
@@ -685,7 +677,6 @@ describe('startMatch & finishMatch', () => {
     assert.strictEqual(next.quarterTimeRemainingSeconds, 600);
     assert.deepStrictEqual(next.rosterOwnPlayerIds, roster);
     assert.deepStrictEqual(next.startingLineupOwn, starters);
-    assert.deepStrictEqual(next.activeLineupOwn, starters);
   });
 
   it('rejects an invalid lineup with its issues', () => {

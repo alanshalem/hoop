@@ -18,7 +18,6 @@ import clsx from 'clsx';
 import type { Player } from '@/core/domain/entities/club.types';
 import type { Match } from '@/core/domain/entities/match.types';
 import { FIBA_MAX_ROSTER, FIBA_STARTERS, validateLineup } from '@/core/domain/rules/lineup-rules';
-import { getStartingLineup } from '@/core/domain/rules/match-derivations';
 import { can } from '@/core/domain/rules/permissions';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
@@ -120,8 +119,7 @@ function LineupEditor({ match }: { match: Match }) {
     mode === 'SETUP' ? committedRoster.filter((pid) => candidateSet.has(pid)) : committedRoster
   );
   const [starterIds, setStarterIds] = useState<string[]>(() => {
-    const starters = mode === 'SETUP' ? match.startingLineupOwn : getStartingLineup(match);
-    return starters.filter((pid) => mode !== 'SETUP' || rosterIds.includes(pid));
+    return match.startingLineupOwn.filter((pid) => mode !== 'SETUP' || rosterIds.includes(pid));
   });
 
   const rosterPlayers = candidates.filter((p) => rosterIds.includes(p.id));

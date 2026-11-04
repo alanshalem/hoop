@@ -13,7 +13,7 @@ import { resolveChartCatalog } from '@/core/domain/rules/chart-catalog';
 
 /**
  * =============================================================================
- * HOOP OS - CLUB CHART CATALOG USE-CASES (S9)
+ * HOOP - CLUB CHART CATALOG USE-CASES (S9)
  * Pure functions over the club's chart code records: records in, new records
  * (or a typed refusal) out. Untouched records keep their reference so the sync
  * diff only sends the record that changed. Codes are archived, never deleted.

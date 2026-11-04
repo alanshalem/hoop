@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * =============================================================================
- * HOOP OS - TACTICAL CHARTING ("PLANILLA")
+ * HOOP - TACTICAL CHARTING ("PLANILLA")
  * The coach's live charting sheet: why things happened, not just what. There is
  * no universal charting standard, so the catalog follows the coach's paper
  * legend, names turnovers after the FIBA Statisticians' Manual 2024 (Annex B,

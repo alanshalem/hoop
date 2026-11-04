@@ -10,11 +10,11 @@ import {
 } from '@/core/domain/entities/match.types';
 import type { RivalPlayer, RivalTeam } from '@/core/domain/entities/rival.types';
 import { createMatch } from '@/core/application/use-cases/match-use-cases';
-import { CLUB_PROFILE } from '@/core/infrastructure/club-profile';
+import { CLUB_PROFILE } from '@/core/domain/club-profile';
 
 /**
  * =============================================================================
- * HOOP OS - OFFICIAL MATCH REPORT IMPORT (pure)
+ * HOOP - OFFICIAL MATCH REPORT IMPORT (pure)
  * Turns the CSV extracted from the official match reports (one row per listed
  * player) and the text of each report PDF (`pdftotext -layout`, for the points
  * per period) into club records. Nothing is invented: players keep the name,

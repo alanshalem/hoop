@@ -7,7 +7,7 @@ import type { ClubDiff, SyncableClubData, SyncStatus, SyncStoreData } from './sy
 
 /**
  * =============================================================================
- * HOOP OS - ONE SYNC ENGINE PER BROWSER (S13.3)
+ * HOOP - ONE SYNC ENGINE PER BROWSER (S13.3)
  * Tabs share localStorage, so only one of them may run the sync engine and
  * write the persisted club and sync stores: the holder of the Web Lock
  * `hoop-sync-leader` or, where Web Locks are missing (plain http on the LAN),

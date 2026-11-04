@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * =============================================================================
- * HOOP OS - CLUB & ROSTER DOMAIN TYPES & ZOD SCHEMAS
+ * HOOP - CLUB & ROSTER DOMAIN TYPES & ZOD SCHEMAS
  * Clean Architecture - Domain Layer
  * =============================================================================
  */

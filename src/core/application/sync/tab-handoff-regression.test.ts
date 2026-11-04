@@ -6,7 +6,7 @@ import { createSyncEngine } from '@/core/application/sync/sync-engine';
 import { createSyncTabCoordinator, type KeyValueStoragePort, type TabMessage } from '@/core/application/sync/tab-coordinator';
 import type { SyncableClubData, SyncStoreData } from '@/core/application/sync/sync-types';
 import type { Match } from '@/core/domain/entities/match.types';
-import { makeDivision, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
+import { makeClubData, makeDivision, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
 
 // Regression tests from the independent verification of T14 (L25): several tabs of one
 // browser sharing localStorage handoff keys, a BroadcastChannel bus and scripted locks.
@@ -143,7 +143,8 @@ function browser(initial: SyncableClubData, owner = 'u1') {
   };
 }
 
-const club = (m: Match): SyncableClubData => ({ divisions: [makeDivision()], teams: [makeTeam()], players: [makePlayer({ id: 'p1' })], matches: [m], chartCodes: [], rivalTeams: [], coaches: [] });
+const club = (m: Match): SyncableClubData =>
+  makeClubData({ divisions: [makeDivision()], teams: [makeTeam()], players: [makePlayer({ id: 'p1' })], matches: [m] });
 const live = makeMatch({ status: 'LIVE', currentQuarter: 'Q2', quarterTimeRemainingSeconds: 300, events: [] });
 const gameState = (m: Pick<Match, 'status' | 'currentQuarter' | 'quarterTimeRemainingSeconds'>) => ({
   status: m.status,

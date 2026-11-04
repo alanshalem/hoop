@@ -3,7 +3,7 @@ import type { MatchRecord, VersionMap } from './sync-types';
 
 /**
  * =============================================================================
- * HOOP OS - FIELD-LEVEL MERGE FOR MATCH RECORDS (S13.1)
+ * HOOP - FIELD-LEVEL MERGE FOR MATCH RECORDS (S13.1)
  * Two devices editing one match (one runs the clock, another fixes the venue)
  * must both keep their edit, so match metadata merges field by field: every
  * field carries the ISO time of its last change and the newer one wins; ties
@@ -37,7 +37,6 @@ export const MATCH_VERSIONED_FIELDS = [
   'homeTimeouts',
   'awayTimeouts',
   'startingLineupOwn',
-  'activeLineupOwn',
   'rosterOwnPlayerIds',
   'officialResult',
   'createdAt',

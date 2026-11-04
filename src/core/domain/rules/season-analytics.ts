@@ -5,7 +5,7 @@ import { calculateMatchBoxScore, getOwnRivalScore } from './match-derivations';
 
 /**
  * =============================================================================
- * HOOP OS - SEASON ANALYTICS
+ * HOOP - SEASON ANALYTICS
  * Aggregates over the FINISHED matches of a team.
  * =============================================================================
  */

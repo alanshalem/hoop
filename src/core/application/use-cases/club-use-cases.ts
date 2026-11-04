@@ -7,7 +7,7 @@ import type { Coach } from '@/core/domain/entities/coach.types';
 
 /**
  * =============================================================================
- * HOOP OS - CLUB USE-CASES (divisions, teams, players)
+ * HOOP - CLUB USE-CASES (divisions, teams, players)
  * Pure functions over the club aggregate; they keep team rosters and player
  * assignments consistent.
  * =============================================================================

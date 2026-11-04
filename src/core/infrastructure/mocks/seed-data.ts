@@ -3,18 +3,16 @@ import { Match } from '@/core/domain/entities/match.types';
 import type { RivalPlayer, RivalTeam } from '@/core/domain/entities/rival.types';
 import { createMatch } from '@/core/application/use-cases/match-use-cases';
 import { withDerivedScoreboard } from '@/core/domain/rules/match-derivations';
-import { CLUB_PROFILE } from '../club-profile';
+import { CLUB_PROFILE } from '@/core/domain/club-profile';
 import { generatePlayByPlay, PeriodPlan } from './play-by-play-generator';
 
 /**
  * =============================================================================
- * HOOP OS - SEED DATA
+ * HOOP - SEED DATA
  * Deterministic mock club. Match dates are relative to `now` so the dashboard
  * always shows a live match today, recent results and an upcoming fixture.
  * =============================================================================
  */
-
-export { CLUB_PROFILE };
 
 export const SEED_CLUB_ID = CLUB_PROFILE.id;
 
@@ -35,13 +33,12 @@ function seedUser(id: string, name: string, email: string, role: User['role']): 
   };
 }
 
-// Pure calls: the client imports CLUB_PROFILE from this module and must not bundle the demo data.
 export const SEED_USERS: User[] = [
-  /* @__PURE__ */ seedUser('user-coach-1', 'Federico Balbi', 'fbalbi@camg.com.ar', 'HEAD_COACH'),
-  /* @__PURE__ */ seedUser('user-assistant-1', 'Mariano Ginóbili', 'mginobili@camg.com.ar', 'ASSISTANT_STATISTICIAN'),
-  /* @__PURE__ */ seedUser('user-admin-1', 'Alejandro Montecchia', 'admin@camg.com.ar', 'ADMIN'),
-  /* @__PURE__ */ seedUser('user-coach-2', 'Sergio Hernández', 'shernandez@camg.com.ar', 'HEAD_COACH'),
-  /* @__PURE__ */ seedUser('user-coach-3', 'Julio Lamas', 'jlamas@camg.com.ar', 'HEAD_COACH'),
+  seedUser('user-coach-1', 'Federico Balbi', 'fbalbi@camg.com.ar', 'HEAD_COACH'),
+  seedUser('user-assistant-1', 'Mariano Ginóbili', 'mginobili@camg.com.ar', 'ASSISTANT_STATISTICIAN'),
+  seedUser('user-admin-1', 'Alejandro Montecchia', 'admin@camg.com.ar', 'ADMIN'),
+  seedUser('user-coach-2', 'Sergio Hernández', 'shernandez@camg.com.ar', 'HEAD_COACH'),
+  seedUser('user-coach-3', 'Julio Lamas', 'jlamas@camg.com.ar', 'HEAD_COACH'),
 ];
 
 export const SEED_DIVISIONS: Division[] = [
@@ -388,14 +385,13 @@ interface PlayedMatchSpec {
 }
 
 function buildPlayedMatch(spec: PlayedMatchSpec): Match {
-  const { events, activeLineup } = generatePlayByPlay({
+  const events = generatePlayByPlay({
     matchId: spec.id,
     ownTeamId: OWN_TEAM.ownTeamId,
     condition: spec.condition,
     kickoff: spec.kickoff,
     seed: spec.seed,
     players: SEED_PLAYERS,
-    rosterIds: PRIMERA_ROSTER,
     starterIds: spec.starterIds,
     scoringWeights: PRIMERA_SCORING_WEIGHTS,
     periods: spec.periods,
@@ -421,7 +417,6 @@ function buildPlayedMatch(spec: PlayedMatchSpec): Match {
     awayTimeouts: spec.awayTimeouts,
     rosterOwnPlayerIds: PRIMERA_ROSTER,
     startingLineupOwn: spec.starterIds,
-    activeLineupOwn: activeLineup,
     events,
   });
 }
@@ -537,7 +532,7 @@ function seedRivalTeam(id: string, name: string, rows: RivalPlayerRow[]): RivalT
 
 /** Rival rosters (S14): the live match rival, the rival of the last finished match and the next rival. */
 export const SEED_RIVAL_TEAMS: RivalTeam[] = [
-  /* @__PURE__ */ seedRivalTeam('rival-obras', 'Obras Sanitarias', [
+  seedRivalTeam('rival-obras', 'Obras Sanitarias', [
     [1, 'Martín', 'Aguirre'],
     [4, 'Tomás', 'Benítez'],
     [5, 'Federico', 'Cáceres'],
@@ -551,7 +546,7 @@ export const SEED_RIVAL_TEAMS: RivalTeam[] = [
     [32, 'Franco', 'Peralta'],
     [44, 'Ramiro', 'Sosa'],
   ]),
-  /* @__PURE__ */ seedRivalTeam('rival-ferro', 'Ferro Carril Oeste', [
+  seedRivalTeam('rival-ferro', 'Ferro Carril Oeste', [
     [0, 'Bruno', 'Acosta'],
     [2, 'Iván', 'Castro'],
     [6, 'Leonel', 'Díaz'],
@@ -563,7 +558,7 @@ export const SEED_RIVAL_TEAMS: RivalTeam[] = [
     [24, 'Mauro', 'Romero'],
     [33, 'Ezequiel', 'Vega'],
   ]),
-  /* @__PURE__ */ seedRivalTeam('rival-boca', 'Boca Juniors', [
+  seedRivalTeam('rival-boca', 'Boca Juniors', [
     [3, 'Lucas', 'Fernández'],
     [5, 'Thiago', 'Suárez'],
     [6, 'Maximiliano', 'Rojas'],

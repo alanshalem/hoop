@@ -244,7 +244,7 @@ Hay tres roles. Cada usuario tiene uno, asignado en el servidor. Cada pantalla o
 | `MANAGE_PLAYERS`       | Crear, editar y eliminar jugadores; convocar juveniles a Primera                       |      Sí       |          Sí          |          No          |
 | `MANAGE_MATCHES`       | Crear y editar partidos programados, eliminar partidos programados o finalizados; cargar y editar los planteles rivales   |      Sí       |          Sí          |          No          |
 | `MANAGE_LINEUP`        | Armar convocatoria y quinteto; iniciar el partido                                      |      Sí       |          Sí          |          No          |
-| `RECORD_LIVE`          | Usar la consola en vivo: reloj, períodos, jugadas, cambios, tiempos muertos, finalizar |      Sí       |          Sí          |          Sí          |
+| `RECORD_LIVE`          | Usar la consola en vivo: reloj, períodos, jugadas, tiempos muertos, finalizar          |      Sí       |          Sí          |          Sí          |
 | `MANAGE_CHART_CATALOG` | Editar el catálogo de códigos de la planilla: renombrar, agregar, archivar y restaurar |      Sí       |          Sí          |          No          |
 
 Lo que cualquier rol puede ver: dashboard, listado de divisiones y su plantel ("Ver plantel"), jugadores, calendario, convocatorias (en modo lectura), planillas estadísticas, los códigos de la planilla, los planteles rivales y los entrenadores (en modo lectura). Sin `RECORD_LIVE` la consola se abre en modo lectura con un aviso.
@@ -918,7 +918,7 @@ Resueltas en esta versión: los partidos se combinan campo por campo entre table
 
 | Capa            | Carpeta                          | Contenido                                                                                                                                                                                                                                                                                                                                                                                                        |
 | --------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dominio         | `src/core/domain/`               | Entidades y esquemas Zod (`entities/`), objetos de valor (`value-objects/coordinates.ts`) y reglas puras (`rules/`): FIBA, derivaciones del partido, reloj, tiempos muertos, convocatoria, analítica de temporada y permisos. Sin React ni Zustand.                                                                                                                                                              |
+| Dominio         | `src/core/domain/`               | Entidades y esquemas Zod (`entities/`), el club de la instalación (`club-profile.ts`) y reglas puras (`rules/`): FIBA, derivaciones del partido, reloj, tiempos muertos, convocatoria, analítica de temporada y permisos. Sin React ni Zustand.                                                                                                                                                                  |
 | Aplicación      | `src/core/application/`          | Casos de uso puros (`use-cases/`: entra un estado, sale uno nuevo o un rechazo tipado), los stores persistidos `useClubStore`, `useSyncStore` y `useAuthStore` (`stores/`), el motor de sincronización y sus reglas puras (`sync/`: diferencias, cola de salida, fusión de lo descargado), la sesión del cliente (`auth/`) y hooks (`hooks/`): `useLiveMatchConsole`, `useGameClock` y su lógica pura testeable. |
 | Infraestructura | `src/core/infrastructure/`       | Datos de demostración determinísticos (`mocks/`: semilla, generador de jugadas, PRNG) y adaptadores de la API (`sync-api/`: `fetch` y `EventSource`, con respuestas validadas por Zod).                                                                                                                                                                                                                          |
 | Presentación    | `src/presentation/` y `src/app/` | Diseño atómico (`atoms/`, `molecules/`, `organisms/`, `templates/`), movimiento (`motion/`), diálogos (`organisms/DialogHost/`), sesión (`session/`: `SessionProvider` montado en el layout, arranque del motor y cierre de sesión), marca (`brand.ts`) y tamaños de icono (`icon-sizes.ts`). Las rutas viven en `src/app/` (App Router de Next.js).                                                             |
@@ -939,7 +939,7 @@ src/
                             /planilla, /rivales, /entrenadores, /ayuda
                             /login, /api/auth/*, /api/sync/*
   core/
-    domain/                 entities/, rules/, value-objects/
+    domain/                 entities/, rules/, club-profile.ts
     application/            use-cases/, stores/, hooks/, sync/, auth/
     infrastructure/         mocks/ (semilla), sync-api/ (fetch, SSE)
     testing/fixtures.ts     fixtures compartidas de las pruebas
@@ -975,7 +975,7 @@ Un club agrega sus propios códigos desde la pantalla [Códigos de la planilla](
 
 ### Cómo agregar o cambiar una regla
 
-1. Escribir la regla como función pura en `src/core/domain/rules/` y exportarla desde `rules/index.ts`.
+1. Escribir la regla como función pura en `src/core/domain/rules/` (un módulo por tema; se importa directo, sin archivos `index.ts`).
 2. Escribir primero su prueba en un archivo `*.test.ts` junto a ella.
 3. Usarla desde un caso de uso en `src/core/application/use-cases/` (con su prueba) y, si hace falta, desde un hook.
 4. Las pantallas solo leen el resultado: no deben recalcular reglas por su cuenta.

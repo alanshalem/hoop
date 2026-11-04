@@ -5,7 +5,7 @@ import type { SyncRecordKind } from '../sync/record-kinds';
 
 /**
  * =============================================================================
- * HOOP OS - SERVER-SIDE RBAC FOR SYNC WRITES
+ * HOOP - SERVER-SIDE RBAC FOR SYNC WRITES
  * Maps each (entity kind, operation) to the domain permissions that allow it.
  * A write is allowed when the role holds ANY of the required permissions.
  * =============================================================================

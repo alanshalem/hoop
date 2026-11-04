@@ -3,7 +3,7 @@ import type { KeyValueStoragePort, LeaderLockPort, StorageEventsPort } from './t
 
 /**
  * =============================================================================
- * HOOP OS - LEADER LEASE IN localStorage (S13.3 without Web Locks)
+ * HOOP - LEADER LEASE IN localStorage (S13.3 without Web Locks)
  * Pages served over plain http on the club LAN have no Web Locks (they need a
  * secure context), so the leader tab is elected with a lease instead:
  * - the lease `{ tabId, expiresAt }` lives under SYNC_LEADER_LEASE_KEY;

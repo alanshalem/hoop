@@ -2,7 +2,7 @@ import type { Match } from '@/core/domain/entities/match.types';
 
 /**
  * =============================================================================
- * HOOP OS - LOCAL GAME CLOCK STATE
+ * HOOP - LOCAL GAME CLOCK STATE
  * Pure reducer behind useGameClock. `key` identifies the match period the
  * clock belongs to; `expirations` counts how many times it ticked down to 00:00.
  * =============================================================================

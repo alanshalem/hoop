@@ -9,7 +9,7 @@ import {
 
 /**
  * =============================================================================
- * HOOP OS - CLUB CHART CATALOG (S9)
+ * HOOP - CLUB CHART CATALOG (S9)
  * No records means the built-in catalog. A record with the category and code of
  * a built-in code overrides it; any other record is a custom code of the club.
  * Every category is sorted by `order` (ties: built-in first, then by code) so

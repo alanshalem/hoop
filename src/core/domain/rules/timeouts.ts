@@ -3,7 +3,7 @@ import { isOvertime } from './game-clock';
 
 /**
  * =============================================================================
- * HOOP OS - TIMEOUTS (FIBA Art. 18)
+ * HOOP - TIMEOUTS (FIBA Art. 18)
  * 2 timeouts in the first half, 3 in the second half, 1 per overtime.
  * Unused timeouts do not carry over to the next half / overtime.
  * Art. 18.2.5: at most 2 timeouts per team when the game clock shows 2:00 or

@@ -4,19 +4,16 @@ import { applyClubDiff } from './apply-club-diff';
 import { diffClubState } from './club-diff';
 import { toMatchRecord } from './sync-records';
 import type { SyncableClubData } from './sync-types';
-import { makeDivision, makeEvent, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
+import { makeClubData, makeDivision, makeEvent, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
 
 function club(overrides: Partial<SyncableClubData> = {}): SyncableClubData {
-  return {
+  return makeClubData({
     divisions: [makeDivision()],
     teams: [makeTeam()],
     players: [makePlayer({ id: 'p1' }), makePlayer({ id: 'p2', dorsal: 8 })],
     matches: [makeMatch()],
-    chartCodes: [],
-    rivalTeams: [],
-    coaches: [],
     ...overrides,
-  };
+  });
 }
 
 describe('applyClubDiff (S13.3: a follower tab edit applied by the leader)', () => {

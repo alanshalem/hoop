@@ -3,7 +3,7 @@ import { logServerError } from '../http/log-server-error';
 
 /**
  * =============================================================================
- * HOOP OS - SYNC SERVER-SENT EVENTS
+ * HOOP - SYNC SERVER-SENT EVENTS
  * Each browser keeps one `GET /api/sync/stream`. It only carries cursors: on
  * `changed`, the client pulls. All streams of a process share one Postgres
  * LISTEN connection (see ./listener.ts).

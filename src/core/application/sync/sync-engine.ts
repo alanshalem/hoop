@@ -18,7 +18,7 @@ import type { ApiResult, ClubDiff, PullPage, SyncableClubData, SyncApi, SyncStor
 
 /**
  * =============================================================================
- * HOOP OS - SYNC ENGINE (S10.7)
+ * HOOP - SYNC ENGINE (S10.7)
  * Watches the club store, stamps local changes into the persisted outbox and
  * flushes it; pulls server changes on start, on reconnect and on SSE `changed`.
  * Data epoch (S1, L5): pushes carry the epoch of the last pull. When a pull or

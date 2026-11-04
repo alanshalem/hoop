@@ -25,7 +25,7 @@ import {
   type SeasonLeaders,
 } from '@/core/domain/rules/season-analytics';
 import { useClubStore } from '@/core/application/stores/useClubStore';
-import { CLUB_PROFILE } from '@/core/infrastructure/club-profile';
+import { CLUB_PROFILE } from '@/core/domain/club-profile';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
 import { SectionCard } from '@/presentation/molecules/SectionCard/SectionCard';

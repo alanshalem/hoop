@@ -16,7 +16,7 @@ import {
 
 /**
  * =============================================================================
- * HOOP OS - SYNC API RESPONSE SCHEMAS
+ * HOOP - SYNC API RESPONSE SCHEMAS
  * Server responses are validated before they reach the stores. Envelopes must
  * match; each entity payload is validated with its domain schema and a bad item
  * is dropped instead of failing the whole pull.

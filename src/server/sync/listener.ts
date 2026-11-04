@@ -7,7 +7,7 @@ export { SYNC_CHANNEL };
 
 /**
  * =============================================================================
- * HOOP OS - SHARED SYNC CHANGE LISTENER
+ * HOOP - SHARED SYNC CHANGE LISTENER
  * One dedicated Postgres connection per server process runs
  * `LISTEN hoop_sync` and fans each notification out to every subscriber
  * (one per open SSE stream), so browsers never hold database connections.

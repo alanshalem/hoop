@@ -13,7 +13,7 @@ import type { SyncRecordKind } from './record-kinds';
 
 /**
  * =============================================================================
- * HOOP OS - SYNC MERGE RULES (pure)
+ * HOOP - SYNC MERGE RULES (pure)
  * Records: last-write-wins by client `updatedAt` (ties keep the stored row);
  * an `updatedAt` more than MAX_CLOCK_SKEW_MS ahead of the server is refused.
  * Live match records merge field by field instead (S13.1); a match tombstone

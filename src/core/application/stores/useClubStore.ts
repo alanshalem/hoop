@@ -45,7 +45,7 @@ import type {
   UndoChartReason,
   UndoRivalFoulReason,
 } from '@/core/application/use-cases/match-use-cases';
-import { CLUB_PROFILE } from '@/core/infrastructure/club-profile';
+import { CLUB_PROFILE } from '@/core/domain/club-profile';
 import { reconcileSelection } from '@/core/application/sync/pull-merge';
 import type { SyncableClubData } from '@/core/application/sync/sync-types';
 import {
@@ -254,6 +254,15 @@ export const useClubStore = create<ClubStoreState>()(
         return result;
       };
 
+      /** Stores the collections a successful use-case returns and reports its outcome. */
+      const runCollectionUseCase = <Success, Reason extends string>(
+        result: ({ ok: true } & Success) | { ok: false; reason: Reason },
+        toState: (success: Success) => Partial<ClubDataState>
+      ): ActionResult<Reason> => {
+        if (result.ok) set(toState(result));
+        return toActionResult(result);
+      };
+
       return {
         ...createInitialClubState(),
 
@@ -283,17 +292,14 @@ export const useClubStore = create<ClubStoreState>()(
 
         deleteDivision: (id) => set(club.deleteDivision(clubData(), id)),
 
-        assignHeadCoach: (teamId, coachId) => {
-          const result = club.assignHeadCoach(clubData(), get().coaches, teamId, coachId);
-          if (result.ok) set(result.data);
-          return toActionResult(result);
-        },
+        assignHeadCoach: (teamId, coachId) =>
+          runCollectionUseCase(club.assignHeadCoach(clubData(), get().coaches, teamId, coachId), (r) => r.data),
 
-        assignAssistantCoaches: (teamId, coachIds) => {
-          const result = club.assignAssistantCoaches(clubData(), get().coaches, teamId, coachIds);
-          if (result.ok) set(result.data);
-          return toActionResult(result);
-        },
+        assignAssistantCoaches: (teamId, coachIds) =>
+          runCollectionUseCase(
+            club.assignAssistantCoaches(clubData(), get().coaches, teamId, coachIds),
+            (r) => r.data
+          ),
 
         createCoach: (input) => {
           const result = coachUseCases.createCoach(get().coaches, input, {
@@ -305,17 +311,17 @@ export const useClubStore = create<ClubStoreState>()(
           return { ok: true, id: result.id };
         },
 
-        updateCoach: (coachId, updates) => {
-          const result = coachUseCases.updateCoach(get().coaches, coachId, updates);
-          if (result.ok) set({ coaches: result.coaches });
-          return toActionResult(result);
-        },
+        updateCoach: (coachId, updates) =>
+          runCollectionUseCase(coachUseCases.updateCoach(get().coaches, coachId, updates), (r) => ({
+            coaches: r.coaches,
+          })),
 
         deleteCoach: (coachId) => {
           const { coaches, teams } = get();
-          const result = coachUseCases.deleteCoach({ coaches, teams }, coachId);
-          if (result.ok) set({ coaches: result.coaches, teams: result.teams });
-          return toActionResult(result);
+          return runCollectionUseCase(coachUseCases.deleteCoach({ coaches, teams }, coachId), (r) => ({
+            coaches: r.coaches,
+            teams: r.teams,
+          }));
         },
 
         addPlayer: (player) => {
@@ -328,11 +334,8 @@ export const useClubStore = create<ClubStoreState>()(
 
         deletePlayer: (id) => set(club.deletePlayer(clubData(), id)),
 
-        callUpPlayerToTeam: (playerId, targetTeamId) => {
-          const result = club.callUpPlayer(clubData(), playerId, targetTeamId);
-          if (result.ok) set(result.data);
-          return toActionResult(result);
-        },
+        callUpPlayerToTeam: (playerId, targetTeamId) =>
+          runCollectionUseCase(club.callUpPlayer(clubData(), playerId, targetTeamId), (r) => r.data),
 
         setActiveMatch: (matchId) => set({ activeMatchId: matchId }),
 
@@ -379,21 +382,17 @@ export const useClubStore = create<ClubStoreState>()(
           return { ok: true, code: result.code };
         },
 
-        updateChartCode: (category, code, updates) => {
-          const result = chartCatalog.updateChartCode(get().chartCodes, category, code, updates, {
-            clubId: CLUB_PROFILE.id,
-          });
-          if (result.ok) set({ chartCodes: result.chartCodes });
-          return toActionResult(result);
-        },
+        updateChartCode: (category, code, updates) =>
+          runCollectionUseCase(
+            chartCatalog.updateChartCode(get().chartCodes, category, code, updates, { clubId: CLUB_PROFILE.id }),
+            (r) => ({ chartCodes: r.chartCodes })
+          ),
 
-        setChartCodeArchived: (category, code, archived) => {
-          const result = chartCatalog.setChartCodeArchived(get().chartCodes, category, code, archived, {
-            clubId: CLUB_PROFILE.id,
-          });
-          if (result.ok) set({ chartCodes: result.chartCodes });
-          return toActionResult(result);
-        },
+        setChartCodeArchived: (category, code, archived) =>
+          runCollectionUseCase(
+            chartCatalog.setChartCodeArchived(get().chartCodes, category, code, archived, { clubId: CLUB_PROFILE.id }),
+            (r) => ({ chartCodes: r.chartCodes })
+          ),
 
         createRivalTeam: (input) => {
           const result = rivalUseCases.createRivalTeam(get().rivalTeams, input, {
@@ -405,17 +404,15 @@ export const useClubStore = create<ClubStoreState>()(
           return { ok: true, id: result.id };
         },
 
-        renameRivalTeam: (teamId, name) => {
-          const result = rivalUseCases.renameRivalTeam(get().rivalTeams, teamId, name);
-          if (result.ok) set({ rivalTeams: result.rivalTeams });
-          return toActionResult(result);
-        },
+        renameRivalTeam: (teamId, name) =>
+          runCollectionUseCase(rivalUseCases.renameRivalTeam(get().rivalTeams, teamId, name), (r) => ({
+            rivalTeams: r.rivalTeams,
+          })),
 
-        deleteRivalTeam: (teamId) => {
-          const result = rivalUseCases.deleteRivalTeam(get().rivalTeams, teamId);
-          if (result.ok) set({ rivalTeams: result.rivalTeams });
-          return toActionResult(result);
-        },
+        deleteRivalTeam: (teamId) =>
+          runCollectionUseCase(rivalUseCases.deleteRivalTeam(get().rivalTeams, teamId), (r) => ({
+            rivalTeams: r.rivalTeams,
+          })),
 
         addRivalPlayer: (teamId, input) => {
           const result = rivalUseCases.addRivalPlayer(get().rivalTeams, teamId, input, { id: createId('rp') });
@@ -424,17 +421,15 @@ export const useClubStore = create<ClubStoreState>()(
           return { ok: true, playerId: result.playerId };
         },
 
-        updateRivalPlayer: (teamId, playerId, updates) => {
-          const result = rivalUseCases.updateRivalPlayer(get().rivalTeams, teamId, playerId, updates);
-          if (result.ok) set({ rivalTeams: result.rivalTeams });
-          return toActionResult(result);
-        },
+        updateRivalPlayer: (teamId, playerId, updates) =>
+          runCollectionUseCase(rivalUseCases.updateRivalPlayer(get().rivalTeams, teamId, playerId, updates), (r) => ({
+            rivalTeams: r.rivalTeams,
+          })),
 
-        removeRivalPlayer: (teamId, playerId) => {
-          const result = rivalUseCases.removeRivalPlayer(get().rivalTeams, teamId, playerId);
-          if (result.ok) set({ rivalTeams: result.rivalTeams });
-          return toActionResult(result);
-        },
+        removeRivalPlayer: (teamId, playerId) =>
+          runCollectionUseCase(rivalUseCases.removeRivalPlayer(get().rivalTeams, teamId, playerId), (r) => ({
+            rivalTeams: r.rivalTeams,
+          })),
 
         requestTimeout: (matchId, side, clockSeconds) =>
           runMatchUseCase(matchId, (m) =>

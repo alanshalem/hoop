@@ -4,7 +4,7 @@ export type { HandoffEdit } from './tab-coordinator';
 
 /**
  * =============================================================================
- * HOOP OS - FOLLOWER EDITS SURVIVE THEIR TAB (S13.3, T14)
+ * HOOP - FOLLOWER EDITS SURVIVE THEIR TAB (S13.3, T14)
  * A follower tab keeps the edits no leader acknowledged yet in localStorage,
  * one key per tab (`hoop-sync-handoff:<tabId>`, so tabs never overwrite each
  * other's list). The next tab to lead drains every key of the same user and

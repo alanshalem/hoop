@@ -4,7 +4,7 @@ import { getNextQuarter, isOvertime, QUARTER_SEQUENCE } from '@/core/domain/rule
 
 /**
  * =============================================================================
- * HOOP OS - LIVE CONSOLE RULES
+ * HOOP - LIVE CONSOLE RULES
  * Period navigation and roster decisions for the live console (pure).
  * =============================================================================
  */

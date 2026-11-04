@@ -4,6 +4,7 @@ import { diffClubState } from './club-diff';
 import type { SyncableClubData } from './sync-types';
 import {
   makeChartCode,
+  makeClubData,
   makeCoach,
   makeDivision,
   makeEvent,
@@ -14,16 +15,13 @@ import {
 } from '@/core/testing/fixtures';
 
 function club(overrides: Partial<SyncableClubData> = {}): SyncableClubData {
-  return {
+  return makeClubData({
     divisions: [makeDivision()],
     teams: [makeTeam()],
     players: [makePlayer({ id: 'p1' }), makePlayer({ id: 'p2', dorsal: 8 })],
     matches: [makeMatch()],
-    chartCodes: [],
-    rivalTeams: [],
-    coaches: [],
     ...overrides,
-  };
+  });
 }
 
 describe('diffClubState (S10.7)', () => {
@@ -147,7 +145,7 @@ describe('diffClubState (S10.7)', () => {
       ...before,
       venue: 'Nuevo estadio',
       status: 'HALFTIME' as const,
-      activeLineupOwn: [...before.activeLineupOwn],
+      startingLineupOwn: [...before.startingLineupOwn],
     };
     const [record] = diffClubState(prev, { ...prev, matches: [nextMatch] }).records;
     assert.deepStrictEqual(record.kind === 'match' && record.changedFields, ['venue', 'status']);

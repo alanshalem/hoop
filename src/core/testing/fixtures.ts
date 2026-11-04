@@ -3,6 +3,7 @@ import type { Division, Player, Team } from '@/core/domain/entities/club.types';
 import type { Coach } from '@/core/domain/entities/coach.types';
 import type { Match, PlayByPlayEvent } from '@/core/domain/entities/match.types';
 import type { RivalTeam } from '@/core/domain/entities/rival.types';
+import type { SyncableClubData } from '@/core/application/sync/sync-types';
 
 /**
  * Test fixtures shared by core tests. Not imported by production code.
@@ -112,6 +113,20 @@ export function makePlayer(overrides: Partial<Player> = {}): Player {
   };
 }
 
+/** Club data with every collection empty; pass the collections a test needs. */
+export function makeClubData(overrides: Partial<SyncableClubData> = {}): SyncableClubData {
+  return {
+    divisions: [],
+    teams: [],
+    players: [],
+    matches: [],
+    chartCodes: [],
+    rivalTeams: [],
+    coaches: [],
+    ...overrides,
+  };
+}
+
 export function makeMatch(overrides: Partial<Match> = {}): Match {
   return {
     id: 'm-test',
@@ -133,7 +148,6 @@ export function makeMatch(overrides: Partial<Match> = {}): Match {
     homeTimeouts: { firstHalfRemaining: 2, secondHalfRemaining: 3, overtimeRemaining: 1 },
     awayTimeouts: { firstHalfRemaining: 2, secondHalfRemaining: 3, overtimeRemaining: 1 },
     startingLineupOwn: ['p1', 'p2', 'p3', 'p4', 'p5'],
-    activeLineupOwn: ['p1', 'p2', 'p3', 'p4', 'p5'],
     rosterOwnPlayerIds: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7'],
     events: [],
     ...overrides,

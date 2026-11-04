@@ -1,7 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { CLUB_PROFILE, createSeedState, SEED_LIVE_MATCH_ID } from './seed-data';
-import { MatchSchema } from '@/core/domain/entities/match.types';
+import { createSeedState, SEED_LIVE_MATCH_ID } from './seed-data';
+import { CLUB_PROFILE } from '@/core/domain/club-profile';
+import { MatchSchema, PlayByPlayEventSchema } from '@/core/domain/entities/match.types';
 import { PlayerSchema, TeamSchema, UserSchema } from '@/core/domain/entities/club.types';
 import {
   deriveScoreboard,
@@ -15,18 +16,6 @@ import { findRivalTeam } from '@/core/domain/rules/rival-teams';
 
 const NOW = new Date('2026-10-30T18:00:00.000Z');
 
-const SVG_W = 500;
-const SVG_H = 470;
-const BASKET = { x: 250, y: 60 };
-const THREE_POINT_RADIUS = 235;
-
-function isThreePointSpot(x: number, y: number): boolean {
-  const svgX = (x / 100) * SVG_W;
-  const svgY = (y / 100) * SVG_H;
-  const isCorner = (svgX <= 45 || svgX >= 455) && svgY <= 120;
-  return isCorner || Math.hypot(svgX - BASKET.x, svgY - BASKET.y) >= THREE_POINT_RADIUS;
-}
-
 describe('seed data', () => {
   const state = createSeedState(NOW);
 
@@ -39,6 +28,17 @@ describe('seed data', () => {
     state.players.forEach((p) => PlayerSchema.parse(p));
     state.teams.forEach((t) => TeamSchema.parse(t));
     state.matches.forEach((m) => MatchSchema.parse(m));
+  });
+
+  it('emits only event fields the schema keeps (no coordinates or substitutions), never undefined', () => {
+    for (const match of state.matches) {
+      for (const event of match.events) {
+        for (const [key, value] of Object.entries(event)) {
+          assert.ok(Object.hasOwn(PlayByPlayEventSchema.shape, key), `${event.id} ${key}`);
+          assert.notStrictEqual(value, undefined, `${event.id} ${key}`);
+        }
+      }
+    }
   });
 
   it('has at least three head coaches', () => {
@@ -109,14 +109,13 @@ describe('seed data', () => {
     assert.deepStrictEqual(getOwnRivalScore(live), { own: 36, rival: 31 });
     const rivalFouls = live.condition === 'HOME' ? live.awayFoulsQuarter : live.homeFoulsQuarter;
     assert.strictEqual(rivalFouls, 4);
-    assert.strictEqual(live.activeLineupOwn.length, 5);
     assert.strictEqual(live.startingLineupOwn.length, 5);
   });
 
-  it('has realistic play-by-play (subs, rebounds, assists, fouls, turnovers)', () => {
+  it('has realistic play-by-play (rebounds, assists, fouls, turnovers)', () => {
     for (const match of state.matches.filter((m) => m.events.length > 0)) {
       const types = new Set(match.events.map((e) => e.type));
-      for (const type of ['SUBSTITUTION', 'DREB', 'OREB', 'FOUL_PERSONAL', 'TOV'] as const) {
+      for (const type of ['DREB', 'OREB', 'FOUL_PERSONAL', 'TOV'] as const) {
         assert.ok(types.has(type), `${match.id} lacks ${type}`);
       }
       assert.ok(match.events.some((e) => e.assistedByPlayerId), `${match.id} lacks assists`);
@@ -132,19 +131,11 @@ describe('seed data', () => {
     }
   });
 
-  it('places own field goals in coordinates consistent with the shot-chart geometry', () => {
+  it('credits every own play to a starter on court', () => {
     for (const match of state.matches) {
       for (const event of match.events) {
-        if (!event.isOwnTeam) continue;
-        const isFg2 = event.type === 'FG2_MADE' || event.type === 'FG2_MISS';
-        const isFg3 = event.type === 'FG3_MADE' || event.type === 'FG3_MISS';
-        if (!isFg2 && !isFg3) continue;
-        assert.ok(event.coordinates, `${event.id} has coordinates`);
-        assert.strictEqual(
-          isThreePointSpot(event.coordinates.x, event.coordinates.y),
-          isFg3,
-          `${event.id} ${event.type} at ${event.coordinates.x},${event.coordinates.y}`
-        );
+        if (!event.isOwnTeam || !event.playerId) continue;
+        assert.ok(match.startingLineupOwn.includes(event.playerId), `${event.id} ${event.playerId}`);
       }
     }
   });
@@ -165,12 +156,8 @@ describe('seed data', () => {
 
   it('stores chart entries like the live sheet does (own team, catalog codes, points only when allowed)', () => {
     for (const match of state.matches) {
-      let lineup = [...match.startingLineupOwn];
+      const lineup = match.startingLineupOwn;
       for (const event of match.events) {
-        if (event.type === 'SUBSTITUTION' && event.substitution) {
-          const { playerInId, playerOutId } = event.substitution;
-          lineup = lineup.map((id) => (id === playerOutId ? playerInId : id));
-        }
         if (event.type !== 'CHART') {
           assert.strictEqual(event.chart, undefined, event.id);
           continue;

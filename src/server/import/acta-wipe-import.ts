@@ -17,7 +17,7 @@ import type { ActaImport } from './acta-parser';
 
 /**
  * =============================================================================
- * HOOP OS - REPLACE ALL DATA WITH THE MATCH REPORTS (S1, S2)
+ * HOOP - REPLACE ALL DATA WITH THE MATCH REPORTS (S1, S2)
  * One transaction under the sync write lock: every record, event, session and
  * account except the kept administrator is deleted, the data epoch rotates (so
  * no browser can push old data back, L5) and the report records are inserted.

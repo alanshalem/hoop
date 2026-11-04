@@ -11,7 +11,7 @@ import type {
   SyncableClubData,
   SyncStoreData,
 } from './sync-types';
-import { makeDivision, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
+import { makeClubData, makeDivision, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
 
 const NOW = Date.parse('2026-10-30T18:00:00.000Z');
 const TEST_EPOCH = 'epoch-1';
@@ -19,15 +19,11 @@ const TEST_EPOCH = 'epoch-1';
 type Responder<T> = ApiResult<T> | (() => ApiResult<T>);
 
 function harness(initial: Partial<SyncStoreData> = {}) {
-  let data: SyncableClubData = {
+  let data: SyncableClubData = makeClubData({
     divisions: [makeDivision({ id: 'div-local-seed' })],
     teams: [makeTeam()],
     players: [makePlayer({ id: 'p1' })],
-    matches: [],
-    chartCodes: [],
-    rivalTeams: [],
-    coaches: [],
-  };
+  });
   const clubListeners = new Set<() => void>();
   let store: SyncStoreData = {
     owner: null,

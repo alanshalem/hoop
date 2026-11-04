@@ -7,7 +7,7 @@ import type { SyncRecordKind } from './record-kinds';
 
 /**
  * =============================================================================
- * HOOP OS - SYNC DATA ACCESS
+ * HOOP - SYNC DATA ACCESS
  * Every accepted write takes the next value of the global `sync_seq`, so a
  * client can pull everything that changed after its cursor in one query.
  * Payloads must already be validated (see ./records.ts).

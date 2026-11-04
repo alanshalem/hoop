@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * =============================================================================
- * HOOP OS - RIVAL ROSTERS (S14)
+ * HOOP - RIVAL ROSTERS (S14)
  * The teams the club plays against, per division, with their players. A match
  * is not linked by id: its roster is the rival team of the match division whose
  * name matches the match rival name (see `findRivalTeam`). Synced as whole

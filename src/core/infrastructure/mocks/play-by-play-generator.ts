@@ -6,7 +6,6 @@ import type {
   PlayByPlayEventType,
   Quarter,
 } from '@/core/domain/entities/match.types';
-import type { CourtCoordinates } from '@/core/domain/value-objects/coordinates';
 import { FIBA_FOUL_TROUBLE_THRESHOLD } from '@/core/domain/rules/basketball-rules';
 import {
   getEventPoints,
@@ -18,10 +17,10 @@ import { createRandom, Random } from './prng';
 
 /**
  * =============================================================================
- * HOOP OS - MOCK PLAY-BY-PLAY GENERATOR
+ * HOOP - MOCK PLAY-BY-PLAY GENERATOR
  * Builds a realistic, deterministic event log that reproduces exact period
- * scores. Shots carry coordinates in the shot-chart geometry. Tactical chart
- * entries ("Planilla") are added on top, anchored to the plays they explain.
+ * scores with the starting five on court. Tactical chart entries ("Planilla")
+ * are added on top, anchored to the plays they explain.
  * =============================================================================
  */
 
@@ -43,16 +42,10 @@ export interface MatchPlan {
   kickoff: Date;
   seed: number;
   players: Player[];
-  rosterIds: string[];
   starterIds: string[];
   /** Relative shooting usage per player (default 1). */
   scoringWeights?: Record<string, number>;
   periods: PeriodPlan[];
-}
-
-export interface GeneratedPlayByPlay {
-  events: PlayByPlayEvent[];
-  activeLineup: string[];
 }
 
 type Side = 'OWN' | 'RIVAL';
@@ -61,43 +54,12 @@ type Action =
   | { kind: 'FG'; side: Side; value: 2 | 3; made: boolean }
   | { kind: 'FT_TRIP'; side: Side; made: 1 | 2 }
   | { kind: 'TOV'; side: Side }
-  | { kind: 'FOUL'; side: Side }
-  | { kind: 'SUB' };
-
-// Shot-chart geometry (SVG 500x470, basket at (250, 60), 3pt radius 235).
-const COURT_W = 500;
-const COURT_H = 470;
-const BASKET = { x: 250, y: 60 };
+  | { kind: 'FOUL'; side: Side };
 
 const REBOUND_WEIGHT: Record<BasketballPosition, number> = { C: 3, PF: 2.5, SF: 1.5, SG: 1, PG: 0.8 };
 const ASSIST_WEIGHT: Record<BasketballPosition, number> = { PG: 3, SG: 1.5, SF: 1.2, PF: 1, C: 0.6 };
 
 const other = (side: Side): Side => (side === 'OWN' ? 'RIVAL' : 'OWN');
-
-function toPercent(svgX: number, svgY: number): CourtCoordinates {
-  return {
-    x: Math.round((svgX / COURT_W) * 1000) / 10,
-    y: Math.round((svgY / COURT_H) * 1000) / 10,
-  };
-}
-
-/** A spot inside the arc, away from the corner lanes. */
-function twoPointSpot(rng: Random): CourtCoordinates {
-  const radius = 15 + rng.next() * 180;
-  const angle = -0.15 + rng.next() * (Math.PI + 0.3);
-  return toPercent(BASKET.x + radius * Math.cos(angle), BASKET.y + radius * Math.sin(angle));
-}
-
-/** A corner three or a spot beyond the arc. */
-function threePointSpot(rng: Random): CourtCoordinates {
-  if (rng.chance(0.25)) {
-    const x = rng.chance(0.5) ? 12 + rng.next() * 26 : 462 + rng.next() * 26;
-    return toPercent(x, 20 + rng.next() * 90);
-  }
-  const radius = 248 + rng.next() * 40;
-  const angle = Math.PI * (0.2 + rng.next() * 0.6);
-  return toPercent(BASKET.x + radius * Math.cos(angle), BASKET.y + radius * Math.sin(angle));
-}
 
 /** Splits field-goal points into 2s and 3s (about a quarter of them from three). */
 function splitFieldGoals(points: number, rng: Random): { twos: number; threes: number; leftover: number } {
@@ -149,13 +111,13 @@ function sideActions(
   return { actions, trips: trips.length };
 }
 
-export function generatePlayByPlay(plan: MatchPlan): GeneratedPlayByPlay {
+export function generatePlayByPlay(plan: MatchPlan): PlayByPlayEvent[] {
   const rng = createRandom(plan.seed);
   const playerById = new Map(plan.players.map((p) => [p.id, p]));
   const position = (id: string): BasketballPosition => playerById.get(id)?.position ?? 'SF';
   const scoringWeight = (id: string) => plan.scoringWeights?.[id] ?? 1;
 
-  const lineup = [...plan.starterIds];
+  const lineup = plan.starterIds;
   const fouls = new Map<string, number>();
   const events: PlayByPlayEvent[] = [];
   let homeScore = 0;
@@ -171,8 +133,6 @@ export function generatePlayByPlay(plan: MatchPlan): GeneratedPlayByPlay {
     const actions: Action[] = [...own.actions, ...rival.actions];
     for (let i = own.trips; i < period.rivalFouls; i++) actions.push({ kind: 'FOUL', side: 'RIVAL' });
     for (let i = rival.trips; i < period.ownFouls; i++) actions.push({ kind: 'FOUL', side: 'OWN' });
-    const subs = Math.max(1, Math.round(3 * share));
-    for (let i = 0; i < subs; i++) actions.push({ kind: 'SUB' });
 
     const ordered = rng.shuffle(actions);
     const step = (length - endClock) / (ordered.length + 1);
@@ -203,7 +163,8 @@ export function generatePlayByPlay(plan: MatchPlan): GeneratedPlayByPlay {
           type,
           scoreAtEvent: { home: homeScore, away: awayScore },
           timestamp,
-          ...extra,
+          // Stored events are JSON: optional fields are absent, never undefined.
+          ...Object.fromEntries(Object.entries(extra).filter(([, value]) => value !== undefined)),
         });
       };
 
@@ -240,7 +201,6 @@ export function generatePlayByPlay(plan: MatchPlan): GeneratedPlayByPlay {
               assistedByPlayerId: assisted
                 ? onCourt((id) => ASSIST_WEIGHT[position(id)], shooter)
                 : undefined,
-              coordinates: action.value === 3 ? threePointSpot(rng) : twoPointSpot(rng),
             });
           }
           if (!action.made) rebound(action.side);
@@ -268,20 +228,11 @@ export function generatePlayByPlay(plan: MatchPlan): GeneratedPlayByPlay {
           if (action.side === 'OWN') ownFoul();
           else emit('RIVAL', 'FOUL_PERSONAL');
           break;
-        case 'SUB': {
-          const bench = plan.rosterIds.filter((id) => !lineup.includes(id));
-          if (bench.length === 0) break;
-          const playerOutId = rng.pick(lineup);
-          const playerInId = rng.pick(bench);
-          lineup[lineup.indexOf(playerOutId)] = playerInId;
-          emit('OWN', 'SUBSTITUTION', { substitution: { playerInId, playerOutId } });
-          break;
-        }
       }
     });
   });
 
-  return { events: withChartEntries(events, plan), activeLineup: lineup };
+  return withChartEntries(events, plan);
 }
 
 // Separate stream so chart entries never change the stat events of a seed.
@@ -344,19 +295,12 @@ interface ChartAnchor {
 const pickCode = (rng: Random, codes: Weighted): string => rng.weightedPick(codes, ([, w]) => w)[0];
 
 /** Plays the coach could chart, each anchored to the stat event it explains. */
-function chartAnchors(events: PlayByPlayEvent[], starterIds: string[]): ChartAnchor[] {
+function chartAnchors(events: PlayByPlayEvent[], onCourt: string[]): ChartAnchor[] {
   const anchors: ChartAnchor[] = [];
-  let lineup = [...starterIds];
   const isRivalFt = (event?: PlayByPlayEvent) =>
     event !== undefined && !event.isOwnTeam && (event.type === 'FT_MADE' || event.type === 'FT_MISS');
 
   events.forEach((event, index) => {
-    if (event.type === 'SUBSTITUTION' && event.substitution) {
-      const { playerInId, playerOutId } = event.substitution;
-      lineup = lineup.map((id) => (id === playerOutId ? playerInId : id));
-      return;
-    }
-    const onCourt = [...lineup];
     const add = (category: ChartCategory, build: ChartAnchor['build']) =>
       anchors.push({ index, category, build });
     const own = event.playerId;
@@ -509,7 +453,7 @@ function withChartEntries(events: PlayByPlayEvent[], plan: MatchPlan): PlayByPla
       gameClockFormatted: event.gameClockFormatted,
       teamId: plan.ownTeamId,
       isOwnTeam: true,
-      playerId,
+      ...(playerId && { playerId }),
       type: 'CHART',
       chart,
       scoreAtEvent: event.scoreAtEvent,

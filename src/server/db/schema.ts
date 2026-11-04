@@ -20,7 +20,7 @@ import { SYNC_RECORD_KINDS } from '../sync/record-kinds';
 
 /**
  * =============================================================================
- * HOOP OS - DATABASE SCHEMA (PostgreSQL, Drizzle)
+ * HOOP - DATABASE SCHEMA (PostgreSQL, Drizzle)
  * Change it, then run `npm run db:generate` to create the next SQL migration.
  * =============================================================================
  */

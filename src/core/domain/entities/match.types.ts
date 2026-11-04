@@ -1,11 +1,9 @@
 import { z } from 'zod';
-import { CourtCoordinatesSchema } from '../value-objects/coordinates';
 import { ChartEntrySchema } from './chart.types';
 
 /**
  * =============================================================================
  * HOOP - MATCH & PLAY-BY-PLAY EVENT DOMAIN TYPES & ZOD SCHEMAS
- * Clean Architecture - Domain Layer (FIBA Compliant)
  * =============================================================================
  */
 
@@ -56,7 +54,6 @@ export const PlayByPlayEventTypeSchema = z.enum([
   'FOUL_PERSONAL',       // Falta Personal
   'FOUL_TECHNICAL',      // Falta Técnica
   'FOUL_UNSPORTSMANLIKE',// Falta Antideportiva
-  'SUBSTITUTION',        // Sustitución / Cambio de Jugador
   'CHART',               // Entrada de la planilla táctica (no cambia estadísticas)
 ]);
 export type PlayByPlayEventType = z.infer<typeof PlayByPlayEventTypeSchema>;
@@ -64,12 +61,6 @@ export type PlayByPlayEventType = z.infer<typeof PlayByPlayEventTypeSchema>;
 // -----------------------------------------------------------------------------
 // EVENT DEFINITIONS & SCHEMAS
 // -----------------------------------------------------------------------------
-
-export const SubstitutionDetailSchema = z.object({
-  playerInId: z.string().min(1, 'Player IN ID is required'),
-  playerOutId: z.string().min(1, 'Player OUT ID is required'),
-});
-export type SubstitutionDetail = z.infer<typeof SubstitutionDetailSchema>;
 
 export const ScoreSnapshotSchema = z.object({
   home: z.number().int().min(0),
@@ -103,12 +94,7 @@ export const PlayByPlayEventSchema = z.object({
    * Assisted by Player ID (populated when a field goal is made with an assist).
    */
   assistedByPlayerId: z.string().optional(),
-  /**
-   * Half-court coordinates where the shot or action occurred.
-   */
-  coordinates: CourtCoordinatesSchema.optional(),
   type: PlayByPlayEventTypeSchema,
-  substitution: SubstitutionDetailSchema.optional(),
   /**
    * Tactical charting entry (only on CHART events).
    */
@@ -198,13 +184,9 @@ export const MatchSchema = z.object({
     overtimeRemaining: 1,
   }),
   /**
-   * Starting five of the own team (used as the initial lineup for +/-).
+   * Starting five of the own team, chosen on the lineup page.
    */
   startingLineupOwn: z.array(z.string()).max(5).default([]),
-  /**
-   * 5 active player IDs on court for own team.
-   */
-  activeLineupOwn: z.array(z.string()).max(5).default([]),
   /**
    * Full match roster player IDs for own team.
    */

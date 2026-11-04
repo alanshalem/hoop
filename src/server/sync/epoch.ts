@@ -6,7 +6,7 @@ import { syncMeta } from '../db/schema';
 
 /**
  * =============================================================================
- * HOOP OS - SERVER DATA EPOCH (S1, L5)
+ * HOOP - SERVER DATA EPOCH (S1, L5)
  * Identifies the current server data. Replacing it (the report import wipes
  * every record) rotates the epoch; pulls return it and a push must carry it, so
  * a browser that still holds the old data or an old outbox can never write it

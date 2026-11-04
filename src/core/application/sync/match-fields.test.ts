@@ -63,7 +63,7 @@ describe('changedMatchFields', () => {
     const before = toMatchRecord(makeMatch({ venue: 'Club' }));
     const after = {
       ...before,
-      activeLineupOwn: [...before.activeLineupOwn],
+      startingLineupOwn: [...before.startingLineupOwn],
       homeTimeouts: { ...before.homeTimeouts },
       homeScore: 40,
       status: 'HALFTIME' as const,

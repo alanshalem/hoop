@@ -10,7 +10,7 @@ import {
 
 /**
  * =============================================================================
- * HOOP OS - HTTP ADAPTERS FOR THE AUTH AND SYNC API
+ * HOOP - HTTP ADAPTERS FOR THE AUTH AND SYNC API
  * Same-origin `fetch`: the `hoop_session` httpOnly cookie travels on its own and
  * the client never sees a token. Failures come back as values, never throws.
  * =============================================================================

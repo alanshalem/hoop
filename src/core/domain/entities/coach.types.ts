@@ -3,7 +3,7 @@ import { LicenseSchema } from './club.types';
 
 /**
  * =============================================================================
- * HOOP OS - COACHES (S5)
+ * HOOP - COACHES (S5)
  * The club's coaching staff as records without login: divisions assign a head
  * coach and assistants from them (`Team.headCoachId`, `Team.assistantCoachIds`).
  * Synced as whole records (last-write-wins).

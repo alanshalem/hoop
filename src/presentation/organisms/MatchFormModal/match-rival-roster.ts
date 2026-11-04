@@ -14,7 +14,7 @@ import {
 
 /**
  * =============================================================================
- * HOOP OS - RIVAL ROSTER IN THE MATCH FORM (S16)
+ * HOOP - RIVAL ROSTER IN THE MATCH FORM (S16)
  * The match form shows the roster of the typed rival in the selected division
  * and edits it as a draft. The draft becomes store actions only when the match
  * is saved; validation runs through the rival-team use-cases.

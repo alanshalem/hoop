@@ -16,7 +16,7 @@ import {
   PlayerPhysicalStatusSchema,
 } from '@/core/domain/entities/club.types';
 import { useClubStore } from '@/core/application/stores/useClubStore';
-import { CLUB_PROFILE } from '@/core/infrastructure/club-profile';
+import { CLUB_PROFILE } from '@/core/domain/club-profile';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { ModalSheet } from '@/presentation/molecules/ModalSheet/ModalSheet';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';

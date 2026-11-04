@@ -14,7 +14,7 @@ import {
   type TabMessage,
 } from './tab-coordinator';
 import type { SyncableClubData, SyncStoreData } from './sync-types';
-import { makeDivision, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
+import { makeClubData, makeDivision, makeMatch, makePlayer, makeTeam } from '@/core/testing/fixtures';
 
 const KEYS = { club: 'club-key', sync: 'sync-key' };
 
@@ -29,15 +29,12 @@ interface HarnessOptions {
 
 function harness({ withLock = true, withChannel = true, realEngine = false, lock, handoff }: HarnessOptions = {}) {
   const log: string[] = [];
-  let data: SyncableClubData = {
+  let data: SyncableClubData = makeClubData({
     divisions: [makeDivision()],
     teams: [makeTeam()],
     players: [makePlayer({ id: 'p1' })],
     matches: [makeMatch()],
-    chartCodes: [],
-    rivalTeams: [],
-    coaches: [],
-  };
+  });
   const clubListeners = new Set<() => void>();
   const setData = (next: SyncableClubData) => {
     data = next;

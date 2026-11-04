@@ -4,7 +4,7 @@ import { CoachNameSchema, type Coach, type CoachRole } from '@/core/domain/entit
 
 /**
  * =============================================================================
- * HOOP OS - COACH USE-CASES (S5)
+ * HOOP - COACH USE-CASES (S5)
  * Pure functions over the club's coaches: coaches in, new coaches (or a typed
  * refusal) out. Untouched coaches and teams keep their reference so the sync
  * diff only sends what changed.

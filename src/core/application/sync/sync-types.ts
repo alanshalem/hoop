@@ -7,7 +7,7 @@ import type { MatchField, MatchFieldVersions } from './match-fields';
 
 /**
  * =============================================================================
- * HOOP OS - CLIENT SYNC TYPES (S10.7)
+ * HOOP - CLIENT SYNC TYPES (S10.7)
  * Local-first: every write lands in the club store first, then travels through
  * a persisted outbox to `POST /api/sync/push`. Pulls merge server changes back.
  * =============================================================================
