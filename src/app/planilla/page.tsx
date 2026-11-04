@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Archive, ArchiveRestore, Lock, Pencil, Plus, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 import {
@@ -26,6 +26,7 @@ import {
   CHART_TONE_LABELS,
   formatChartCodeCounts,
 } from '@/presentation/organisms/ChartCodeFormModal/chart-code-form';
+import { useEditModal } from '@/presentation/hooks/useEditModal';
 import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import styles from './page.module.css';
 
@@ -49,13 +50,7 @@ export default function ChartCatalogPage() {
   const canManage = can(role, 'MANAGE_CHART_CATALOG');
   useScreenTour('planilla');
 
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [formTarget, setFormTarget] = useState<FormTarget>({ category: 'TURNOVER', code: null });
-
-  const openForm = (category: ChartCategory, code: ChartCode | null) => {
-    setFormTarget({ category, code });
-    setIsFormOpen(true);
-  };
+  const form = useEditModal<FormTarget>();
 
   const setArchived = async (category: ChartCategory, code: ChartCode, archived: boolean) => {
     const result = setChartCodeArchived(category, code.code, archived);
@@ -109,7 +104,7 @@ export default function ChartCatalogPage() {
                     <TouchButton
                       variant="secondary"
                       leftIcon={<Plus size={ICON_SIZE.md} />}
-                      onClick={() => openForm(category, null)}
+                      onClick={() => form.open({ category, code: null })}
                       aria-label={`Nuevo código en ${label}`}
                       data-tour="chart-catalog-create"
                     >
@@ -150,7 +145,7 @@ export default function ChartCatalogPage() {
                             aria-label={`Editar ${code.label}`}
                             variant="secondary"
                             icon={<Pencil size={ICON_SIZE.md} />}
-                            onClick={() => openForm(category, code)}
+                            onClick={() => form.open({ category, code })}
                             data-tour="chart-catalog-edit"
                           />
                           {code.archived ? (
@@ -181,10 +176,10 @@ export default function ChartCatalogPage() {
       </div>
 
       <ChartCodeFormModal
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        category={formTarget.category}
-        codeToEdit={formTarget.code}
+        isOpen={form.isOpen}
+        onClose={form.close}
+        category={form.item?.category ?? 'TURNOVER'}
+        codeToEdit={form.item?.code}
       />
     </TabletAppShell>
   );

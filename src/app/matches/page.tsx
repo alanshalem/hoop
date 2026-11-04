@@ -22,12 +22,15 @@ import {
   sortMatchesForCalendar,
 } from '@/presentation/organisms/MatchCard/match-display';
 import { MatchFormModal } from '@/presentation/organisms/MatchFormModal/MatchFormModal';
+import {
+  ALL,
+  DELETED_DIVISION_LABEL,
+  NO_DIVISION,
+  buildDivisionChips,
+} from '@/presentation/molecules/FilterChipGroup/division-chips';
+import { useEditModal } from '@/presentation/hooks/useEditModal';
 import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import styles from './page.module.css';
-
-const ALL = 'ALL';
-const NO_DIVISION = 'NO_DIVISION';
-const DELETED_DIVISION_LABEL = 'División eliminada';
 
 type StatusFilter = typeof ALL | 'IN_PLAY' | Exclude<MatchStatus, 'LIVE' | 'HALFTIME'>;
 
@@ -57,8 +60,7 @@ export default function MatchesPage() {
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(ALL);
   const [divisionFilter, setDivisionFilter] = useState<string>(ALL);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [matchToEdit, setMatchToEdit] = useState<Match | null>(null);
+  const form = useEditModal<Match>();
 
   const divisionKeyOf = (match: Match) =>
     divisions.some((d) => d.id === match.divisionId) ? match.divisionId : NO_DIVISION;
@@ -72,16 +74,11 @@ export default function MatchesPage() {
   );
 
   const hasOrphans = matches.some((m) => divisionKeyOf(m) === NO_DIVISION);
-  const divisionChips = [
-    { value: ALL, label: 'Todas' },
-    ...divisions.map((d) => ({ value: d.id, label: d.name })),
-    ...(hasOrphans ? [{ value: NO_DIVISION, label: DELETED_DIVISION_LABEL }] : []),
-  ];
-
-  const openForm = (match: Match | null) => {
-    setMatchToEdit(match);
-    setIsFormOpen(true);
-  };
+  const divisionChips = buildDivisionChips(
+    divisions,
+    (value) => matches.filter((m) => matchesDivision(m, value) && matchesStatus(m, statusFilter)).length,
+    hasOrphans ? DELETED_DIVISION_LABEL : null
+  );
 
   const handleDelete = async (match: Match) => {
     const { date, time } = formatMatchDate(match.date);
@@ -150,7 +147,7 @@ export default function MatchesPage() {
               aria-label={`Editar partido contra ${match.rivalTeamName}`}
               variant="secondary"
               icon={<Pencil size={ICON_SIZE.md} />}
-              onClick={() => openForm(match)}
+              onClick={() => form.open(match)}
             />
             <IconButton
               aria-label={`Eliminar partido contra ${match.rivalTeamName}`}
@@ -192,7 +189,7 @@ export default function MatchesPage() {
               {canManageMatches && (
                 <TouchButton
                   leftIcon={<Plus size={ICON_SIZE.md} />}
-                  onClick={() => openForm(null)}
+                  onClick={() => form.open(null)}
                   data-tour="matches-create"
                 >
                   Nuevo partido
@@ -220,7 +217,7 @@ export default function MatchesPage() {
                 key={chip.value}
                 label={chip.label}
                 pressed={divisionFilter === chip.value}
-                count={matches.filter((m) => matchesDivision(m, chip.value) && matchesStatus(m, statusFilter)).length}
+                count={chip.count}
                 onClick={() => setDivisionFilter(chip.value)}
               />
             ))}
@@ -239,7 +236,7 @@ export default function MatchesPage() {
             action={
               canManageMatches &&
               matches.length === 0 && (
-                <TouchButton leftIcon={<Plus size={ICON_SIZE.md} />} onClick={() => openForm(null)}>
+                <TouchButton leftIcon={<Plus size={ICON_SIZE.md} />} onClick={() => form.open(null)}>
                   Nuevo partido
                 </TouchButton>
               )
@@ -257,9 +254,9 @@ export default function MatchesPage() {
       </div>
 
       <MatchFormModal
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        matchToEdit={matchToEdit}
+        isOpen={form.isOpen}
+        onClose={form.close}
+        matchToEdit={form.item}
         defaultDivisionId={divisionFilter !== ALL && divisionFilter !== NO_DIVISION ? divisionFilter : activeDivisionId}
       />
     </TabletAppShell>

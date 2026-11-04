@@ -29,11 +29,10 @@ import {
   PlayerFormModal,
 } from '@/presentation/organisms/PlayerFormModal/PlayerFormModal';
 import { isYouthCategory } from '@/presentation/organisms/DivisionFormModal/division-labels';
+import { ALL, NO_DIVISION, buildDivisionChips } from '@/presentation/molecules/FilterChipGroup/division-chips';
+import { useEditModal } from '@/presentation/hooks/useEditModal';
 import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import styles from './page.module.css';
-
-const ALL = 'ALL';
-const NO_TEAM = 'NO_TEAM';
 /** Facet value of a player without a position: no chip selects it (S4). */
 const NO_POSITION = 'NO_POSITION';
 
@@ -55,11 +54,10 @@ export default function PlayersPage() {
 
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<Filters>({ division: ALL, position: ALL, status: ALL });
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [playerToEdit, setPlayerToEdit] = useState<Player | null>(null);
+  const form = useEditModal<Player>();
 
   const divisionIdOf = (player: Player): string =>
-    teams.find((t) => t.id === player.teamId)?.divisionId ?? NO_TEAM;
+    teams.find((t) => t.id === player.teamId)?.divisionId ?? NO_DIVISION;
   const divisionOf = (player: Player) => divisions.find((d) => d.id === divisionIdOf(player));
 
   const facetValue = (player: Player, facet: Facet): string => {
@@ -103,29 +101,27 @@ export default function PlayersPage() {
 
   const setFilter = (facet: Facet, value: string) => setFilters((current) => ({ ...current, [facet]: value }));
 
-  const hasUnassigned = players.some((p) => divisionIdOf(p) === NO_TEAM);
-  const divisionChips = [
-    { value: ALL, label: 'Todas' },
-    ...divisions.map((d) => ({ value: d.id, label: d.name })),
-    ...(hasUnassigned ? [{ value: NO_TEAM, label: 'Sin equipo' }] : []),
-  ];
-  const positionChips = [
+  const withCounts = (facet: Facet, chips: Array<{ value: string; label: string }>) =>
+    chips.map((chip) => ({ ...chip, count: countFor(facet, chip.value) }));
+
+  const hasUnassigned = players.some((p) => divisionIdOf(p) === NO_DIVISION);
+  const divisionChips = buildDivisionChips(
+    divisions,
+    (value) => countFor('division', value),
+    hasUnassigned ? 'Sin equipo' : null
+  );
+  const positionChips = withCounts('position', [
     { value: ALL, label: 'Todas' },
     ...BasketballPositionSchema.options.map((p) => ({ value: p, label: BASKETBALL_POSITION_LABELS[p].short })),
-  ];
-  const statusChips = [
+  ]);
+  const statusChips = withCounts('status', [
     { value: ALL, label: 'Todos' },
     ...PlayerPhysicalStatusSchema.options.map((s) => ({ value: s, label: PLAYER_STATUS_LABELS[s] })),
-  ];
+  ]);
 
   const firstTeam = teams.find(
     (t) => divisions.find((d) => d.id === t.divisionId)?.category === 'PRIMERA'
   );
-
-  const openForm = (player: Player | null) => {
-    setPlayerToEdit(player);
-    setIsFormOpen(true);
-  };
 
   const handleCallUp = (player: Player) => {
     if (!firstTeam) return;
@@ -152,13 +148,13 @@ export default function PlayersPage() {
     }
   };
 
-  const renderChips = (facet: Facet, chips: Array<{ value: string; label: string }>) =>
+  const renderChips = (facet: Facet, chips: Array<{ value: string; label: string; count: number }>) =>
     chips.map((chip) => (
       <FilterChip
         key={chip.value}
         label={chip.label}
         pressed={filters[facet] === chip.value}
-        count={countFor(facet, chip.value)}
+        count={chip.count}
         onClick={() => setFilter(facet, chip.value)}
       />
     ));
@@ -173,7 +169,7 @@ export default function PlayersPage() {
             canManage && (
               <TouchButton
                 leftIcon={<Plus size={ICON_SIZE.md} />}
-                onClick={() => openForm(null)}
+                onClick={() => form.open(null)}
                 data-tour="players-create"
               >
                 Nuevo jugador
@@ -219,7 +215,7 @@ export default function PlayersPage() {
                   <PlayerCard
                     player={player}
                     points={seasonPoints.get(player.id) ?? 0}
-                    onClick={canManage ? () => openForm(player) : undefined}
+                    onClick={canManage ? () => form.open(player) : undefined}
                   />
 
                   <dl className={styles.meta}>
@@ -275,7 +271,7 @@ export default function PlayersPage() {
         )}
       </div>
 
-      <PlayerFormModal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} playerToEdit={playerToEdit} />
+      <PlayerFormModal isOpen={form.isOpen} onClose={form.close} playerToEdit={form.item} />
     </TabletAppShell>
   );
 }

@@ -26,12 +26,15 @@ import {
   formatRivalPlayerCount,
   sortRivalPlayers,
 } from '@/presentation/organisms/RivalTeamFormModal/rival-roster';
+import {
+  ALL,
+  DELETED_DIVISION_LABEL,
+  NO_DIVISION,
+  buildDivisionChips,
+} from '@/presentation/molecules/FilterChipGroup/division-chips';
+import { useEditModal } from '@/presentation/hooks/useEditModal';
 import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import styles from './page.module.css';
-
-const ALL = 'ALL';
-const NO_DIVISION = 'NO_DIVISION';
-const DELETED_DIVISION_LABEL = 'División eliminada';
 
 /** Rival rosters per division (S14): the live console offers them when charting a match. */
 export default function RivalsPage() {
@@ -47,11 +50,8 @@ export default function RivalsPage() {
   useScreenTour('rivales');
 
   const [divisionFilter, setDivisionFilter] = useState<string>(ALL);
-  const [isTeamFormOpen, setIsTeamFormOpen] = useState(false);
-  const [teamToEdit, setTeamToEdit] = useState<RivalTeam | null>(null);
-  const [isPlayerFormOpen, setIsPlayerFormOpen] = useState(false);
-  const [playerTeamId, setPlayerTeamId] = useState<string | null>(null);
-  const [playerToEdit, setPlayerToEdit] = useState<RivalPlayer | null>(null);
+  const teamForm = useEditModal<RivalTeam>();
+  const playerForm = useEditModal<{ teamId: string; player: RivalPlayer | null }>();
 
   const divisionKeyOf = (team: RivalTeam) =>
     divisions.some((d) => d.id === team.divisionId) ? team.divisionId : NO_DIVISION;
@@ -64,27 +64,16 @@ export default function RivalsPage() {
     .sort((a, b) => a.name.localeCompare(b.name, 'es'));
 
   const hasOrphans = rivalTeams.some((team) => divisionKeyOf(team) === NO_DIVISION);
-  const divisionChips = [
-    { value: ALL, label: 'Todas' },
-    ...divisions.map((d) => ({ value: d.id, label: d.name })),
-    ...(hasOrphans ? [{ value: NO_DIVISION, label: DELETED_DIVISION_LABEL }] : []),
-  ];
+  const divisionChips = buildDivisionChips(
+    divisions,
+    (value) => rivalTeams.filter((team) => matchesDivision(team, value)).length,
+    hasOrphans ? DELETED_DIVISION_LABEL : null
+  );
 
   // The player sheet reads the live team, so a renamed or edited roster shows at once.
-  const playerTeam = rivalTeams.find((team) => team.id === playerTeamId) ?? null;
+  const playerTeam = rivalTeams.find((team) => team.id === playerForm.item?.teamId) ?? null;
   const defaultDivisionId =
     divisionFilter !== ALL && divisionFilter !== NO_DIVISION ? divisionFilter : activeDivisionId;
-
-  const openTeamForm = (team: RivalTeam | null) => {
-    setTeamToEdit(team);
-    setIsTeamFormOpen(true);
-  };
-
-  const openPlayerForm = (team: RivalTeam, player: RivalPlayer | null) => {
-    setPlayerTeamId(team.id);
-    setPlayerToEdit(player);
-    setIsPlayerFormOpen(true);
-  };
 
   const handleDeleteTeam = async (team: RivalTeam) => {
     const accepted = await confirm({
@@ -132,7 +121,7 @@ export default function RivalsPage() {
             canManage && (
               <TouchButton
                 leftIcon={<Plus size={ICON_SIZE.md} />}
-                onClick={() => openTeamForm(null)}
+                onClick={() => teamForm.open(null)}
                 disabled={divisions.length === 0}
                 data-tour="rivals-create"
               >
@@ -156,7 +145,7 @@ export default function RivalsPage() {
                 key={chip.value}
                 label={chip.label}
                 pressed={divisionFilter === chip.value}
-                count={rivalTeams.filter((team) => matchesDivision(team, chip.value)).length}
+                count={chip.count}
                 onClick={() => setDivisionFilter(chip.value)}
               />
             ))}
@@ -175,7 +164,7 @@ export default function RivalsPage() {
             action={
               canManage &&
               divisions.length > 0 && (
-                <TouchButton leftIcon={<Plus size={ICON_SIZE.md} />} onClick={() => openTeamForm(null)}>
+                <TouchButton leftIcon={<Plus size={ICON_SIZE.md} />} onClick={() => teamForm.open(null)}>
                   Nuevo rival
                 </TouchButton>
               )
@@ -199,7 +188,7 @@ export default function RivalsPage() {
                             aria-label={`Renombrar ${team.name}`}
                             variant="secondary"
                             icon={<Pencil size={ICON_SIZE.md} />}
-                            onClick={() => openTeamForm(team)}
+                            onClick={() => teamForm.open(team)}
                             data-tour="rival-rename"
                           />
                           <IconButton
@@ -233,7 +222,7 @@ export default function RivalsPage() {
                                   aria-label={`Editar a #${player.dorsal} ${player.lastName}`}
                                   variant="ghost"
                                   icon={<Pencil size={ICON_SIZE.md} />}
-                                  onClick={() => openPlayerForm(team, player)}
+                                  onClick={() => playerForm.open({ teamId: team.id, player })}
                                 />
                                 <IconButton
                                   aria-label={`Quitar a #${player.dorsal} ${player.lastName}`}
@@ -253,7 +242,7 @@ export default function RivalsPage() {
                         variant="secondary"
                         fullWidth
                         leftIcon={<UserPlus size={ICON_SIZE.md} />}
-                        onClick={() => openPlayerForm(team, null)}
+                        onClick={() => playerForm.open({ teamId: team.id, player: null })}
                         className={styles.addPlayer}
                         data-tour="rival-add-player"
                       >
@@ -269,16 +258,16 @@ export default function RivalsPage() {
       </div>
 
       <RivalTeamFormModal
-        isOpen={isTeamFormOpen}
-        onClose={() => setIsTeamFormOpen(false)}
-        teamToEdit={teamToEdit}
+        isOpen={teamForm.isOpen}
+        onClose={teamForm.close}
+        teamToEdit={teamForm.item}
         defaultDivisionId={defaultDivisionId}
       />
       <RivalPlayerFormModal
-        isOpen={isPlayerFormOpen}
-        onClose={() => setIsPlayerFormOpen(false)}
+        isOpen={playerForm.isOpen}
+        onClose={playerForm.close}
         team={playerTeam}
-        playerToEdit={playerToEdit}
+        playerToEdit={playerForm.item?.player}
       />
     </TabletAppShell>
   );

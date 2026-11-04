@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Award, CalendarRange, Pencil, Plus, Shield, Trash2, UserCog, Users } from 'lucide-react';
 import clsx from 'clsx';
 import type { Division } from '@/core/domain/entities/club.types';
@@ -20,6 +20,7 @@ import { DIVISION_CATEGORY_LABELS } from '@/presentation/organisms/DivisionFormM
 import { coachNames } from '@/presentation/organisms/DivisionFormModal/division-staff';
 import { DivisionRosterModal } from '@/presentation/organisms/DivisionRosterModal/DivisionRosterModal';
 import { getTeamRosterPlayers } from '@/presentation/organisms/DivisionRosterModal/team-roster';
+import { useEditModal } from '@/presentation/hooks/useEditModal';
 import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import styles from './page.module.css';
 
@@ -34,20 +35,8 @@ export default function DivisionsPage() {
   const canManage = can(role, 'MANAGE_DIVISIONS');
   useScreenTour('divisions');
 
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [divisionToEdit, setDivisionToEdit] = useState<Division | null>(null);
-  const [isRosterOpen, setIsRosterOpen] = useState(false);
-  const [rosterDivisionId, setRosterDivisionId] = useState<string | null>(null);
-
-  const openForm = (division: Division | null) => {
-    setDivisionToEdit(division);
-    setIsFormOpen(true);
-  };
-
-  const openRoster = (divisionId: string) => {
-    setRosterDivisionId(divisionId);
-    setIsRosterOpen(true);
-  };
+  const form = useEditModal<Division>();
+  const roster = useEditModal<string>();
 
   const handleDelete = async (division: Division, playerCount: number) => {
     const accepted = await confirm({
@@ -83,7 +72,7 @@ export default function DivisionsPage() {
               {canManage && (
                 <TouchButton
                   leftIcon={<Plus size={ICON_SIZE.md} />}
-                  onClick={() => openForm(null)}
+                  onClick={() => form.open(null)}
                   data-tour="divisions-create"
                 >
                   Nueva división
@@ -104,7 +93,7 @@ export default function DivisionsPage() {
             }
             action={
               canManage && (
-                <TouchButton leftIcon={<Plus size={ICON_SIZE.md} />} onClick={() => openForm(null)}>
+                <TouchButton leftIcon={<Plus size={ICON_SIZE.md} />} onClick={() => form.open(null)}>
                   Nueva división
                 </TouchButton>
               )
@@ -158,7 +147,7 @@ export default function DivisionsPage() {
                       variant="secondary"
                       leftIcon={<Users size={ICON_SIZE.md} />}
                       className={styles.rosterButton}
-                      onClick={() => openRoster(division.id)}
+                      onClick={() => roster.open(division.id)}
                       data-tour="division-roster"
                     >
                       Ver plantel
@@ -169,7 +158,7 @@ export default function DivisionsPage() {
                           aria-label={`Editar ${division.name}`}
                           variant="secondary"
                           icon={<Pencil size={ICON_SIZE.md} />}
-                          onClick={() => openForm(division)}
+                          onClick={() => form.open(division)}
                           data-tour="division-edit"
                         />
                         <IconButton
@@ -188,16 +177,8 @@ export default function DivisionsPage() {
         )}
       </div>
 
-      <DivisionFormModal
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        divisionToEdit={divisionToEdit}
-      />
-      <DivisionRosterModal
-        isOpen={isRosterOpen}
-        onClose={() => setIsRosterOpen(false)}
-        divisionId={rosterDivisionId}
-      />
+      <DivisionFormModal isOpen={form.isOpen} onClose={form.close} divisionToEdit={form.item} />
+      <DivisionRosterModal isOpen={roster.isOpen} onClose={roster.close} divisionId={roster.item} />
     </TabletAppShell>
   );
 }

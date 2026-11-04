@@ -1,9 +1,7 @@
 'use client';
 
-import React, { useEffect, useId } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Save, Trash2 } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 import {
   BASKETBALL_POSITION_LABELS,
@@ -18,7 +16,6 @@ import {
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { CLUB_PROFILE } from '@/core/domain/club-profile';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
-import { ModalSheet } from '@/presentation/molecules/ModalSheet/ModalSheet';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
 import { TextField } from '@/presentation/atoms/TextField/TextField';
 import { SelectField, type SelectFieldOption } from '@/presentation/atoms/SelectField/SelectField';
@@ -29,6 +26,8 @@ import {
   useFieldIds,
 } from '@/presentation/atoms/FormField/FormField';
 import { confirm } from '@/presentation/organisms/DialogHost/dialog-store';
+import { FormModalSheet } from '@/presentation/templates/FormModalSheet/FormModalSheet';
+import { useModalForm } from '@/presentation/hooks/useModalForm';
 import {
   MEDICAL_NOTE_MAX,
   optionalNumber,
@@ -75,7 +74,6 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
   playerToEdit,
   defaultTeamId,
 }) => {
-  const formId = useId();
   const noteIds = useFieldIds();
   const teams = useClubStore((state) => state.teams);
   const divisions = useClubStore((state) => state.divisions);
@@ -88,22 +86,14 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
     label: divisions.find((d) => d.id === team.divisionId)?.name ?? team.name,
   }));
 
+  const initialTeamId = defaultTeamId ?? teams[0]?.id ?? '';
+
+  const defaults = useMemo(() => toPlayerFormData(playerToEdit, initialTeamId), [playerToEdit, initialTeamId]);
   const {
     register,
     handleSubmit,
-    reset,
     formState: { errors, isSubmitting },
-  } = useForm<PlayerFormData>({
-    resolver: zodResolver(PlayerFormSchema),
-    defaultValues: toPlayerFormData(null, ''),
-  });
-
-  const initialTeamId = defaultTeamId ?? teams[0]?.id ?? '';
-
-  useEffect(() => {
-    if (!isOpen) return;
-    reset(toPlayerFormData(playerToEdit, initialTeamId));
-  }, [isOpen, playerToEdit, initialTeamId, reset]);
+  } = useModalForm({ schema: PlayerFormSchema, isOpen, defaults });
 
   const onSubmit = (data: PlayerFormData) => {
     const player = toPlayerInput(data, playerToEdit?.clubId ?? CLUB_PROFILE.id);
@@ -129,144 +119,133 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
   };
 
   return (
-    <ModalSheet
+    <FormModalSheet
       isOpen={isOpen}
       onClose={onClose}
       title={playerToEdit ? 'Editar jugador' : 'Nuevo jugador'}
       size="lg"
-      footer={
-        <>
-          {playerToEdit && (
-            <TouchButton
-              variant="danger"
-              className={styles.deleteButton}
-              leftIcon={<Trash2 size={ICON_SIZE.md} />}
-              onClick={handleDelete}
-            >
-              Eliminar
-            </TouchButton>
-          )}
-          <TouchButton variant="ghost" onClick={onClose}>
-            Cancelar
-          </TouchButton>
+      submitLabel={playerToEdit ? 'Guardar cambios' : 'Crear jugador'}
+      isSubmitting={isSubmitting}
+      onSubmit={handleSubmit(onSubmit)}
+      formClassName={styles.formGrid}
+      extraActions={
+        playerToEdit && (
           <TouchButton
-            type="submit"
-            form={formId}
-            disabled={isSubmitting}
-            leftIcon={<Save size={ICON_SIZE.md} />}
+            variant="danger"
+            className={styles.deleteButton}
+            leftIcon={<Trash2 size={ICON_SIZE.md} />}
+            onClick={handleDelete}
           >
-            {playerToEdit ? 'Guardar cambios' : 'Crear jugador'}
+            Eliminar
           </TouchButton>
-        </>
+        )
       }
     >
-      <form id={formId} className={styles.formGrid} onSubmit={handleSubmit(onSubmit)} noValidate>
-        <TextField
-          label="Nombre"
-          placeholder="Ej. Facundo"
-          required
-          autoComplete="off"
-          error={errors.firstName?.message}
-          {...register('firstName')}
+      <TextField
+        label="Nombre"
+        placeholder="Ej. Facundo"
+        required
+        autoComplete="off"
+        error={errors.firstName?.message}
+        {...register('firstName')}
+      />
+      <TextField
+        label="Apellido"
+        placeholder="Ej. Campazzo"
+        required
+        autoComplete="off"
+        error={errors.lastName?.message}
+        {...register('lastName')}
+      />
+      <TextField
+        label="Dorsal"
+        type="number"
+        inputMode="numeric"
+        min={0}
+        max={99}
+        hint="De 0 a 99"
+        required
+        error={errors.dorsal?.message}
+        {...register('dorsal', { valueAsNumber: true })}
+      />
+      <SelectField
+        label="Posición"
+        placeholder="Sin posición"
+        options={POSITION_OPTIONS}
+        error={errors.position?.message}
+        {...register('position')}
+      />
+      <TextField
+        label="Altura (cm)"
+        type="number"
+        inputMode="numeric"
+        placeholder="Opcional"
+        error={errors.heightCm?.message}
+        {...register('heightCm', { setValueAs: optionalNumber })}
+      />
+      <TextField
+        label="Peso (kg)"
+        type="number"
+        inputMode="decimal"
+        placeholder="Opcional"
+        error={errors.weightKg?.message}
+        {...register('weightKg', { setValueAs: optionalNumber })}
+      />
+      <TextField
+        label="Licencia"
+        placeholder="Opcional"
+        autoComplete="off"
+        maxLength={LICENSE_MAX_LENGTH}
+        hint="Número de licencia de la federación"
+        error={errors.license?.message}
+        {...register('license')}
+      />
+      <SelectField
+        label="Mano hábil"
+        options={HAND_OPTIONS}
+        error={errors.dominantHand?.message}
+        {...register('dominantHand')}
+      />
+      <SelectField
+        label="Estado físico"
+        options={STATUS_OPTIONS}
+        error={errors.status?.message}
+        {...register('status')}
+      />
+      <SelectField
+        label="División"
+        placeholder="Sin equipo asignado"
+        options={teamOptions}
+        error={errors.teamId?.message}
+        containerClassName={styles.fullRow}
+        {...register('teamId')}
+      />
+      <FormField
+        ids={noteIds}
+        label="Parte médico"
+        hint="Lesión, tratamiento o fecha estimada de alta. Se muestra en las alertas médicas."
+        error={errors.medicalNote?.message}
+        className={styles.fullRow}
+      >
+        <textarea
+          id={noteIds.controlId}
+          rows={3}
+          maxLength={MEDICAL_NOTE_MAX}
+          placeholder="Ej. Esguince de tobillo derecho. Alta estimada en 2 semanas."
+          aria-invalid={errors.medicalNote ? true : undefined}
+          aria-describedby={describedBy(
+            noteIds,
+            errors.medicalNote ? undefined : 'hint',
+            errors.medicalNote?.message
+          )}
+          className={clsx(
+            formFieldStyles.control,
+            styles.textarea,
+            errors.medicalNote && formFieldStyles.controlInvalid
+          )}
+          {...register('medicalNote')}
         />
-        <TextField
-          label="Apellido"
-          placeholder="Ej. Campazzo"
-          required
-          autoComplete="off"
-          error={errors.lastName?.message}
-          {...register('lastName')}
-        />
-        <TextField
-          label="Dorsal"
-          type="number"
-          inputMode="numeric"
-          min={0}
-          max={99}
-          hint="De 0 a 99"
-          required
-          error={errors.dorsal?.message}
-          {...register('dorsal', { valueAsNumber: true })}
-        />
-        <SelectField
-          label="Posición"
-          placeholder="Sin posición"
-          options={POSITION_OPTIONS}
-          error={errors.position?.message}
-          {...register('position')}
-        />
-        <TextField
-          label="Altura (cm)"
-          type="number"
-          inputMode="numeric"
-          placeholder="Opcional"
-          error={errors.heightCm?.message}
-          {...register('heightCm', { setValueAs: optionalNumber })}
-        />
-        <TextField
-          label="Peso (kg)"
-          type="number"
-          inputMode="decimal"
-          placeholder="Opcional"
-          error={errors.weightKg?.message}
-          {...register('weightKg', { setValueAs: optionalNumber })}
-        />
-        <TextField
-          label="Licencia"
-          placeholder="Opcional"
-          autoComplete="off"
-          maxLength={LICENSE_MAX_LENGTH}
-          hint="Número de licencia de la federación"
-          error={errors.license?.message}
-          {...register('license')}
-        />
-        <SelectField
-          label="Mano hábil"
-          options={HAND_OPTIONS}
-          error={errors.dominantHand?.message}
-          {...register('dominantHand')}
-        />
-        <SelectField
-          label="Estado físico"
-          options={STATUS_OPTIONS}
-          error={errors.status?.message}
-          {...register('status')}
-        />
-        <SelectField
-          label="División"
-          placeholder="Sin equipo asignado"
-          options={teamOptions}
-          error={errors.teamId?.message}
-          containerClassName={styles.fullRow}
-          {...register('teamId')}
-        />
-        <FormField
-          ids={noteIds}
-          label="Parte médico"
-          hint="Lesión, tratamiento o fecha estimada de alta. Se muestra en las alertas médicas."
-          error={errors.medicalNote?.message}
-          className={styles.fullRow}
-        >
-          <textarea
-            id={noteIds.controlId}
-            rows={3}
-            maxLength={MEDICAL_NOTE_MAX}
-            placeholder="Ej. Esguince de tobillo derecho. Alta estimada en 2 semanas."
-            aria-invalid={errors.medicalNote ? true : undefined}
-            aria-describedby={describedBy(
-              noteIds,
-              errors.medicalNote ? undefined : 'hint',
-              errors.medicalNote?.message
-            )}
-            className={clsx(
-              formFieldStyles.control,
-              styles.textarea,
-              errors.medicalNote && formFieldStyles.controlInvalid
-            )}
-            {...register('medicalNote')}
-          />
-        </FormField>
-      </form>
-    </ModalSheet>
+      </FormField>
+    </FormModalSheet>
   );
 };

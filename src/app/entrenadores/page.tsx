@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { BadgeCheck, Lock, Pencil, Plus, Shield, Trash2, UserCog } from 'lucide-react';
 import clsx from 'clsx';
 import { COACH_ROLE_LABELS, type Coach } from '@/core/domain/entities/coach.types';
@@ -22,6 +22,7 @@ import {
   formatCoachAssignments,
   sortCoaches,
 } from '@/presentation/organisms/CoachFormModal/coach-form';
+import { useEditModal } from '@/presentation/hooks/useEditModal';
 import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import styles from './page.module.css';
 
@@ -36,13 +37,7 @@ export default function CoachesPage() {
   const canManage = can(role, 'MANAGE_DIVISIONS');
   useScreenTour('entrenadores');
 
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [coachToEdit, setCoachToEdit] = useState<Coach | null>(null);
-
-  const openForm = (coach: Coach | null) => {
-    setCoachToEdit(coach);
-    setIsFormOpen(true);
-  };
+  const form = useEditModal<Coach>();
 
   const handleDelete = async (coach: Coach) => {
     const accepted = await confirm({
@@ -74,7 +69,7 @@ export default function CoachesPage() {
             canManage && (
               <TouchButton
                 leftIcon={<Plus size={ICON_SIZE.md} />}
-                onClick={() => openForm(null)}
+                onClick={() => form.open(null)}
                 data-tour="coaches-create"
               >
                 Nuevo entrenador
@@ -101,7 +96,7 @@ export default function CoachesPage() {
             }
             action={
               canManage && (
-                <TouchButton leftIcon={<Plus size={ICON_SIZE.md} />} onClick={() => openForm(null)}>
+                <TouchButton leftIcon={<Plus size={ICON_SIZE.md} />} onClick={() => form.open(null)}>
                   Nuevo entrenador
                 </TouchButton>
               )
@@ -145,7 +140,7 @@ export default function CoachesPage() {
                         variant="secondary"
                         leftIcon={<Pencil size={ICON_SIZE.md} />}
                         className={styles.editButton}
-                        onClick={() => openForm(coach)}
+                        onClick={() => form.open(coach)}
                         data-tour="coach-edit"
                       >
                         Editar
@@ -165,7 +160,7 @@ export default function CoachesPage() {
         )}
       </div>
 
-      <CoachFormModal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} coachToEdit={coachToEdit} />
+      <CoachFormModal isOpen={form.isOpen} onClose={form.close} coachToEdit={form.item} />
     </TabletAppShell>
   );
 }
