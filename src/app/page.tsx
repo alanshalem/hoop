@@ -22,10 +22,12 @@ import {
   calculateSeasonSummary,
   getFinishedTeamMatches,
   type SeasonLeader,
+  type SeasonLeaders,
 } from '@/core/domain/rules/season-analytics';
 import { useClubStore } from '@/core/application/stores/useClubStore';
-import { CLUB_PROFILE } from '@/core/infrastructure/mocks/seed-data';
+import { CLUB_PROFILE } from '@/core/infrastructure/club-profile';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
+import { MISSING_VALUE } from '@/presentation/player-display';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
 import { SectionCard } from '@/presentation/molecules/SectionCard/SectionCard';
 import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
@@ -42,6 +44,7 @@ import {
   type MatchOutcome,
   formatMatchDate,
   getMatchOutcome,
+  hasAnyPlays,
   isMatchInPlay,
   sortMatchesForCalendar,
 } from '@/presentation/organisms/MatchCard/match-display';
@@ -60,6 +63,9 @@ const OUTCOME_CLASS: Record<MatchOutcome, string> = {
   LOSS: styles.outcomeLoss,
   DRAW: styles.outcomeDraw,
 };
+
+/** Matches imported from the official reports have no plays, so there is nobody to lead (S3). */
+const NO_LEADERS: SeasonLeaders = { points: null, rebounds: null, assists: null, pir: null };
 
 const formatOneDecimal = (value: number): string =>
   value.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -219,7 +225,12 @@ export default function DashboardPage() {
   const heroMatch = firstInCalendar && firstInCalendar.status !== 'FINISHED' ? firstInCalendar : undefined;
 
   const summary = activeTeam ? calculateSeasonSummary(matches, activeTeam.id) : null;
-  const leaders = activeTeam ? calculateSeasonLeaders(matches, players, activeTeam.id) : null;
+  const hasPlays = activeTeam ? hasAnyPlays(getFinishedTeamMatches(matches, activeTeam.id)) : false;
+  const leaders = activeTeam
+    ? hasPlays
+      ? calculateSeasonLeaders(matches, players, activeTeam.id)
+      : NO_LEADERS
+    : null;
   const recentResults = activeTeam
     ? sortMatchesForCalendar(getFinishedTeamMatches(matches, activeTeam.id)).slice(0, RECENT_RESULTS_LIMIT)
     : [];
@@ -317,8 +328,12 @@ export default function DashboardPage() {
             </div>
             <div className={styles.kpiCard} data-reveal>
               <span className={styles.kpiLabel}>Tiros de campo</span>
-              <span className={clsx(styles.kpiValue, 'tabular-nums')}>{formatOneDecimal(summary.fgPct)}%</span>
-              <span className={styles.kpiSub}>Triples {formatOneDecimal(summary.fg3Pct)}%</span>
+              <span className={clsx(styles.kpiValue, 'tabular-nums')}>
+                {hasPlays ? `${formatOneDecimal(summary.fgPct)}%` : MISSING_VALUE}
+              </span>
+              <span className={styles.kpiSub}>
+                {hasPlays ? `Triples ${formatOneDecimal(summary.fg3Pct)}%` : 'Sin jugadas registradas'}
+              </span>
             </div>
           </section>
         ) : (
@@ -339,7 +354,15 @@ export default function DashboardPage() {
         <div className={styles.sectionGrid}>
           {leaders && (
             <div data-reveal data-tour="dashboard-leaders">
-              <SectionCard title="Líderes del equipo" icon={Flame} description="Promedio por partido en la temporada">
+              <SectionCard
+                title="Líderes del equipo"
+                icon={Flame}
+                description={
+                  hasPlays || !summary?.played
+                    ? 'Promedio por partido en la temporada'
+                    : 'Sin jugadas registradas: los partidos del acta solo traen el resultado.'
+                }
+              >
                 <ul className={styles.leadersGrid}>
                   {LEADER_CATEGORIES.map((category) => (
                     <LeaderItem

@@ -4,7 +4,8 @@ import { CalendarDays, Clock, MapPin, Trophy } from 'lucide-react';
 import type { Match } from '@/core/domain/entities/match.types';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { MatchStatusBadge } from './MatchStatusBadge';
-import { MATCH_CONDITION_LABELS, formatMatchDate, isMatchInPlay } from './match-display';
+import { OfficialResultBadge } from './OfficialResultBadge';
+import { MATCH_CONDITION_LABELS, formatMatchDate, hasOnlyOfficialResult, isMatchInPlay } from './match-display';
 import styles from './MatchCard.module.css';
 
 export interface MatchCardProps {
@@ -88,6 +89,12 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, divisionName, actio
         </div>
         <TeamSide name={away} label={MATCH_CONDITION_LABELS.AWAY} isOwn={!ownIsHome} />
       </div>
+
+      {hasScore && hasOnlyOfficialResult(match) && (
+        <div className={styles.officialRow}>
+          <OfficialResultBadge />
+        </div>
+      )}
 
       {actions && <div className={styles.actionsRow}>{actions}</div>}
     </article>

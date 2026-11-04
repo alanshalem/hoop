@@ -37,6 +37,7 @@ describe('tour catalog', () => {
       'stats',
       'planilla',
       'rivales',
+      'entrenadores',
       'help',
     ]);
     for (const id of TOUR_IDS) assert.strictEqual(getTour(id).id, id);
@@ -125,6 +126,12 @@ describe('tour catalog', () => {
       assert.ok(!targetsFor('rivales', 'ASSISTANT_STATISTICIAN').includes(target), `no ${target} for the assistant`);
     }
     assert.ok(targetsFor('rivales', 'ASSISTANT_STATISTICIAN').includes('rival-card'));
+    for (const target of ['coaches-create', 'coach-edit']) {
+      assert.ok(targetsFor('entrenadores', 'ADMIN').includes(target), `ADMIN sees ${target}`);
+      assert.ok(!targetsFor('entrenadores', 'HEAD_COACH').includes(target), `no ${target} for the head coach`);
+      assert.ok(!targetsFor('entrenadores', 'ASSISTANT_STATISTICIAN').includes(target), `no ${target} for the assistant`);
+    }
+    assert.ok(targetsFor('entrenadores', 'HEAD_COACH').includes('coach-card'));
     for (const role of UserRoleSchema.options) {
       assert.ok(targetsFor('live', role).includes('live-chart-pad'), `${role} records live`);
     }

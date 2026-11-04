@@ -226,6 +226,7 @@ No existe un estándar universal; se basa en la planilla del entrenador, los tip
 | `npm run db:migrate`  | Aplica las migraciones SQL versionadas de `drizzle/`.                                                                                                       |
 | `npm run db:generate` | Genera una migración nueva a partir de `src/server/db/schema.ts` (solo al cambiar el esquema).                                                              |
 | `npm run db:seed`     | Carga el club de demostración y las cuentas. Solo inserta lo que falta (ver [Datos de demostración en el servidor](#datos-de-demostración-en-el-servidor)). |
+| `npm run db:import-actas` | Reemplaza todos los datos del club por los de las actas oficiales (ver [Importar las actas oficiales](#importar-las-actas-oficiales)). Con `--dry-run` solo valida. |
 
 Control de tipos (no tiene script propio): `npx tsc --noEmit`.
 
@@ -239,14 +240,14 @@ Hay tres roles. Cada usuario tiene uno, asignado en el servidor. Cada pantalla o
 
 | Permiso                | Qué habilita                                                                           | Administrador | Entrenador principal | Asistente planillero |
 | ---------------------- | -------------------------------------------------------------------------------------- | :-----------: | :------------------: | :------------------: |
-| `MANAGE_DIVISIONS`     | Crear, editar y eliminar divisiones; asignar entrenador                                |      Sí       |          No          |          No          |
+| `MANAGE_DIVISIONS`     | Crear, editar y eliminar divisiones y entrenadores; asignar el cuerpo técnico          |      Sí       |          No          |          No          |
 | `MANAGE_PLAYERS`       | Crear, editar y eliminar jugadores; convocar juveniles a Primera                       |      Sí       |          Sí          |          No          |
 | `MANAGE_MATCHES`       | Crear, editar y eliminar partidos programados; cargar y editar los planteles rivales   |      Sí       |          Sí          |          No          |
 | `MANAGE_LINEUP`        | Armar convocatoria y quinteto; iniciar el partido                                      |      Sí       |          Sí          |          No          |
 | `RECORD_LIVE`          | Usar la consola en vivo: reloj, períodos, jugadas, cambios, tiempos muertos, finalizar |      Sí       |          Sí          |          Sí          |
 | `MANAGE_CHART_CATALOG` | Editar el catálogo de códigos de la planilla: renombrar, agregar, archivar y restaurar |      Sí       |          Sí          |          No          |
 
-Lo que cualquier rol puede ver: dashboard, listado de divisiones y su plantel ("Ver plantel"), jugadores, calendario, convocatorias (en modo lectura), planillas estadísticas, los códigos de la planilla y los planteles rivales (en modo lectura). Sin `RECORD_LIVE` la consola se abre en modo lectura con un aviso.
+Lo que cualquier rol puede ver: dashboard, listado de divisiones y su plantel ("Ver plantel"), jugadores, calendario, convocatorias (en modo lectura), planillas estadísticas, los códigos de la planilla, los planteles rivales y los entrenadores (en modo lectura). Sin `RECORD_LIVE` la consola se abre en modo lectura con un aviso.
 
 ### Cuentas de demostración
 
@@ -260,6 +261,10 @@ El rol sale de la cuenta con la que se inicia sesión. `npm run db:seed` crea es
 | Entrenador principal | Julio Lamas          | `jlamas@camg.com.ar`     |
 | Asistente planillero | Mariano Ginóbili     | `mginobili@camg.com.ar`  |
 
+Después de [importar las actas oficiales](#importar-las-actas-oficiales) solo queda la cuenta `admin@camg.com.ar` (con su misma contraseña); las demás cuentas y todas las sesiones se borran.
+
+Los [entrenadores](#entrenadores-entrenadores) del club no son cuentas: son fichas sin usuario que no inician sesión. Cargarlos o asignarlos no cambia los usuarios ni sus roles.
+
 Para usar otro rol hay que cerrar sesión y entrar con otra cuenta. Si el rol de una cuenta cambia en el servidor, la aplicación lo toma la próxima vez que confirma la sesión con conexión.
 
 > Cambiar la contraseña de demostración antes de usar el sistema fuera de un entorno de prueba: definir `SEED_DEMO_PASSWORD` y volver a correr `npm run db:seed`.
@@ -272,7 +277,7 @@ Para usar otro rol hay que cerrar sesión y entrar con otra cuenta. Si el rol de
 
 | Elemento                   | Dónde                  | Función                                                                                                                                                                                                                                                                                                                                   |
 | -------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Riel lateral (tablet)      | Izquierda              | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, Rivales ([planteles rivales](#rivales-rivales), icono `Swords`), Planilla ([códigos de la planilla](#códigos-de-la-planilla-planilla)), Ayuda, botón **Partido en vivo** y, al pie, el menú de usuario: nombre, rol, botón de tema claro/oscuro, [estado de sincronización](#estado-de-sincronización) y **Cerrar sesión**. |
+| Riel lateral (tablet)      | Izquierda              | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, Rivales ([planteles rivales](#rivales-rivales), icono `Swords`), Entrenadores ([cuerpo técnico](#entrenadores-entrenadores), icono `UserCog`), Planilla ([códigos de la planilla](#códigos-de-la-planilla-planilla)), Ayuda, botón **Partido en vivo** y, al pie, el menú de usuario: nombre, rol, botón de tema claro/oscuro, [estado de sincronización](#estado-de-sincronización) y **Cerrar sesión**. |
 | Barra superior (teléfono)  | Arriba                 | Escudo y marca (vuelve al inicio), el estado de sincronización compacto y los iconos de Planilla (`ClipboardList`, códigos de la planilla) y Ayuda (`LifeBuoy`).                                                                                                                                                                          |
 | Barra inferior (teléfono)  | Abajo                  | Inicio, Equipos, botón central de partido en vivo (icono `Radio`), Plantel y Fechas.                                                                                                                                                                                                                                                      |
 | Menú de usuario (teléfono) | Cabecera del Dashboard | Nombre, rol, estado de sincronización y **Cerrar sesión**.                                                                                                                                                                                                                                                                                |
@@ -312,7 +317,7 @@ Este manual, dentro de la aplicación. Se abre desde **Ayuda** en el menú later
 La primera vez que inicias sesión, Hoop muestra un recorrido de bienvenida: la pantalla se oscurece, se resalta un elemento por vez y una tarjeta con una flecha explica para qué sirve, muchas veces con un ejemplo concreto (por ejemplo, "toca #7 Campagna y después +2").
 
 - **Bienvenida**: presenta el menú (Dashboard, Divisiones, Jugadores, Partidos, Modo partido en vivo, Códigos de la planilla), el estado de sincronización, tu menú de usuario y la Ayuda. Cuando la terminas o la saltas, el recorrido de la pantalla en la que estás no empieza enseguida: aparece la próxima vez que abras esa pantalla.
-- **Recorridos por pantalla**: la primera vez que abres Dashboard, Divisiones, Jugadores, Partidos, Quinteto y convocatoria, Consola en vivo, Planilla, Códigos de la planilla, Rivales o Ayuda, se muestra un recorrido corto de esa pantalla.
+- **Recorridos por pantalla**: la primera vez que abres Dashboard, Divisiones, Jugadores, Partidos, Quinteto y convocatoria, Consola en vivo, Planilla, Códigos de la planilla, Rivales, Entrenadores o Ayuda, se muestra un recorrido corto de esa pantalla.
 - **Según tu rol**: los pasos de acciones que tu rol no puede realizar (por ejemplo, crear divisiones) no se muestran.
 - **Controles**: Siguiente, Atrás y Saltar tutorial (Finalizar en el último paso). Con teclado: Enter o flecha derecha avanza, flecha izquierda retrocede y Escape salta el tutorial. Tocar la zona oscura no cierra el recorrido y el elemento resaltado no se puede tocar mientras dura.
 - **Consola en vivo**: el recorrido nunca empieza solo con el reloj de juego en marcha; espera a que lo pauses.
@@ -327,23 +332,23 @@ Resumen de la temporada de la división elegida.
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Chips **División del tablero** | Cambian la división que alimentan los indicadores. Solo aparecen si hay más de una división.                                                                                                                                                                                                            |
 | Tarjeta principal              | Si hay un partido en juego: marcador, período y reloj, con botones **Convocatoria** y **Abrir consola en vivo**. Si no, el próximo partido programado con **Ver calendario** y **Armar quinteto** (o **Ver convocatoria** sin permiso de convocatoria). Considera los partidos de todas las divisiones. |
-| Indicadores                    | Récord (ganados-perdidos y % de victorias), puntos a favor (con diferencial), puntos en contra y efectividad de tiros de campo y de triples. Se calculan con los partidos finalizados del equipo.                                                                                                       |
-| Líderes del equipo             | Promedio por partido de puntos (PPG), rebotes (RPG), asistencias (APG) y valoración (PIR). Un jugador suma un partido cuando figura en la convocatoria.                                                                                                                                                 |
+| Indicadores                    | Récord (ganados-perdidos y % de victorias), puntos a favor (con diferencial), puntos en contra y efectividad de tiros de campo y de triples. Se calculan con los partidos finalizados del equipo. Los partidos con resultado del acta oficial cuentan para el récord y los puntos; si ningún partido tiene jugadas cargadas, la efectividad muestra "—" y "Sin jugadas registradas".                                                                                                       |
+| Líderes del equipo             | Promedio por partido de puntos (PPG), rebotes (RPG), asistencias (APG) y valoración (PIR). Un jugador suma un partido cuando figura en la convocatoria. Si ningún partido tiene jugadas cargadas (solo resultados del acta), muestra "Sin datos".                                                                                                                                                 |
 | Últimos resultados             | Hasta 5 partidos finalizados (G, P o E) con enlace a su planilla.                                                                                                                                                                                                                                       |
 | Alertas médicas                | Jugadores lesionados o suspendidos de todo el club, con su parte médico.                                                                                                                                                                                                                                |
 
 ### Divisiones (`/divisions`)
 
-Cada tarjeta muestra nombre, categoría, descripción, cantidad de jugadores, temporada y entrenador principal.
+Cada tarjeta muestra nombre, categoría, descripción, cantidad de jugadores, temporada, entrenador principal y ayudantes. El botón **Entrenadores** de la cabecera abre las [fichas del cuerpo técnico](#entrenadores-entrenadores); en el teléfono es el acceso a esa pantalla.
 
 | Control             | Qué hace                                                                                                                      | Permiso            |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------ |
 | **Nueva división**  | Abre el formulario de alta.                                                                                                   | `MANAGE_DIVISIONS` |
 | **Ver plantel**     | Modal de solo lectura con los jugadores del equipo (incluye juveniles convocados, marcados "Convocado") y sus partes médicos. | Todos              |
-| Lápiz (`Pencil`)    | Editar la división y su entrenador.                                                                                           | `MANAGE_DIVISIONS` |
+| Lápiz (`Pencil`)    | Editar la división, su entrenador principal y sus ayudantes.                                                                  | `MANAGE_DIVISIONS` |
 | Papelera (`Trash2`) | Eliminar la división, con confirmación.                                                                                       | `MANAGE_DIVISIONS` |
 
-Campos del formulario: **Nombre** (mínimo 2 caracteres), **Categoría** (Primera, Sub-21, Sub-19, Sub-17, Sub-15, Sub-13, Mini básquet, Femenino, Otra categoría), **Entrenador principal** (usuarios con rol de entrenador principal, u opción "Sin entrenador asignado") y **Descripción o torneo** (máximo 120 caracteres).
+Campos del formulario: **Nombre** (mínimo 2 caracteres), **Categoría** (Primera, Sub-21, Sub-19, Sub-17, Sub-15, Sub-13, Mini básquet, Femenino, Otra categoría), **Entrenador principal** (cualquier [entrenador](#entrenadores-entrenadores) cargado, con su rol al lado, u opción "Sin entrenador asignado"), **Ayudantes** (un chip por entrenador, salvo el elegido como principal; aparece cuando hay entrenadores) y **Descripción o torneo** (máximo 120 caracteres). Sin entrenadores cargados, el campo lo avisa: "Todavía no hay entrenadores: cárgalos desde Entrenadores."
 
 ### Jugadores (`/players`)
 
@@ -355,9 +360,9 @@ Campos del formulario: **Nombre** (mínimo 2 caracteres), **Categoría** (Primer
 | Tocar la tarjeta                             | Abre el jugador para editarlo o eliminarlo.                                                                             | `MANAGE_PLAYERS` |
 | **Convocar a Primera**                       | Suma un juvenil al plantel de Primera (ver [flujo](#convocar-un-juvenil-a-primera)).                                    | `MANAGE_PLAYERS` |
 
-Cada tarjeta muestra dorsal, posición, estado, puntos de la temporada (partidos finalizados), altura, mano hábil, división y parte médico.
+Cada tarjeta muestra dorsal, posición, estado, puntos de la temporada (partidos finalizados), altura, mano hábil, licencia, división y parte médico. La posición, la altura y la licencia son opcionales: si faltan se ve "—". Un jugador sin posición solo aparece con el chip **Posición** en "Todas".
 
-Campos del formulario: Nombre, Apellido, Dorsal (0 a 99), Posición (Base, Escolta, Alero, Ala-Pívot, Pívot), Altura en cm (120 a 240), Peso en kg (opcional), Mano hábil, Estado físico (Disponible, Lesionado, Suspendido), División y Parte médico (máximo 240 caracteres). En modo edición aparece el botón **Eliminar**, con confirmación.
+Campos del formulario: Nombre, Apellido, Dorsal (0 a 99), Posición (opcional: Base, Escolta, Alero, Ala-Pívot, Pívot), Altura en cm (opcional, 120 a 240), Peso en kg (opcional), Licencia (opcional, número de licencia de la federación, hasta 20 caracteres), Mano hábil, Estado físico (Disponible, Lesionado, Suspendido), División y Parte médico (máximo 240 caracteres). En modo edición aparece el botón **Eliminar**, con confirmación.
 
 ### Partidos (`/matches`)
 
@@ -377,6 +382,8 @@ Acciones de cada tarjeta según su estado:
 | En vivo    | **Convocatoria** y **Consola en vivo**.                                              |
 | Programado | Editar y eliminar (con `MANAGE_MATCHES`); **Armar quinteto** o **Ver convocatoria**. |
 | Finalizado | **Planilla box score**.                                                              |
+
+Un partido finalizado que solo tiene el resultado del acta oficial (sin jugadas de puntos, por ejemplo los [importados](#importar-las-actas-oficiales)) muestra debajo del marcador la marca **Resultado oficial (acta)**.
 
 Campos del formulario: **División** (el equipo propio se deduce de ella), **Equipo rival**, **Fecha y hora**, **Condición** (Local o Visitante), **Torneo o competencia** y **Estadio o cancha** (opcional). Si al editar se cambia la división, se vacían la convocatoria y el quinteto del partido.
 
@@ -440,11 +447,13 @@ Atajo del botón **Partido en vivo**. Si hay un partido en juego, redirige a su 
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Resultado             | Marcador propio y rival. Si terminó: Victoria, Derrota o Empate. Si está en juego: estado y período, con acceso a la **Consola en vivo**.                                                                                                                                                    |
 | Planilla              | Planilla táctica cargada en vivo: grilla por categoría y período con totales por mitad y del partido, resumen por jugador y referencias de los códigos (ver [Leer la planilla táctica](#leer-la-planilla-táctica)).                                                                          |
-| Parciales por período | Puntos por cuarto (1C a 4C) más los suplementarios que tuvieron jugadas.                                                                                                                                                                                                                     |
+| Parciales por período | Puntos por cuarto (1C a 4C) más los suplementarios que tuvieron jugadas. En un partido con resultado del acta y sin jugadas de puntos, los cuartos del acta.                                                                                                                               |
 | Box score             | Una fila por convocado y una de totales: PTS, T2, T3, TL, TC (convertidos/intentados y %), REB (ofensivos-defensivos-totales), AST, ROB, TAP, PER, FAL, +/- y VAL (PIR). Los excluidos por faltas llevan el icono `Ban`. La tabla se desplaza en horizontal con la columna del jugador fija. |
 | Mapa de tiros         | Filtros **Período** (Todos o un período) y **Jugador** (Todo el equipo o cada lanzador). Efectividad de dobles, triples y total de campo para el filtro elegido. Una nota indica cuántos tiros se cargaron desde el pad y no tienen ubicación en el mapa.                                    |
 
 Un partido programado muestra "El partido todavía no comenzó".
+
+**Resultado oficial (acta).** Un partido que tiene el resultado del acta oficial y ninguna jugada de puntos (los [importados](#importar-las-actas-oficiales)) muestra el tanteo final y los parciales del acta. Debajo del resultado aparece la marca **Resultado oficial (acta)** con el aviso "El resultado y los parciales vienen del acta oficial. El partido no tiene jugadas cargadas, por eso la planilla, el box score y el mapa de tiros quedan vacíos." No se inventan jugadas. Si después se cargan jugadas de puntos, el marcador vuelve a salir de ellas.
 
 ### Códigos de la planilla (`/planilla`)
 
@@ -488,6 +497,30 @@ Validaciones del formulario del jugador, con su mensaje:
 
 **Sincronización.** Cada rival viaja con todo su plantel como un registro de tipo `rivalTeam`, con la misma cola de salida que las divisiones y los jugadores: funciona sin conexión y llega a todas las tablets. Si dos tablets cambian el mismo rival, queda el último cambio que llega al servidor.
 
+### Entrenadores (`/entrenadores`)
+
+El cuerpo técnico del club. Cada entrenador es una ficha sin usuario: no inicia sesión ni tiene rol de acceso; los usuarios y sus roles siguen siendo los de [Roles y permisos](#4-roles-y-permisos). Las divisiones asignan un entrenador principal y ayudantes elegidos entre estas fichas (ver [Asignar el cuerpo técnico de una división](#asignar-el-cuerpo-técnico-de-una-división)). Se abre desde **Entrenadores** en el riel lateral o, en el teléfono, desde el botón **Entrenadores** de la cabecera de [Divisiones](#divisiones-divisions).
+
+Cada tarjeta muestra el nombre, el rol (**Entrenador principal** o **Ayudante**), la licencia ("—" si no tiene) y las divisiones donde está asignado, con su función en cada una (por ejemplo "Primera (principal)"), o "Sin divisiones asignadas". Primero los entrenadores principales y después los ayudantes, por nombre. Sin entrenadores, la pantalla muestra "Todavía no hay entrenadores".
+
+| Control              | Qué hace                                                                                                                                                                                  | Permiso            |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| **Nuevo entrenador** | Abre el formulario de alta.                                                                                                                                                               | `MANAGE_DIVISIONS` |
+| **Editar**           | Abre la ficha para corregir nombre, licencia o rol.                                                                                                                                       | `MANAGE_DIVISIONS` |
+| Papelera (`Trash2`)  | Elimina la ficha, con confirmación. El aviso nombra las divisiones de las que se quita (por ejemplo "Se quitará del cuerpo técnico de Primera."): quedan sin ese entrenador principal o ayudante. | `MANAGE_DIVISIONS` |
+
+Campos del formulario, con su mensaje:
+
+| Campo        | Regla                                                                                                                        | Mensaje                                        |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| **Nombre**   | De 2 a 60 caracteres, como figura en el acta.                                                                                | "El nombre debe tener de 2 a 60 caracteres."   |
+| **Licencia** | Opcional, hasta 20 caracteres. Vacía, la ficha queda sin licencia.                                                           | "La licencia puede tener hasta 20 caracteres." |
+| **Rol**      | **Entrenador principal** o **Ayudante**. Es informativo: cualquier entrenador puede ser principal o ayudante de una división. | "Elige el rol del entrenador."                 |
+
+**Quién edita.** Solo el administrador (permiso `MANAGE_DIVISIONS`); el servidor rechaza los cambios de entrenadores de cualquier otro rol. Los demás ven la pantalla en modo lectura con el aviso "Solo el administrador puede cargar y editar entrenadores."
+
+**Sincronización.** Cada entrenador viaja como un registro de tipo `coach`, con la misma cola de salida que las divisiones y los jugadores. Si dos tablets cambian la misma ficha, queda el último cambio.
+
 ---
 
 ## 6. Flujos paso a paso
@@ -496,7 +529,7 @@ Validaciones del formulario del jugador, con su mensaje:
 
 1. Abrir Hoop. Sin una sesión guardada aparece la pantalla de inicio de sesión.
 2. Escribir el correo y la contraseña de la cuenta y pulsar **Ingresar**.
-3. La primera vez en una tablet, la aplicación descarga todos los datos del servidor y reemplaza los datos de demostración que traía el navegador.
+3. La primera vez en una tablet, la aplicación descarga todos los datos del servidor. El navegador no trae datos propios: hasta que llega esa primera copia, las pantallas se ven vacías (por ejemplo, "Todavía no hay divisiones").
 
 Después del primer ingreso, la tablet abre aunque no haya conexión: guarda el perfil del último usuario (nunca la contraseña ni la sesión).
 
@@ -516,11 +549,18 @@ Después del primer ingreso, la tablet abre aunque no haya conexión: guarda el 
 
 Eliminar una división (papelera, con confirmación) borra su equipo y deja a sus jugadores sin equipo. Sus partidos se conservan en el calendario como "División eliminada".
 
-### Asignar o quitar el entrenador principal
+### Cargar un entrenador
 
-1. Rol Administrador. En la tarjeta de la división, pulsar el lápiz.
-2. En **Entrenador principal**, elegir un usuario con rol de entrenador principal, o "Sin entrenador asignado".
-3. **Guardar cambios**. Si el usuario ya no tiene ese rol, un modal lo informa.
+1. Rol Administrador. Ir a **Entrenadores** (en el teléfono, botón **Entrenadores** de Divisiones) y pulsar **Nuevo entrenador**.
+2. Completar **Nombre**, **Licencia** (opcional) y **Rol**.
+3. Pulsar **Crear entrenador**. La ficha queda lista para asignarla a una división; el entrenador no recibe usuario ni contraseña.
+
+### Asignar el cuerpo técnico de una división
+
+1. Rol Administrador. Cargar antes los entrenadores (ver [Cargar un entrenador](#cargar-un-entrenador)).
+2. En la tarjeta de la división, pulsar el lápiz.
+3. En **Entrenador principal**, elegir un entrenador o "Sin entrenador asignado". En **Ayudantes**, tocar los chips de los entrenadores que acompañan (tocar de nuevo los quita). El entrenador principal no aparece entre los ayudantes.
+4. **Guardar cambios**. Si otra tablet eliminó la ficha elegida, un modal lo informa ("El entrenador elegido ya no existe.").
 
 Renombrar la división también renombra su equipo.
 
@@ -639,10 +679,10 @@ Fuente única de verdad: el marcador, las faltas de equipo, los parciales y el b
 
 | Dato                                                                                                                                         | Ubicación                                                                                                         |
 | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Divisiones, equipos, jugadores, partidos, jugadas y códigos de la planilla del club (copia del servidor)                                     | PostgreSQL: tablas `sync_records` y `match_events` (ver [Servidor y base de datos](#9-servidor-y-base-de-datos)). |
+| Divisiones, equipos, jugadores, entrenadores, rivales, partidos, jugadas y códigos de la planilla del club (copia del servidor)               | PostgreSQL: tablas `sync_records` y `match_events` (ver [Servidor y base de datos](#9-servidor-y-base-de-datos)). |
 | Usuarios y sesiones                                                                                                                          | PostgreSQL: tablas `users` (contraseñas con hash scrypt) y `sessions` (solo el hash del token).                   |
-| Copia local del club: divisiones, equipos, jugadores, partidos y jugadas, códigos de la planilla, usuario actual, división y partido activos | `localStorage`, clave `hoop-club-storage` (Zustand con el middleware `persist`).                                  |
-| Cola de cambios pendientes (outbox), usuario dueño de esa cola, cursor de sincronización, versiones y hora de la última sincronización       | `localStorage`, clave `hoop-sync-storage`.                                                                        |
+| Copia local del club: divisiones, equipos, jugadores, entrenadores, rivales, partidos y jugadas, códigos de la planilla, usuario actual, división y partido activos | `localStorage`, clave `hoop-club-storage` (Zustand con el middleware `persist`).                                  |
+| Cola de cambios pendientes (outbox), usuario dueño de esa cola, cursor de sincronización, época de datos, versiones y hora de la última sincronización | `localStorage`, clave `hoop-sync-storage`.                                                                        |
 | Perfil del último usuario (id, correo, nombre, rol)                                                                                          | `localStorage`, clave `hoop-auth-storage`. Nunca la contraseña ni el token.                                       |
 | Sesión                                                                                                                                       | Cookie `hoop_session` (httpOnly: el JavaScript de la página no puede leerla), 30 días.                            |
 | Tema claro u oscuro                                                                                                                          | `localStorage`, clave `hoop-theme`.                                                                               |
@@ -655,13 +695,13 @@ El reloj de juego se guarda en el partido al pausar, al corregirlo, al llegar a 
 
 ### Versión y migración
 
-El almacenamiento lleva una versión (`CLUB_STORE_VERSION = 3`, en `src/core/application/stores/club-state.ts`). Si el navegador tiene datos de una versión anterior, se descartan y se cargan los datos de demostración actuales en lugar de fallar. Cada cambio en la forma de los datos guardados debe subir esa versión.
+El almacenamiento lleva una versión (`CLUB_STORE_VERSION = 4`, en `src/core/application/stores/club-state.ts`). Si el navegador tiene datos de una versión anterior, se descartan y la copia local queda vacía hasta la próxima descarga del servidor, en lugar de fallar. Desde la versión 4 el navegador no trae datos de demostración. Cada cambio en la forma de los datos guardados debe subir esa versión.
 
-La cola de sincronización (`SYNC_STORE_VERSION`, en `useSyncStore.ts`) y el perfil guardado (`AUTH_STORE_VERSION`, en `useAuthStore.ts`) tienen su propia versión. Con una versión vieja, la cola vuelve a empezar sin cursor (la próxima sincronización descarga todo del servidor) y el perfil se descarta (hay que volver a iniciar sesión). La versión 1 de la cola no guardaba dueño: se conserva y queda a nombre del próximo usuario que inicia sesión.
+La cola de sincronización (`SYNC_STORE_VERSION`, en `useSyncStore.ts`) y el perfil guardado (`AUTH_STORE_VERSION`, en `useAuthStore.ts`) tienen su propia versión. Con una versión vieja, la cola vuelve a empezar vacía, sin cursor ni época (la próxima sincronización descarga todo del servidor y los cambios que tenía no se envían), y el perfil se descarta (hay que volver a iniciar sesión).
 
 ### Datos de demostración
 
-Se generan en `src/core/infrastructure/mocks/seed-data.ts`, de forma determinística. Las fechas se calculan a partir del momento de la primera carga.
+Se generan en `src/core/infrastructure/mocks/seed-data.ts`, de forma determinística, y solo se cargan en el servidor con `npm run db:seed` (desarrollo y pruebas). Las fechas se calculan a partir del momento de la carga. Para los datos reales del club se usa la [importación de las actas oficiales](#importar-las-actas-oficiales), que reemplaza todo lo anterior.
 
 | Elemento                | Contenido                                                                                                                                                                                     |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -676,7 +716,7 @@ Se generan en `src/core/infrastructure/mocks/seed-data.ts`, de forma determinís
 | Planteles rivales       | En Primera División: Obras Sanitarias (12 jugadores, el rival del partido en vivo) y Ferro Carril Oeste (10 jugadores, el rival del último partido finalizado).                               |
 | Partido programado      | Contra Boca Juniors como visitante, dentro de 7 días, con convocatoria precargada.                                                                                                            |
 
-Los mismos datos cargan el servidor con `npm run db:seed`. El navegador los usa solo hasta el primer ingreso: en la primera sincronización de una tablet, la copia del servidor reemplaza los datos locales de demostración (nunca se envían al servidor). Los cambios que alguien haya hecho antes de esa primera sincronización no se pierden: se vuelven a aplicar sobre la copia del servidor y se envían.
+El navegador no los trae: empieza vacío y en la primera sincronización de una tablet recibe la copia del servidor. Los cambios que alguien haya hecho antes de esa primera sincronización no se pierden: se vuelven a aplicar sobre la copia del servidor y se envían.
 
 ### Volver a los datos del servidor en una tablet
 
@@ -698,7 +738,7 @@ Cómo funciona para quien usa la aplicación:
 | Cambios antes de la primera sincronización (tablet nueva o sin conexión desde el primer ingreso) | También entran en la cola y el estado los cuenta como pendientes. Cuando llega la primera copia completa del servidor, reemplaza los datos locales y los cambios pendientes se vuelven a aplicar encima; después se envían.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | Vuelve la conexión                                                                               | La cola se envía sola y la tablet descarga lo que cambiaron las demás. Si el servidor no responde, reintenta cada vez más espaciado (1 s, 2 s, 4 s... hasta 60 s).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Otra tablet guarda un cambio                                                                     | El servidor avisa en vivo (Server-Sent Events) y esta tablet lo descarga en segundos.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Dos tablets editan el mismo jugador, división o código de la planilla                            | Gana el cambio más reciente según la hora en que se hizo (last-write-wins) y el registro se reemplaza completo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Dos tablets editan el mismo jugador, división, entrenador o código de la planilla                | Gana el cambio más reciente según la hora en que se hizo (last-write-wins) y el registro se reemplaza completo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | Dos tablets editan el mismo partido                                                              | Se combinan campo por campo: cada dato del partido (tiempos muertos, quinteto, estadio, etc.) guarda la hora de su último cambio y gana el más reciente; con la misma hora queda el del servidor. Si una tablet maneja el reloj y otra corrige el estadio, se conservan los dos cambios. El estado, el período y el reloj forman un solo grupo (el estado de juego): gana completo el de la tablet que lo cambió último, así que nunca se mezcla el período de una tablet con el reloj de otra (por ejemplo, "2.º cuarto con 0:20" cuando una tablet pasó al 2.º cuarto y otra pausó el 1.º en 0:20). Los tiempos muertos de cada equipo también son un solo dato: si dos tablets piden a la vez un tiempo muerto del mismo equipo, queda el pedido más reciente. Eliminar un partido gana solo si es posterior a todos sus cambios. |
 | Varias pestañas abiertas en el mismo navegador                                                   | Solo una pestaña (la principal) sincroniza y guarda los datos en el navegador, también por http en la red local. Las demás muestran lo que guarda la principal y le envían sus cambios al instante. Si se cierra la principal, otra pestaña toma su lugar sola, sin perder cambios: lo que una pestaña secundaria cambió y la principal no llegó a confirmar queda guardado en el navegador, y la próxima pestaña principal lo envía aunque la secundaria ya se haya cerrado.                                                                                                                                                                                                                                                                                                                                                        |
 | Jugadas                                                                                          | Nunca se pisan: cada jugada tiene su propio ID y se suma a la lista, ordenada por hora y luego por ID. Dos tablets pueden cargar jugadas del mismo partido a la vez sin perder ninguna. El marcador y las faltas se recalculan con todas.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
@@ -707,6 +747,7 @@ Cómo funciona para quien usa la aplicación:
 | Jugadas de un partido que el servidor no tiene                                                   | El servidor las rechaza: una jugada solo se acepta si su partido existe (o llega en el mismo envío) y no está eliminado. La tablet envía siempre el partido antes que sus jugadas.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | La sesión venció                                                                                 | La aplicación pide iniciar sesión de nuevo. Si vuelve a entrar la misma cuenta, la cola se conserva y se envía después del ingreso.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Otra persona inicia sesión en la misma tablet                                                    | La cola guarda quién hizo los cambios. Si entra una cuenta distinta, los cambios pendientes de la anterior se descartan (nunca se envían con la identidad de otra persona), un aviso informa "Se descartaron N cambios sin sincronizar de <nombre>" y la tablet descarga todo de nuevo del servidor.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Los datos del servidor se reemplazaron (por ejemplo, al [importar las actas](#importar-las-actas-oficiales)) | El servidor cambia su época de datos y rechaza los envíos hechos sobre los datos anteriores. La tablet descarta su copia local, su cola de cambios y su cursor, y descarga todo de nuevo. Los cambios sin sincronizar se pierden: el estado muestra **Error** con el aviso "Los datos del servidor se reemplazaron: se descartaron N cambios sin sincronizar de este dispositivo." Los datos viejos de un navegador nunca vuelven al servidor. |
 | Se reinició la base del servidor                                                                 | Cuando la tablet detecta que el servidor volvió atrás (con el próximo envío o aviso en vivo), descarga todo de nuevo, reemplaza su copia y vuelve a aplicar encima los cambios pendientes, que se envían a continuación.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 Detalle técnico:
@@ -717,6 +758,7 @@ Detalle técnico:
 - Un envío (`POST /api/sync/push`) lleva como máximo 500 registros y 2000 jugadas. Una eliminación viaja como marca (tombstone) con los últimos datos conocidos. Los partidos viajan sin jugadas; las jugadas van aparte.
 - La descarga (`GET /api/sync/pull?since=<cursor>`) trae todo lo que cambió después del cursor, de a páginas, y se aplica una sola vez al final. Lo descargado no vuelve a entrar en la cola.
 - Sin cursor (primera sincronización o reinicio de la base) primero se descarga la copia completa y después se envía la cola. La copia reemplaza los datos locales y la cola se vuelve a aplicar encima (`applyServerSnapshot`): registros pendientes creados, editados o eliminados, jugadas nuevas agregadas y jugadas eliminadas quitadas; luego se recalculan los marcadores. Un registro pendiente del que el servidor ya tiene una versión igual o más nueva se descarta, igual que en una descarga normal.
+- Época de datos (`epoch`): el servidor guarda un identificador de sus datos y lo devuelve en cada descarga; cada envío lleva el de la última descarga. Si falta o no coincide (los datos se reemplazaron), el servidor rechaza el envío con 409 y la tablet vacía su copia local, la cola, el cursor y las versiones, y descarga una copia completa. Una descarga con otra época tampoco se mezcla con los datos locales. Nada se envía mientras la tablet no conoce la época.
 - La cola tiene dueño (`owner`: id y nombre del usuario). Antes de arrancar la sincronización, `resolveSyncOwnership` (en `src/core/application/sync/sync-owner.ts`) decide: sin dueño o mismo usuario, la cola se conserva; otro usuario, se vacían cola, cursor y versiones.
 - Código: `src/core/application/sync/` (núcleo puro y probado), `src/core/infrastructure/sync-api/` (llamadas HTTP y SSE validadas con Zod) y `src/presentation/session/` (arranque, sesión y cierre de sesión).
 
@@ -751,6 +793,20 @@ Se definen en `.env.local` (no se sube al repositorio; `.env.example` documenta 
 ### Datos de demostración en el servidor
 
 `npm run db:seed` carga el mismo club de demostración de la [sección 8](#datos-de-demostración) y las [cuentas de demostración](#cuentas-de-demostración). Con los datos del club solo inserta: nunca sobrescribe ni revive registros o jugadas que ya existen (tampoco los que alguien eliminó), así que se puede correr varias veces sin pisar lo cargado por los usuarios. Al terminar informa cuántos registros y jugadas nuevos insertó (`recordsInserted`, `eventsInserted`) y lista las cuentas. Las cuentas de demostración, en cambio, se actualizan por ID: cada corrida restablece su nombre, correo y rol, y su contraseña a la de `SEED_DEMO_PASSWORD`.
+
+### Importar las actas oficiales
+
+Los datos reales del club salen de las actas oficiales de los partidos (`Acta-Partido-<número>.pdf`) y de la planilla extraída de ellas (CSV). El detalle de las opciones está en el README.
+
+```bash
+npm run db:import-actas -- --csv <planilla.csv> --pdfs <carpeta> --dry-run   # valida y muestra el resumen, sin conectarse a la base
+npm run db:import-actas -- --csv <planilla.csv> --pdfs <carpeta> --yes       # borra y carga
+```
+
+- En una sola transacción borra todos los registros, jugadas, sesiones y cuentas excepto `admin@camg.com.ar` (su contraseña no cambia; si la cuenta no existe, no se modifica nada), cambia la época de datos del servidor y carga la división, el equipo propio con sus jugadores (licencia, dorsal y nombre como en el acta) y sus entrenadores, los rivales con sus planteles y los partidos finalizados con su [resultado oficial](#planilla-estadística-matchesidstats) (tanteo final y puntos por cuarto). No se cargan jugadas: el box score y el mapa de tiros de esos partidos quedan vacíos.
+- Los navegadores con datos o cambios anteriores los descartan y descargan todo de nuevo; los cambios sin sincronizar se pierden, con un aviso (ver [Sincronización](#sincronización)).
+- La importación falla con la lista completa de problemas si un acta no coincide con la planilla (equipos, tanteo final o cuartos que no suman el final).
+- Las actas y la planilla tienen datos personales: no se guardan en el repositorio.
 
 ### API
 
@@ -885,7 +941,7 @@ El motor de sincronización (`createSyncEngine`) no conoce el navegador: recibe 
 src/
   app/                      rutas: /, /divisions, /players, /matches,
                             /matches/live, /matches/[id]/{lineup,live,stats},
-                            /planilla, /ayuda
+                            /planilla, /rivales, /entrenadores, /ayuda
                             /login, /api/auth/*, /api/sync/*
   core/
     domain/                 entities/, rules/, value-objects/
@@ -971,3 +1027,5 @@ Un club agrega sus propios códigos desde la pantalla [Códigos de la planilla](
 | Entretiempo                      | Descanso tras el 2.º cuarto (`HALFTIME`): sin jugadas ni tiempos muertos hasta comenzar el 3.er cuarto.            |
 | Planilla táctica                 | Planilla del entrenador cargada en vivo: pérdidas, puntos recibidos, acciones ofensivas y defensivas, con jugador, período y reloj. |
 | EQ                               | En la grilla de la planilla, entrada del equipo (sin jugador).                                                     |
+| Acta / resultado oficial         | Acta oficial del partido. Su tanteo final y sus puntos por cuarto se muestran cuando el partido no tiene jugadas de puntos. |
+| Época de datos                   | Identificador de los datos del servidor; cambia cuando se reemplazan (importación de actas) y deja afuera los datos viejos de los navegadores. |

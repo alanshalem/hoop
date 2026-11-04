@@ -14,6 +14,7 @@ import {
   Radio,
   Shield,
   Swords,
+  UserCog,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -74,10 +75,19 @@ const RIVALS_ITEM: NavItem = {
   tourTarget: 'nav-rivales',
 };
 
+// Rail only: on phones the coaches open from the Divisiones header.
+const COACHES_ITEM: NavItem = {
+  label: 'Entrenadores',
+  shortLabel: 'Entrenadores',
+  href: '/entrenadores',
+  icon: UserCog,
+  tourTarget: 'nav-entrenadores',
+};
+
 // The rail closes with the chart catalog and the manual; on phones both live in the top bar
 // so the bottom bar stays balanced around the live button.
 const TOP_BAR_ITEMS: NavItem[] = [CHART_CATALOG_ITEM, HELP_ITEM];
-const RAIL_ITEMS: NavItem[] = [...NAV_ITEMS, RIVALS_ITEM, ...TOP_BAR_ITEMS];
+const RAIL_ITEMS: NavItem[] = [...NAV_ITEMS, RIVALS_ITEM, COACHES_ITEM, ...TOP_BAR_ITEMS];
 
 // The mobile bottom bar places the live button between these two halves.
 const BOTTOM_LEFT_ITEMS = NAV_ITEMS.slice(0, 2);

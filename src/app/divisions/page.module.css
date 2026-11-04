@@ -162,3 +162,10 @@
 .rosterButton {
   flex: 1;
 }
+
+.assistants {
+  margin-top: calc(-1 * var(--space-2));
+  padding-left: calc(var(--space-2) + 1em);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}

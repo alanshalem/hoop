@@ -8,7 +8,7 @@ import { Save } from 'lucide-react';
 import { Division, DivisionCategorySchema } from '@/core/domain/entities/club.types';
 import { COACH_ROLE_LABELS } from '@/core/domain/entities/coach.types';
 import { useClubStore } from '@/core/application/stores/useClubStore';
-import { CLUB_PROFILE } from '@/core/infrastructure/mocks/seed-data';
+import { CLUB_PROFILE } from '@/core/infrastructure/club-profile';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { ModalSheet } from '@/presentation/molecules/ModalSheet/ModalSheet';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
@@ -210,7 +210,7 @@ export const DivisionFormModal: React.FC<DivisionFormModalProps> = ({ isOpen, on
           options={coachOptions}
           hint={
             coaches.length === 0
-              ? 'Todavía no hay entrenadores cargados.'
+              ? 'Todavía no hay entrenadores: cárgalos desde Entrenadores.'
               : divisionToEdit
                 ? undefined
                 : 'Puedes asignarlo más tarde.'

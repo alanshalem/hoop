@@ -134,7 +134,12 @@ const DIVISIONS: TourDefinition = {
     {
       target: 'division-card',
       title: 'Tarjeta de la división',
-      body: 'Cantidad de jugadores, temporada y entrenador a cargo.',
+      body: 'Cantidad de jugadores, temporada, entrenador a cargo y ayudantes.',
+    },
+    {
+      target: 'divisions-coaches',
+      title: 'Entrenadores',
+      body: 'Abre las fichas del cuerpo técnico: los entrenadores que se asignan a cada división.',
     },
     {
       target: 'division-roster',
@@ -146,7 +151,7 @@ const DIVISIONS: TourDefinition = {
       target: 'division-edit',
       roles: MANAGE_DIVISIONS,
       title: 'Editar o eliminar',
-      body: 'Cambia el nombre o asigna el entrenador. Eliminar pide confirmación y conserva los partidos.',
+      body: 'Cambia el nombre o asigna el entrenador principal y los ayudantes. Eliminar pide confirmación y conserva los partidos.',
     },
   ],
 };
@@ -413,6 +418,31 @@ const RIVALES: TourDefinition = {
   ],
 };
 
+const ENTRENADORES: TourDefinition = {
+  id: 'entrenadores',
+  title: 'Entrenadores',
+  steps: [
+    {
+      target: 'coach-card',
+      title: 'Un entrenador por tarjeta',
+      body: 'Nombre, rol, licencia y las divisiones donde está asignado como principal o ayudante. Son fichas sin usuario: no inician sesión.',
+      example: 'Ejemplo: Pérez, J. A., Entrenador principal, licencia 090, Primera (principal).',
+    },
+    {
+      target: 'coaches-create',
+      roles: MANAGE_DIVISIONS,
+      title: 'Nuevo entrenador',
+      body: 'Nombre de 2 a 60 caracteres, licencia opcional y rol. Después se asigna a una división desde Divisiones.',
+    },
+    {
+      target: 'coach-edit',
+      roles: MANAGE_DIVISIONS,
+      title: 'Editar o eliminar',
+      body: 'Corrige los datos de la ficha. Eliminarla pide confirmación y la quita del cuerpo técnico de sus divisiones.',
+    },
+  ],
+};
+
 const HELP: TourDefinition = {
   id: 'help',
   title: 'Ayuda',
@@ -447,6 +477,7 @@ export const TOURS: TourDefinition[] = [
   STATS,
   PLANILLA,
   RIVALES,
+  ENTRENADORES,
   HELP,
 ];
 

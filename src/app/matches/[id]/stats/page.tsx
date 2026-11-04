@@ -28,10 +28,12 @@ import { ChartSheetTable } from '@/presentation/organisms/ChartSheetTable/ChartS
 import { HalfCourtShotChart } from '@/presentation/organisms/HalfCourtShotChart/HalfCourtShotChart';
 import { QUARTER_SHORT_LABELS } from '@/presentation/organisms/ScoreboardHeader/quarter-labels';
 import { MatchStatusBadge } from '@/presentation/organisms/MatchCard/MatchStatusBadge';
+import { OfficialResultBadge } from '@/presentation/organisms/MatchCard/OfficialResultBadge';
 import {
   MATCH_CONDITION_LABELS,
   formatMatchDate,
   getMatchOutcome,
+  hasOnlyOfficialResult,
   isMatchInPlay,
   type MatchOutcome,
 } from '@/presentation/organisms/MatchCard/match-display';
@@ -115,6 +117,7 @@ function MatchStats({ match }: { match: Match }) {
 
   const { own, rival, outcome } = getMatchOutcome(match);
   const inPlay = isMatchInPlay(match);
+  const officialOnly = hasOnlyOfficialResult(match);
   const { date, time } = formatMatchDate(match.date);
 
   const partials = useMemo(() => getQuarterPartials(match), [match]);
@@ -193,6 +196,16 @@ function MatchStats({ match }: { match: Match }) {
             <span className={styles.heroName}>{match.rivalTeamName}</span>
           </div>
         </section>
+
+        {officialOnly && (
+          <div className={styles.officialNote} role="note">
+            <OfficialResultBadge />
+            <p>
+              El resultado y los parciales vienen del acta oficial. El partido no tiene jugadas cargadas, por eso la
+              planilla, el box score y el mapa de tiros quedan vacíos.
+            </p>
+          </div>
+        )}
 
         <SectionCard
           title="Planilla"

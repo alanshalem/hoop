@@ -14,7 +14,7 @@ import { can } from '@/core/domain/rules/permissions';
 import { calculateMatchBoxScore } from '@/core/domain/rules/match-derivations';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
-import { formatPlayerHeight } from '@/presentation/player-display';
+import { formatPlayerHeight, MISSING_VALUE } from '@/presentation/player-display';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
 import { PageHeader } from '@/presentation/molecules/PageHeader/PageHeader';
 import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
@@ -230,6 +230,10 @@ export default function PlayersPage() {
                     <div className={styles.metaItem}>
                       <dt>Mano</dt>
                       <dd>{DOMINANT_HAND_LABELS[player.dominantHand]}</dd>
+                    </div>
+                    <div className={styles.metaItem}>
+                      <dt>Licencia</dt>
+                      <dd className="tabular-nums">{player.license ?? MISSING_VALUE}</dd>
                     </div>
                     <div className={styles.metaItem}>
                       <dt>División</dt>
