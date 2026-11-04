@@ -13,7 +13,7 @@ Branch: `refactor/cleanup` (from main 7b853e2), merged into main at the end. UI 
 
 ## Tasks
 
-- T1 [S1] #1 #5: shrink the box score to a scoring line; remove PIR, +/-, player/team foul helpers only used by tests, unused event helpers, `setStartingLineup`, unused `RecordEventInput` fields, `calculateNormalizedDistance`, `PLAY_BY_PLAY_EVENT_LABELS`; update tests and manual. Route: worker. Commit: _pending_
+- [x] T1 [S1] #1 #5: shrink the box score to a scoring line; remove PIR, +/-, player/team foul helpers only used by tests, unused event helpers, `setStartingLineup`, unused `RecordEventInput` fields, `calculateNormalizedDistance`, `PLAY_BY_PLAY_EVENT_LABELS`; update tests and manual. Route: worker. Commit: 385671d
 - T2 [S1] #4 #9 #10: delete unused barrels; move `CLUB_PROFILE` out of infrastructure; `makeClubData()` test helper. Route: worker. Commit: _pending_
 - T3 [S1,S3] Others: demo seed without coordinates/substitutions; drop `SUBSTITUTION` and `coordinates` from the event schema and derivations; `runCollectionUseCase` helper in the store; stale banners. Route: worker. Commit: _pending_
 - T4 [S1] #2 #3: table-driven sync record-kind registry shared by client and server; one event-changes helper. Route: worker; independent verify (sync). Commit: _pending_
