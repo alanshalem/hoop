@@ -537,7 +537,7 @@ function seedRivalTeam(id: string, name: string, rows: RivalPlayerRow[]): RivalT
   return { id, clubId: SEED_CLUB_ID, divisionId: 'div-primera', name, players };
 }
 
-/** Rival rosters (S14): the live match rival and the rival of the last finished match. */
+/** Rival rosters (S14): the live match rival, the rival of the last finished match and the next rival. */
 export const SEED_RIVAL_TEAMS: RivalTeam[] = [
   seedRivalTeam('rival-obras', 'Obras Sanitarias', [
     [1, 'Martín', 'Aguirre'],
@@ -564,6 +564,20 @@ export const SEED_RIVAL_TEAMS: RivalTeam[] = [
     [20, 'Santino', 'Quiroga'],
     [24, 'Mauro', 'Romero'],
     [33, 'Ezequiel', 'Vega'],
+  ]),
+  seedRivalTeam('rival-boca', 'Boca Juniors', [
+    [3, 'Lucas', 'Fernández'],
+    [5, 'Thiago', 'Suárez'],
+    [6, 'Maximiliano', 'Rojas'],
+    [7, 'Juan Cruz', 'Molina'],
+    [9, 'Pablo', 'Navarro'],
+    [11, 'Damián', 'Luna'],
+    [14, 'Gabriel', 'Ponce'],
+    [18, 'Cristian', 'Silva'],
+    [22, 'Rodrigo', 'Torres'],
+    [23, 'Alan', 'Vera'],
+    [30, 'Kevin', 'Godoy'],
+    [41, 'Esteban', 'Ruiz'],
   ]),
 ];
 
