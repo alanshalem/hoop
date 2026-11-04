@@ -22,7 +22,7 @@ Branch: `refactor/cleanup` (from main 7b853e2), merged into main at the end. UI 
 - T6 [S1] #8 + oversized files: domain rules out of presentation/pages (`isMatchInPlay`, roster helpers, season points); split `acta-parser.ts`, `app/page.tsx`, lineup page, `MatchFormModal`. Route: worker. Commit: _pending_
 - T7 [S2] Single-language routes. Route: worker. Commit: _pending_
 - [x] T9 [S4] Replace SSE/LISTEN with polling; serverless-friendly DB pool. Route: worker after T4; independent verify. Commit: f2fedce
-- T10 [S4] Rewrite docs/DEPLOY.md for Vercel + Supabase (free). Route: inline/worker. Commit: _pending_
+- [x] T10 [S4] Rewrite docs/DEPLOY.md for Vercel + Supabase (free). Route: inline/worker. Commit: e1be58c
 - T8 Merge into main after a full check (tests, db tests, build, read-only browser check). Route: inline. Commit: merge
 
 ## Log
