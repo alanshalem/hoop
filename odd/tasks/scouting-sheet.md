@@ -30,6 +30,8 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 
 - **S15** — "Necesito que saquemos lo que es esta pantalla de estadistica, dejemos todo lo que esta en planilla pero saquemos lo de estadistica... Elimina tambien las funciones y cosas que sean unicas de esa pantalla... No elimines nada que sea compartido con alguna otra parte del sistema. Ten cuidado de no romper nada..." The live console keeps only the Planilla (no Planilla/Estadística switch). Removed because only the stats mode used them: on-court lineup with substitutions, shot recording court, quick action pad, stats timeline and its undo, per-player stat recording, substitutions, live player points/fouls lines. Kept because shared: HalfCourtShotChart (match page), box score, scoreboard, sheet, chart catalog, rivals. Decisions (L20): rival toolbar loses +1/+2/+3 (rival points come only from Puntos recibidos) and keeps FALTA with its own Deshacer (undo the last rival foul); the pad shows the whole match roster with equal chips (no on-court distinction); step 1 title reads "1. Responsable (tu jugador)" in Puntos recibidos, "1. Quién lanzó" in Acciones ofensivas, "1. Jugador" elsewhere.
 
+- **S16** — "si agrego el equipo rival, y selecciono la division, tambien me deberia mostrar los jugadores no? Y sino me deberia dejar editar los jugadores de esa division del equipo rival. Esta bien no? Se entiende?" In the match form (create and edit), the rival field suggests the rival teams of the selected division; when the typed rival matches a roster of that division (findRivalTeam) its players are shown and editable inline (add, edit, remove); when there is none, an empty roster can be filled inline and is created as a rival team on save. Optional: no players keeps today's behavior. Saved through the existing rival-team store actions (MANAGE_MATCHES).
+
 ## Tasks
 
 - [x] T1 [S1,S2,S3,S5] Domain + use-cases: `CHART` event type with `chart: { category, code, points? }`, catalog, sheet aggregation, `recordChartEntry` / `undoLastChartEntry`, stat undo ignores chart events. Route: inline, test-first. Commit: 56c59cb
@@ -45,6 +47,7 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 - [x] T11 [S13] Collapsible navigation. Route: inline, test-first. Commit: b454ced
 - [x] T12 [S14] Rival rosters, rival player on chart entries, richer recent entries, seed roster. Route: worker. Commit: 8d27f3b, 52068b1, 13fabe2
 - [x] T13 [S15] Remove the stats console mode and what only it used. Route: worker. Commit: 788e86a
+- [x] T14 [S16] Rival roster inside the match form. Route: worker. Commit: 1550688
 
 ## Log
 
@@ -69,3 +72,4 @@ Branch: `feat/scouting-sheet`. UI copy in Spanish, code/identifiers/comments in 
 - L19 (evidence): T11 reopen fix 5cd563f (red floating Menú button on every size, verified at 1180/1024/820/390). T12: independent verify of 8d27f3b passed both risk items (additive rivalTeam enum migration; MANAGE_MATCHES enforced on push, malformed records rejected) and every S14 domain rule; UI 52068b1 (620 tests); Boca Juniors roster added to the seed and inserted with db:seed (1 new record) because the live match moved to match-upcoming-1. Read-only browser check: rival step "Rival (opcional) · ¿Quién convirtió?" lists the Boca roster; /rivales shows 3 rosters. A read-only probe opened the change-quarter confirm by mistake and left without accepting (no data change).
 - L20 (user decisions): rival toolbar -> "Sacar +1/+2/+3, dejar FALTA con deshacer"; substitutions -> "Mostrar toda la convocatoria por igual". User question answered: in Puntos recibidos step 1 is the own player responsible (paper sheet circled number), points go to the rival score, rival scorer optional; relabel step 1.
 - L21 (evidence): T13 788e86a: 3 organisms deleted after grep showed no references; tsc clean, 615 tests, eslint clean, next build OK; read-only browser check at 1180 and 390: no Estadística, no +1/+2/+3, FALTA + Deshacer falta present, 17 equal roster chips. Left in place (shared domain helpers now only used by tests): isPlayerFouledOut, PLAY_BY_PLAY_EVENT_LABELS, setStartingLineup.
+- L22 (user): "[Image#7] si agrego el equipo rival, y selecciono la division, tambien me deberia mostrar los jugadores no? Y sino me deberia dejar editar los jugadores de esa division del equipo rival. Esta bien no? Se entiende?"
