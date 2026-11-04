@@ -65,8 +65,6 @@ describe('calculateSeasonSummary', () => {
       pointsForAvg: 3, // (5 + 1) / 2
       pointsAgainstAvg: 2.5, // (2 + 3) / 2
       diffAvg: 0.5,
-      fgPct: 50, // 2 made / 4 attempts
-      fg3Pct: 50, // 1 made / 2 attempts
     });
   });
 
@@ -98,27 +96,27 @@ describe('calculateSeasonSummary', () => {
     assert.strictEqual(summary.played, 0);
     assert.strictEqual(summary.winPct, 0);
     assert.strictEqual(summary.pointsForAvg, 0);
-    assert.strictEqual(summary.fgPct, 0);
   });
 });
 
 describe('calculateSeasonLeaders', () => {
   const players = [player('p1'), player('p2')];
 
-  it('returns per-game leaders for points, rebounds, assists and PIR', () => {
+  it('returns the per-game points leader only (the sheet records points, nothing else per player)', () => {
     const leaders = calculateSeasonLeaders([win, loss, live], players, 'team-own');
+    assert.deepStrictEqual(Object.keys(leaders), ['points']);
     assert.strictEqual(leaders.points?.player.id, 'p1');
     assert.strictEqual(leaders.points?.value, 2); // (3 + 1) / 2
     assert.strictEqual(leaders.points?.gamesPlayed, 2);
-    assert.strictEqual(leaders.rebounds?.player.id, 'p2');
-    assert.strictEqual(leaders.rebounds?.value, 1);
-    assert.strictEqual(leaders.assists?.player.id, 'p1');
-    assert.strictEqual(leaders.assists?.value, 0.5);
-    assert.ok(leaders.pir !== null);
   });
 
-  it('returns null leaders when there is no data', () => {
+  it('returns a null leader when there is no data', () => {
     const leaders = calculateSeasonLeaders([live], players, 'team-own');
-    assert.deepStrictEqual(leaders, { points: null, rebounds: null, assists: null, pir: null });
+    assert.deepStrictEqual(leaders, { points: null });
+  });
+
+  it('has no shooting percentages in the season summary', () => {
+    const summary = calculateSeasonSummary([win, loss], 'team-own');
+    assert.ok(!('fgPct' in summary) && !('fg3Pct' in summary));
   });
 });

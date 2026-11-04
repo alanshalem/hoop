@@ -54,15 +54,15 @@
   - Selector de cuartos (`Q1` a `OT1`) y cronómetro integrado con Play/Pausa.
   - 4 luces indicadoras de faltas de equipo por cuarto con activación del indicador luminoso **BONUS** (Art. 41 FIBA).
   - Botones rápidos para sumar puntos al Rival (`+1`, `+2`, `+3`) y control de tiempos muertos.
-- **OnCourtLineup**:
+- **OnCourtLineup** (eliminado al quitar el modo Estadística de la consola):
   - Columna izquierda con los 5 jugadores en cancha y 7 en banca.
   - Flujo de sustitución en 2 toques con feedback animado en GSAP.
-- **HalfCourtShotChart**:
+- **HalfCourtShotChart** (eliminado junto con el mapa de tiros):
   - Media cancha reglamentaria dibujada en SVG con geometría FIBA (arco de triple a 6.75m, zona pintada y tiro libre).
   - Detección automática por geometría entre tiros de 2P y 3P.
   - Micro-selector radial en el punto de contacto (`¡ADENTRO!` vs `FALLO`).
   - Timeline de las últimas 5 jugadas con botón de un toque **DESHACER (Undo)** para corrección instantánea.
-- **QuickActionPad**:
+- **QuickActionPad** (eliminado al quitar el modo Estadística de la consola):
   - Columna derecha con teclado ergonómico de 56px (`--touch-lg`).
   - Botones de tiros convertidos/fallados, rebotes ofensivos/defensivos, asistencias, robos, bloqueos y pérdidas.
   - Alerta inmediata de exclusión reglamentaria (5ta falta personal/técnica) con bloqueo de acciones y requerimiento de cambio forzoso.
@@ -118,3 +118,9 @@ Pedido (L10 de `odd/tasks/hoop-completion.md`): que todo se guarde en el navegad
 - **Indicador de sincronización**: Sincronizado (hace cuánto) / Sincronizando / Sin conexión (N pendientes) / Error (tocar para reintentar), en el riel lateral, en una barra superior nueva en teléfonos y en el menú de usuario del Dashboard.
 - **Documentación**: manual con las secciones de sincronización, servidor y base de datos (Docker, variables de entorno, cuentas por rol, API, seguridad, solución de problemas) y README con el inicio rápido del servidor.
 - **Limitaciones conocidas**: conflictos por registro completo (no por campo); una pestaña por dispositivo; el reinicio de la base se detecta con el próximo envío o aviso en vivo; la consola en vivo no muestra el indicador; sin pruebas en navegador.
+
+## Cambios posteriores: la planilla táctica como núcleo
+
+- La consola en vivo quedó solo con la Planilla: se eliminaron el modo Estadística, OnCourtLineup, QuickActionPad, PlayByPlayTimeline, los cambios de jugador y el deshacer de jugadas (`undoLastEvent`, `substitutePlayer`).
+- Se eliminaron el mapa de tiros (HalfCourtShotChart y la efectividad de tiros) y, en el inicio, los líderes en rebotes, asistencias y valoración y los porcentajes de tiro. El box score muestra PTS, TL, 2P y 3P convertidos.
+- El detalle de cada cambio está en `odd/tasks/` y en `docs/MANUAL.md`.

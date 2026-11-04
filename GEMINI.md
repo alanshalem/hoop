@@ -26,7 +26,7 @@ Construiremos **Hoop**, un sistema integral para clubes de básquet diseñado pa
   - `src/presentation/`: Basado estrictamente en **Atomic Design**:
     - `atoms/` (Button, Badge, JerseyNumber, StatPill, Input)
     - `molecules/` (PlayerCard, FoulIndicator, QuarterSelector, ShotMarker)
-    - `organisms/` (ScoreboardHeader, HalfCourtShotChart, OnCourtLineup, QuickActionPad, BoxScoreTable)
+    - `organisms/` (ScoreboardHeader, ChartPad, ChartSheetTable, BoxScoreTable, MatchCard, CoachFormModal, RivalTeamFormModal)
     - `templates/` (TabletAppShell, MatchConsoleLayout, DashboardLayout)
 - **Principios**: SOLID, DRY, KISS, YAGNI, CUPID, GRASP, Clean Code. Componentes pequeños, funciones puras para cálculos estadísticos, nombres semánticos en inglés para el código e interfaz en español.
 

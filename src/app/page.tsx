@@ -27,7 +27,6 @@ import {
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { CLUB_PROFILE } from '@/core/infrastructure/club-profile';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
-import { MISSING_VALUE } from '@/presentation/player-display';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
 import { SectionCard } from '@/presentation/molecules/SectionCard/SectionCard';
 import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
@@ -65,19 +64,15 @@ const OUTCOME_CLASS: Record<MatchOutcome, string> = {
 };
 
 /** Matches imported from the official reports have no plays, so there is nobody to lead (S3). */
-const NO_LEADERS: SeasonLeaders = { points: null, rebounds: null, assists: null, pir: null };
+const NO_LEADERS: SeasonLeaders = { points: null };
 
 const formatOneDecimal = (value: number): string =>
   value.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 const formatSigned = (value: number): string => `${value > 0 ? '+' : ''}${formatOneDecimal(value)}`;
 
-const LEADER_CATEGORIES = [
-  { key: 'points', label: 'Puntos', unit: 'PPG' },
-  { key: 'rebounds', label: 'Rebotes', unit: 'RPG' },
-  { key: 'assists', label: 'Asistencias', unit: 'APG' },
-  { key: 'pir', label: 'Valoración', unit: 'PIR' },
-] as const;
+/** Points only: the sheet records scoring plays, nothing else per player. */
+const LEADER_CATEGORIES = [{ key: 'points', label: 'Puntos', unit: 'PPG' }] as const;
 
 interface HeroMatchProps {
   match: Match;
@@ -326,15 +321,6 @@ export default function DashboardPage() {
                 Promedio en {summary.played} {summary.played === 1 ? 'partido' : 'partidos'}
               </span>
             </div>
-            <div className={styles.kpiCard} data-reveal>
-              <span className={styles.kpiLabel}>Tiros de campo</span>
-              <span className={clsx(styles.kpiValue, 'tabular-nums')}>
-                {hasPlays ? `${formatOneDecimal(summary.fgPct)}%` : MISSING_VALUE}
-              </span>
-              <span className={styles.kpiSub}>
-                {hasPlays ? `Triples ${formatOneDecimal(summary.fg3Pct)}%` : 'Sin jugadas registradas'}
-              </span>
-            </div>
           </section>
         ) : (
           <div>
@@ -355,7 +341,7 @@ export default function DashboardPage() {
           {leaders && (
             <div data-reveal data-tour="dashboard-leaders">
               <SectionCard
-                title="Líderes del equipo"
+                title="Máximo anotador"
                 icon={Flame}
                 description={
                   hasPlays || !summary?.played

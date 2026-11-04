@@ -105,12 +105,12 @@ const DASHBOARD: TourDefinition = {
     {
       target: 'dashboard-kpis',
       title: 'Resumen de temporada',
-      body: 'Récord, puntos a favor y en contra y porcentajes de tiro, calculados con los partidos finalizados.',
+      body: 'Récord, puntos a favor y puntos en contra, calculados con los partidos finalizados.',
     },
     {
       target: 'dashboard-leaders',
-      title: 'Líderes del equipo',
-      body: 'Promedios por partido en puntos, rebotes, asistencias y valoración.',
+      title: 'Máximo anotador',
+      body: 'El jugador con más puntos por partido, con los puntos que suma la planilla.',
     },
     {
       target: 'dashboard-medical',
