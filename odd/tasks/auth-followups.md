@@ -15,7 +15,7 @@ Commits go directly on `main` (user request, user-management L1). Not pushed: th
 ## Tasks
 
 - [x] T1 [S1-S3, S6] Throttling: migration, server module, login + password-change + admin-reset wiring, client messages, docs. Route: worker A. Commit: 42b9f89
-- [ ] T2 [S4, S5] Seed keeps existing accounts' profile; isolated test DB for admin-guard tests; overlap proof in concurrency tests. Route: worker B (after T1; parallel launch rejected by surface overlap). Commit: _pending_
+- [x] T2 [S4, S5] Seed keeps existing accounts' profile; isolated test DB for admin-guard tests; overlap proof in concurrency tests. Route: worker B (after T1; parallel launch rejected by surface overlap). Commit: 693c09f
 - [ ] T3 Full checks, native review per RDD, close. Route: inline. Commit: docs
 
 ## Log
@@ -24,3 +24,5 @@ Commits go directly on `main` (user request, user-management L1). Not pushed: th
 - L2 (evidence): the verifier temp folder no longer exists (`ls` -> No such file or directory); nothing to delete.
 - L3 (parent decisions, defaults chosen without a new question because the user asked to fix everything): limits 5 per email / 20 per IP / 5 per user for password change, window and block 15 minutes; client IP from the first `x-forwarded-for` entry (Vercel sets it), else none; seed keeps the documented password reset but stops overwriting profile fields.
 - L4 (T1 evidence, commit 42b9f89): tsc, eslint, `npm test` 886/886, `npm run test:db` 90/90 (confirmed by the parent), local dev DB migrated (0007 = CREATE TABLE auth_throttles). Beyond design: admin reset also clears password-user:<id>. Limitations documented: IP limit shared per network and not clearable by the admin; X-Forwarded-For spoofable outside Vercel.
+- L5 (native review of T1, 824ab9f..ebc285f, lineage review-8a383fa8decefc38): high tier, lenses risk/resilience/reliability -> approved and acknowledged. Non-blocking advisories: R1-email-lockout-dos (anyone can lock a known email for 15 min; inherent to per-email limits), R1/R3/R4 check-then-act (concurrent bursts can exceed the limit by the number of in-flight attempts), R4-cleanup-scan-per-failure (DELETE without index on every failure), R4-login-hard-dependency (login fails if the throttle table is unavailable), R3-cleanup-cross-test, R3-screen-branch-untested.
+- L6 (T2 evidence, commit 693c09f): tsc, eslint, `npm test` 886/886, `npm run test:db` 92/92 (worker 3 runs + parent 1 run). New test databases hoop_test_users_guards and hoop_test_users_service.
