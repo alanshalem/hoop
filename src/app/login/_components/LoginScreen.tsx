@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Lock, LogIn, Mail } from 'lucide-react';
-import { safeNextPath } from '@/core/application/auth/auth-session';
+import { passwordChangeRedirectPath, safeNextPath } from '@/core/application/auth/auth-session';
 import { useAuthStore } from '@/core/application/stores/useAuthStore';
 import { CLUB_BRAND } from '@/presentation/brand';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
@@ -84,7 +84,9 @@ export function LoginScreen() {
 
     if (result.ok) {
       useAuthStore.getState().setUser(result.value);
-      router.replace(safeNextPath(new URLSearchParams(window.location.search).get('next')));
+      const next = safeNextPath(new URLSearchParams(window.location.search).get('next'));
+      // A temporary password is replaced first; the requested page comes after (S3).
+      router.replace(result.value.mustChangePassword ? passwordChangeRedirectPath(next) : next);
       return;
     }
 

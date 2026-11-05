@@ -3,8 +3,10 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
-import { GraduationCap, LifeBuoy, LogOut } from 'lucide-react';
+import { GraduationCap, KeyRound, LifeBuoy, LogOut, UsersRound } from 'lucide-react';
 import { USER_ROLE_LABELS } from '@/core/domain/entities/club.types';
+import { can } from '@/core/domain/rules/permissions';
+import { PASSWORD_CHANGE_PATH } from '@/core/application/auth/auth-session';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
@@ -22,8 +24,9 @@ export interface UserMenuProps {
 }
 
 /**
- * Authenticated user (S10.8): name, role from the server, sync status, help and logout.
- * Replaces the simulated role switcher.
+ * Authenticated user (S10.8): name, role from the server, sync status, help, own
+ * password change and logout. On phones it also links the administrator to Usuarios
+ * (the tablet rail has its own item). Replaces the simulated role switcher.
  */
 /** First letters of the first and last words: "Alejandro Martinez" -> "AM". */
 const initials = (name: string): string => {
@@ -74,6 +77,27 @@ export const UserMenu: React.FC<UserMenuProps> = ({ variant = 'inline', classNam
         leftIcon={<LifeBuoy size={ICON_SIZE.md} />}
       >
         Ayuda y manual
+      </LinkButton>
+
+      {variant === 'inline' && can(currentUser.role, 'MANAGE_USERS') && (
+        <LinkButton
+          href="/users"
+          variant="ghost"
+          className={styles.menuLink}
+          leftIcon={<UsersRound size={ICON_SIZE.md} />}
+        >
+          Usuarios
+        </LinkButton>
+      )}
+
+      <LinkButton
+        href={PASSWORD_CHANGE_PATH}
+        variant="ghost"
+        fullWidth={variant === 'rail'}
+        className={styles.menuLink}
+        leftIcon={<KeyRound size={ICON_SIZE.md} />}
+      >
+        Cambiar contraseña
       </LinkButton>
 
       {screenTourId && (

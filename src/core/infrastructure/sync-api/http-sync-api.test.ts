@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { createHttpAuthApi, createHttpSyncApi } from './http-sync-api';
+import { createHttpAuthApi, createHttpSyncApi, createHttpUsersApi } from './http-sync-api';
 import { toMatchRecord } from '@/core/application/sync/sync-records';
 import { makeChartCode, makeCoach, makeDivision, makeEvent, makeMatch, makeRivalTeam } from '@/core/testing/fixtures';
 
@@ -255,5 +255,158 @@ describe('http auth api', () => {
     assert.deepStrictEqual(await api.logout(), { ok: true, value: undefined });
     assert.strictEqual(calls[1].init?.method, 'POST');
     assert.strictEqual(new Headers(calls[1].init?.headers).get('Content-Type'), 'application/json');
+  });
+});
+
+describe('http auth api: change own password (S3, S5)', () => {
+  it('posts the current and new password as JSON and returns the updated user', async () => {
+    const changed = { ...USER, mustChangePassword: false };
+    const { fetchImpl, calls } = fakeFetch(() => json({ user: changed }));
+    const result = await createHttpAuthApi(fetchImpl).changePassword('temporal-123', 'nueva-clave-1');
+    assert.deepStrictEqual(result, { ok: true, value: changed });
+    assert.strictEqual(calls[0].url, '/api/auth/password');
+    assert.strictEqual(calls[0].init?.method, 'POST');
+    assert.strictEqual(new Headers(calls[0].init?.headers).get('Content-Type'), 'application/json');
+    assert.deepStrictEqual(JSON.parse(String(calls[0].init?.body)), {
+      currentPassword: 'temporal-123',
+      newPassword: 'nueva-clave-1',
+    });
+  });
+
+  it('returns the server message and reason when the current password is wrong', async () => {
+    const { fetchImpl } = fakeFetch(() =>
+      json({ error: 'La contraseña actual no es correcta.', reason: 'WRONG_CURRENT_PASSWORD' }, 400)
+    );
+    const result = await createHttpAuthApi(fetchImpl).changePassword('mal', 'nueva-clave-1');
+    assert.deepStrictEqual(result, {
+      ok: false,
+      error: 'HTTP',
+      status: 400,
+      message: 'La contraseña actual no es correcta.',
+      reason: 'WRONG_CURRENT_PASSWORD',
+    });
+  });
+
+  it('maps a lost session, a network failure and a malformed user', async () => {
+    const lost = await createHttpAuthApi(fakeFetch(() => json({ error: 'No autenticado' }, 401)).fetchImpl).changePassword('a', 'b');
+    assert.deepStrictEqual(lost, { ok: false, error: 'UNAUTHORIZED', status: 401, message: 'No autenticado' });
+    const offline = await createHttpAuthApi(fakeFetch(() => Promise.reject(new TypeError('x'))).fetchImpl).changePassword('a', 'b');
+    assert.deepStrictEqual(offline, { ok: false, error: 'NETWORK' });
+    const malformed = await createHttpAuthApi(fakeFetch(() => json({ user: { id: 'x' } })).fetchImpl).changePassword('a', 'b');
+    assert.deepStrictEqual(malformed, { ok: false, error: 'INVALID_RESPONSE', status: 200 });
+  });
+});
+
+const MANAGED = {
+  id: 'user-coach-1',
+  email: 'fbalbi@camg.com.ar',
+  name: 'Federico Balbi',
+  role: 'HEAD_COACH',
+  active: true,
+  mustChangePassword: true,
+  createdAt: '2026-11-01T12:00:00.000Z',
+};
+
+describe('http users api (S1, S2, S4, S6)', () => {
+  it('lists every account', async () => {
+    const inactive = { ...MANAGED, id: 'user-2', active: false, mustChangePassword: false };
+    const { fetchImpl, calls } = fakeFetch(() => json({ users: [MANAGED, inactive] }));
+    const result = await createHttpUsersApi(fetchImpl).list();
+    assert.deepStrictEqual(result, { ok: true, value: [MANAGED, inactive] });
+    assert.strictEqual(calls[0].url, '/api/users');
+    assert.strictEqual(calls[0].init?.method, 'GET');
+    assert.strictEqual(calls[0].init?.cache, 'no-store');
+  });
+
+  it('refuses a malformed list', async () => {
+    const { fetchImpl } = fakeFetch(() => json({ users: [{ ...MANAGED, active: 'yes' }] }));
+    assert.deepStrictEqual(await createHttpUsersApi(fetchImpl).list(), { ok: false, error: 'INVALID_RESPONSE', status: 200 });
+  });
+
+  it('returns the server message of a refusal without MANAGE_USERS', async () => {
+    const { fetchImpl } = fakeFetch(() => json({ error: 'Solo el administrador puede gestionar usuarios.' }, 403));
+    assert.deepStrictEqual(await createHttpUsersApi(fetchImpl).list(), {
+      ok: false,
+      error: 'HTTP',
+      status: 403,
+      message: 'Solo el administrador puede gestionar usuarios.',
+    });
+  });
+
+  it('creates an account with a temporary password', async () => {
+    const input = { name: 'Federico Balbi', email: 'fbalbi@camg.com.ar', role: 'HEAD_COACH' as const, temporaryPassword: 'Tmp-12345678' };
+    const { fetchImpl, calls } = fakeFetch(() => json({ user: MANAGED }, 201));
+    assert.deepStrictEqual(await createHttpUsersApi(fetchImpl).create(input), { ok: true, value: MANAGED });
+    assert.strictEqual(calls[0].url, '/api/users');
+    assert.strictEqual(calls[0].init?.method, 'POST');
+    assert.strictEqual(new Headers(calls[0].init?.headers).get('Content-Type'), 'application/json');
+    assert.deepStrictEqual(JSON.parse(String(calls[0].init?.body)), input);
+  });
+
+  it('returns the reason and message of a taken email', async () => {
+    const { fetchImpl } = fakeFetch(() => json({ error: 'Ya existe un usuario con ese email.', reason: 'EMAIL_TAKEN' }, 409));
+    const result = await createHttpUsersApi(fetchImpl).create({ name: 'X Y', email: 'a@b.c', role: 'ADMIN', temporaryPassword: '12345678' });
+    assert.deepStrictEqual(result, {
+      ok: false,
+      error: 'HTTP',
+      status: 409,
+      message: 'Ya existe un usuario con ese email.',
+      reason: 'EMAIL_TAKEN',
+    });
+  });
+
+  it('patches only the given fields of one account', async () => {
+    const { fetchImpl, calls } = fakeFetch(() => json({ user: { ...MANAGED, active: false } }));
+    const result = await createHttpUsersApi(fetchImpl).update('user/1', { active: false });
+    assert.deepStrictEqual(result, { ok: true, value: { ...MANAGED, active: false } });
+    assert.strictEqual(calls[0].url, '/api/users/user%2F1');
+    assert.strictEqual(calls[0].init?.method, 'PATCH');
+    assert.strictEqual(new Headers(calls[0].init?.headers).get('Content-Type'), 'application/json');
+    assert.deepStrictEqual(JSON.parse(String(calls[0].init?.body)), { active: false });
+  });
+
+  it('returns the guard refusals of an update as-is', async () => {
+    const message = 'Debe quedar al menos un administrador activo: no puedes desactivar ni cambiar el rol del último.';
+    const { fetchImpl } = fakeFetch(() => json({ error: message, reason: 'LAST_ADMIN' }, 409));
+    assert.deepStrictEqual(await createHttpUsersApi(fetchImpl).update('user-admin-1', { role: 'HEAD_COACH' }), {
+      ok: false,
+      error: 'HTTP',
+      status: 409,
+      message,
+      reason: 'LAST_ADMIN',
+    });
+  });
+
+  it('resets the password of one account', async () => {
+    const { fetchImpl, calls } = fakeFetch(() => json({ user: MANAGED }));
+    const result = await createHttpUsersApi(fetchImpl).resetPassword('user-coach-1', 'Tmp-87654321');
+    assert.deepStrictEqual(result, { ok: true, value: MANAGED });
+    assert.strictEqual(calls[0].url, '/api/users/user-coach-1/password');
+    assert.strictEqual(calls[0].init?.method, 'POST');
+    assert.deepStrictEqual(JSON.parse(String(calls[0].init?.body)), { temporaryPassword: 'Tmp-87654321' });
+  });
+
+  it('maps a missing account and a network failure', async () => {
+    const missing = await createHttpUsersApi(
+      fakeFetch(() => json({ error: 'El usuario no existe.', reason: 'USER_NOT_FOUND' }, 404)).fetchImpl
+    ).resetPassword('gone', 'Tmp-87654321');
+    assert.deepStrictEqual(missing, { ok: false, error: 'HTTP', status: 404, message: 'El usuario no existe.', reason: 'USER_NOT_FOUND' });
+    const offline = await createHttpUsersApi(fakeFetch(() => Promise.reject(new TypeError('x'))).fetchImpl).list();
+    assert.deepStrictEqual(offline, { ok: false, error: 'NETWORK' });
+  });
+});
+
+describe('sync refusal while the password must change (S3)', () => {
+  it('exposes the PASSWORD_CHANGE_REQUIRED reason of a refused pull', async () => {
+    const { fetchImpl } = fakeFetch(() =>
+      json({ error: 'Debes cambiar tu contraseña temporal antes de continuar.', reason: 'PASSWORD_CHANGE_REQUIRED' }, 403)
+    );
+    assert.deepStrictEqual(await createHttpSyncApi(fetchImpl).pull(null), {
+      ok: false,
+      error: 'HTTP',
+      status: 403,
+      message: 'Debes cambiar tu contraseña temporal antes de continuar.',
+      reason: 'PASSWORD_CHANGE_REQUIRED',
+    });
   });
 });

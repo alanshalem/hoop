@@ -16,9 +16,12 @@ import {
   Swords,
   UserCog,
   Users,
+  UsersRound,
   type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { can } from '@/core/domain/rules/permissions';
+import { useClubStore } from '@/core/application/stores/useClubStore';
 import { ClubCrest } from '@/presentation/atoms/ClubCrest/ClubCrest';
 import { UserMenu } from '@/presentation/organisms/UserMenu/UserMenu';
 import { SyncStatusIndicator } from '@/presentation/organisms/SyncStatusIndicator/SyncStatusIndicator';
@@ -84,10 +87,20 @@ const COACHES_ITEM: NavItem = {
   tourTarget: 'nav-entrenadores',
 };
 
+// Rail only, for the administrator (MANAGE_USERS); on phones the user menu links to it.
+const USERS_ITEM: NavItem = {
+  label: 'Usuarios',
+  shortLabel: 'Usuarios',
+  href: '/users',
+  icon: UsersRound,
+  tourTarget: 'nav-usuarios',
+};
+
 // The rail closes with the chart catalog and the manual; on phones both live in the top bar
 // so the bottom bar stays balanced around the live button.
 const TOP_BAR_ITEMS: NavItem[] = [CHART_CATALOG_ITEM, HELP_ITEM];
 const RAIL_ITEMS: NavItem[] = [...NAV_ITEMS, RIVALS_ITEM, COACHES_ITEM, ...TOP_BAR_ITEMS];
+const ADMIN_RAIL_ITEMS: NavItem[] = [...NAV_ITEMS, RIVALS_ITEM, COACHES_ITEM, USERS_ITEM, ...TOP_BAR_ITEMS];
 
 // The mobile bottom bar places the live button between these two halves.
 const BOTTOM_LEFT_ITEMS = NAV_ITEMS.slice(0, 2);
@@ -104,8 +117,10 @@ const isNavItemActive = (pathname: string, href: string) => {
 
 export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
   const pathname = usePathname();
+  const role = useClubStore((state) => state.currentUser.role);
+  const railItems = can(role, 'MANAGE_USERS') ? ADMIN_RAIL_ITEMS : RAIL_ITEMS;
   const isLiveActive = isLivePath(pathname);
-  const activeHref = RAIL_ITEMS.find((item) => isNavItemActive(pathname, item.href))?.href ?? null;
+  const activeHref = railItems.find((item) => isNavItemActive(pathname, item.href))?.href ?? null;
 
   const { collapsed: navCollapsed, setNavCollapsed } = useNavCollapsed();
   const mainRef = useRef<HTMLElement | null>(null);
@@ -160,7 +175,7 @@ export const TabletAppShell: React.FC<TabletAppShellProps> = ({ children }) => {
 
           <nav ref={navRef} className={styles.navLinks} aria-label="Navegación principal">
             <span ref={indicatorRef} className={styles.navIndicator} aria-hidden="true" />
-            {RAIL_ITEMS.map((item) => {
+            {railItems.map((item) => {
               const Icon = item.icon;
               const isActive = isNavItemActive(pathname, item.href);
               return (

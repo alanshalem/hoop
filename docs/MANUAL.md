@@ -234,7 +234,7 @@ Control de tipos (no tiene script propio): `npx tsc --noEmit`.
 
 ## 4. Roles y permisos
 
-Hay tres roles. Cada usuario tiene uno, asignado en el servidor. Cada pantalla oculta o deshabilita lo que el rol no puede hacer, usando la matriz de `src/core/domain/rules/permissions.ts` (función `can(role, permission)`). El servidor aplica la misma matriz a cada cambio que recibe, así que un permiso no se puede saltear desde el navegador.
+Hay tres roles. Cada usuario tiene uno, asignado en el servidor por el administrador desde [Usuarios](#usuarios-users). Cada pantalla oculta o deshabilita lo que el rol no puede hacer, usando la matriz de `src/core/domain/rules/permissions.ts` (función `can(role, permission)`). El servidor aplica la misma matriz a cada cambio que recibe, así que un permiso no se puede saltear desde el navegador.
 
 ### Matriz de permisos
 
@@ -246,8 +246,11 @@ Hay tres roles. Cada usuario tiene uno, asignado en el servidor. Cada pantalla o
 | `MANAGE_LINEUP`        | Armar convocatoria y quinteto; iniciar el partido                                      |      Sí       |          Sí          |          No          |
 | `RECORD_LIVE`          | Usar la consola en vivo: reloj, períodos, jugadas, tiempos muertos, finalizar          |      Sí       |          Sí          |          Sí          |
 | `MANAGE_CHART_CATALOG` | Editar el catálogo de códigos de la planilla: renombrar, agregar, archivar y restaurar |      Sí       |          Sí          |          No          |
+| `MANAGE_USERS`         | Ver todas las cuentas; crearlas, editarlas, desactivarlas, reactivarlas y restablecer su contraseña ([Usuarios](#usuarios-users)) |      Sí       |          No          |          No          |
 
 Lo que cualquier rol puede ver: dashboard, listado de divisiones y su plantel ("Ver plantel"), jugadores, calendario, convocatorias (en modo lectura), planillas estadísticas, los códigos de la planilla, los planteles rivales y los entrenadores (en modo lectura). Sin `RECORD_LIVE` la consola se abre en modo lectura con un aviso.
+
+Cualquier rol puede, además, [cambiar su propia contraseña](#cambiar-contraseña-accountpassword). Nadie puede cambiar su propio nombre, correo ni rol: eso lo hace el administrador.
 
 ### Cuentas de demostración
 
@@ -263,11 +266,13 @@ El rol sale de la cuenta con la que se inicia sesión. `npm run db:seed` crea es
 
 Después de [importar las actas oficiales](#importar-las-actas-oficiales) solo queda la cuenta `admin@camg.com.ar` (con su misma contraseña); las demás cuentas y todas las sesiones se borran.
 
+`db:seed` es para demostración y pruebas. En el uso real, el administrador crea las demás cuentas desde [Usuarios](#usuarios-users), cada una con una contraseña temporal que la persona reemplaza en su primer ingreso (ver [Primer ingreso con una contraseña temporal](#primer-ingreso-con-una-contraseña-temporal)).
+
 Los [entrenadores](#entrenadores-coaches) del club no son cuentas: son fichas sin usuario que no inician sesión. Cargarlos o asignarlos no cambia los usuarios ni sus roles.
 
 Para usar otro rol hay que cerrar sesión y entrar con otra cuenta. Si el rol de una cuenta cambia en el servidor, la aplicación lo toma la próxima vez que confirma la sesión con conexión.
 
-> Cambiar la contraseña de demostración antes de usar el sistema fuera de un entorno de prueba: definir `SEED_DEMO_PASSWORD` y volver a correr `npm run db:seed`.
+> Fuera de un entorno de prueba, cambiar la contraseña de demostración: cada cuenta lo hace desde **Cambiar contraseña** en su menú de usuario. Volver a correr `npm run db:seed` restablece la contraseña de las cuentas de demostración a la de `SEED_DEMO_PASSWORD`.
 
 ---
 
@@ -277,10 +282,10 @@ Para usar otro rol hay que cerrar sesión y entrar con otra cuenta. Si el rol de
 
 | Elemento                   | Dónde                  | Función                                                                                                                                                                                                                                                                                                                                   |
 | -------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Riel lateral (tablet)      | Izquierda              | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, Rivales ([planteles rivales](#rivales-rivals), icono `Swords`), Entrenadores ([cuerpo técnico](#entrenadores-coaches), icono `UserCog`), Planilla ([códigos de la planilla](#códigos-de-la-planilla-chart-codes)), Ayuda, botón **Partido en vivo** y, al pie, el menú de usuario: nombre, rol, botón de tema claro/oscuro, [estado de sincronización](#estado-de-sincronización) y **Cerrar sesión**. |
+| Riel lateral (tablet)      | Izquierda              | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, Rivales ([planteles rivales](#rivales-rivals), icono `Swords`), Entrenadores ([cuerpo técnico](#entrenadores-coaches), icono `UserCog`), Usuarios ([cuentas](#usuarios-users), icono `UsersRound`, solo para el administrador), Planilla ([códigos de la planilla](#códigos-de-la-planilla-chart-codes)), Ayuda, botón **Partido en vivo** y, al pie, el menú de usuario: nombre, rol, botón de tema claro/oscuro, [estado de sincronización](#estado-de-sincronización), **Ayuda y manual**, **Cambiar contraseña** y **Cerrar sesión**. |
 | Barra superior (teléfono)  | Arriba                 | Escudo y marca (vuelve al inicio), el estado de sincronización compacto y los iconos de Planilla (`ClipboardList`, códigos de la planilla) y Ayuda (`LifeBuoy`).                                                                                                                                                                          |
 | Barra inferior (teléfono)  | Abajo                  | Inicio, Equipos, botón central de partido en vivo (icono `Radio`), Plantel y Fechas.                                                                                                                                                                                                                                                      |
-| Menú de usuario (teléfono) | Cabecera del Dashboard | Nombre, rol, estado de sincronización y **Cerrar sesión**.                                                                                                                                                                                                                                                                                |
+| Menú de usuario (teléfono) | Cabecera del Dashboard | Nombre, rol, estado de sincronización, **Ayuda y manual**, **Usuarios** (solo el administrador), **Cambiar contraseña** y **Cerrar sesión**.                                                                                                                                                                                          |
 | Diálogos                   | Sobre la pantalla      | Modales propios: avisos (`notify`, botón "Entendido") y confirmaciones (`confirm`, botones "Cancelar" y la acción). Se muestran de a uno, en cola.                                                                                                                                                                                        |
 
 ### Inicio de sesión (`/login`)
@@ -294,6 +299,8 @@ Pantalla con el escudo del club, campos **Email** y **Contraseña** y el botón 
 | Sin conexión                            | Modal "Sin conexión": el primer ingreso en una tablet necesita llegar al servidor.                                          |
 | Campos vacíos o correo mal escrito      | El error aparece debajo del campo.                                                                                          |
 | Ya hay una sesión guardada en la tablet | Botón **Continuar como \<nombre\>** para volver sin escribir la contraseña.                                                 |
+| Cuenta con contraseña temporal          | Entra y pasa directo a [Cambiar contraseña](#cambiar-contraseña-accountpassword): hasta elegir una contraseña propia no se puede usar ninguna otra pantalla. |
+| Cuenta desactivada                      | El mismo mensaje genérico "Email o contraseña incorrectos": una cuenta desactivada no puede iniciar sesión.                 |
 
 Cualquier otra pantalla, sin una sesión guardada, redirige a `/login` y después vuelve a la pantalla pedida.
 
@@ -520,6 +527,61 @@ Campos del formulario, con su mensaje:
 
 **Sincronización.** Cada entrenador viaja como un registro de tipo `coach`, con la misma cola de salida que las divisiones y los jugadores. Si dos tablets cambian la misma ficha, queda el último cambio.
 
+### Usuarios (`/users`)
+
+Las cuentas que inician sesión en Hoop. Solo el administrador (permiso `MANAGE_USERS`) las ve y las cambia; se abre desde **Usuarios** en el riel lateral o, en el teléfono, desde **Usuarios** en el menú de usuario del Dashboard. Los demás roles no ven ese acceso y, si abren la dirección, la pantalla solo dice "Solo el administrador gestiona los usuarios." El servidor aplica la misma regla a cada pedido: sin sesión responde 401 y sin `MANAGE_USERS`, 403.
+
+Cada tarjeta muestra el nombre, el correo y el rol (**Administrador**, **Entrenador principal** o **Asistente planillero**), ordenadas por nombre. Etiquetas:
+
+| Etiqueta                       | Significado                                                                                     |
+| ------------------------------ | ----------------------------------------------------------------------------------------------- |
+| **Tu cuenta**                  | La cuenta con la que estás conectado.                                                           |
+| **Inactiva**                   | La cuenta está desactivada: sigue en la lista pero no puede iniciar sesión.                     |
+| **Debe cambiar la contraseña** | Tiene una contraseña temporal: al ingresar tendrá que reemplazarla antes de usar la aplicación. |
+
+| Control                    | Qué hace                                                                                                                                                                                                                             |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Nuevo usuario**          | Abre el alta: nombre, correo, rol y contraseña temporal. La cuenta queda activa y con la etiqueta **Debe cambiar la contraseña**. Un aviso repite el correo y la contraseña temporal para entregárselos a la persona.               |
+| **Editar**                 | Corrige nombre, correo y rol. En tu propia cuenta el rol aparece deshabilitado.                                                                                                                                                     |
+| **Restablecer contraseña** | Pide una contraseña temporal nueva y confirma antes de guardarla: se cierran todas las sesiones de esa cuenta y deberá cambiar la contraseña al volver a ingresar. Si restableces tu propia cuenta, tu sesión también se cierra y vuelves a la pantalla de inicio de sesión. |
+| **Desactivar**             | Con confirmación. La cuenta no se borra: queda en la lista como **Inactiva**, no puede iniciar sesión (recibe el mismo mensaje genérico de credenciales incorrectas) y sus sesiones abiertas se cierran al instante. No aparece en tu propia cuenta. |
+| **Reactivar**              | Con confirmación. La cuenta vuelve a poder iniciar sesión con su contraseña de siempre.                                                                                                                                             |
+
+Campos de los formularios, con su mensaje:
+
+| Campo                   | Regla                                                                                                                                                                                                                      | Mensaje                                               |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **Nombre**              | De 2 a 60 caracteres.                                                                                                                                                                                                      | "El nombre debe tener de 2 a 60 caracteres."          |
+| **Email**               | Un correo válido. No puede repetirse (sin distinguir mayúsculas): si ya existe, el campo lo marca con "Ya existe un usuario con ese email."                                                                              | "El email no tiene un formato válido."                |
+| **Rol**                 | Administrador, Entrenador principal o Asistente planillero. Una cuenta nueva empieza como Asistente planillero.                                                                                                           | "Elige el rol del usuario."                           |
+| **Contraseña temporal** | De 8 a 256 caracteres, tal como se escribe. Queda a la vista para poder copiarla. **Generar** completa una al azar de 12 letras y números, sin caracteres que se confunden (0 y O, 1, l e I). | "La contraseña debe tener entre 8 y 256 caracteres." |
+
+Reglas de seguridad que aplica el servidor, con su aviso:
+
+| Regla                                                       | Aviso                                                                                                  |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| No puedes desactivar tu propia cuenta.                      | "No puedes desactivar tu propia cuenta."                                                               |
+| No puedes cambiar el rol de tu propia cuenta.               | "No puedes cambiar el rol de tu propia cuenta."                                                        |
+| Siempre queda al menos un administrador activo: el último no se puede desactivar ni pasar a otro rol. | "Debe quedar al menos un administrador activo: no puedes desactivar ni cambiar el rol del último." |
+| El correo es único.                                         | "Ya existe un usuario con ese email."                                                                  |
+
+**Sin conexión.** Las cuentas no son datos del club: no se guardan en la tablet ni pasan por la cola de sincronización. La lista se pide al servidor cada vez que se abre la pantalla y después de cada cambio. Sin conexión la pantalla muestra "Sin conexión" con el botón **Reintentar**, y los cambios no se pueden hacer hasta que vuelva.
+
+### Cambiar contraseña (`/account/password`)
+
+Cualquier usuario cambia su propia contraseña desde **Cambiar contraseña** en el menú de usuario. Campos: **Contraseña actual**, **Nueva contraseña** y **Repetir nueva contraseña**.
+
+| Situación                                        | Qué pasa                                                                                                                                       |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Datos correctos                                  | Aviso "Contraseña actualizada". Se cierran tus sesiones en otros dispositivos; la de este sigue abierta.                                       |
+| Contraseña actual incorrecta                     | El campo lo marca con "La contraseña actual no es correcta." y no cambia nada.                                                                |
+| Nueva contraseña de menos de 8 o más de 256 caracteres | "La contraseña debe tener entre 8 y 256 caracteres."                                                                                         |
+| Nueva contraseña igual a la actual               | "La nueva contraseña debe ser distinta de la actual."                                                                                         |
+| Las dos nuevas no coinciden                      | "Las contraseñas no coinciden."                                                                                                               |
+| Sin conexión                                     | Aviso "Sin conexión": la contraseña solo se cambia con conexión.                                                                              |
+
+**Cambio obligatorio.** Una cuenta nueva o con la contraseña restablecida entra con una contraseña temporal y la aplicación la lleva a esta pantalla, sin menú: el primer campo se llama **Contraseña temporal**, un texto explica que hay que reemplazarla y la única otra opción es **Cerrar sesión**. Hasta cambiarla, cualquier otra pantalla vuelve aquí y la sincronización no arranca (el servidor la rechaza con 403). Después del cambio la etiqueta **Debe cambiar la contraseña** desaparece, la sincronización arranca y la aplicación sigue a la pantalla que se había pedido (o al Dashboard).
+
 ---
 
 ## 6. Flujos paso a paso
@@ -539,6 +601,45 @@ Después del primer ingreso, la tablet abre aunque no haya conexión: guarda el 
 3. Si no puede (por ejemplo, sin conexión), un modal avisa "Hay N cambios sin sincronizar. Si cierras sesión ahora, se perderán en este dispositivo." con las opciones **Seguir conectado** y **Cerrar sesión igual**.
 4. Al cerrar sesión se borran de la tablet la sesión, el perfil guardado y la cola de cambios. El próximo ingreso vuelve a descargar todo del servidor.
 5. Sin conexión la sesión se cierra igual en la tablet, pero el servidor no se entera: un aviso explica que la sesión del servidor sigue activa hasta que venza (30 días) o hasta el próximo inicio de sesión en esa tablet, que la revoca. La cookie queda en el navegador hasta entonces, así que en una tablet compartida conviene cerrar sesión con conexión.
+
+### Crear un usuario
+
+1. Rol Administrador, con conexión. Ir a **Usuarios** y pulsar **Nuevo usuario**.
+2. Completar nombre, correo y rol. En **Contraseña temporal**, escribir una o pulsar **Generar**.
+3. Pulsar **Crear usuario**. El aviso "Usuario creado" repite el correo y la contraseña temporal: entregárselos a la persona por un medio privado.
+4. La tarjeta nueva aparece con la etiqueta **Debe cambiar la contraseña** hasta que la persona ingrese y la cambie.
+
+### Primer ingreso con una contraseña temporal
+
+1. Iniciar sesión con el correo y la contraseña temporal que dio el administrador.
+2. La aplicación abre **Elige tu contraseña**. Escribir la contraseña temporal y dos veces la nueva (de 8 a 256 caracteres, distinta de la temporal).
+3. Pulsar **Cambiar contraseña**. La aplicación sigue a la pantalla pedida y empieza a sincronizar.
+
+Mientras no se cambia, no se puede usar ninguna otra pantalla; **Cerrar sesión** deja la tablet lista para otra cuenta.
+
+### Cambiar la propia contraseña
+
+1. Con conexión, abrir **Cambiar contraseña** en el menú de usuario.
+2. Escribir la contraseña actual y dos veces la nueva, y pulsar **Cambiar contraseña**.
+3. Las sesiones de esa cuenta en otros dispositivos se cierran: allí hay que ingresar con la contraseña nueva.
+
+### Restablecer la contraseña de un usuario
+
+Para alguien que olvidó su contraseña (no hay recuperación por correo):
+
+1. Rol Administrador. En **Usuarios**, pulsar **Restablecer contraseña** en su tarjeta.
+2. Escribir o generar una contraseña temporal y pulsar **Restablecer**.
+3. Confirmar. Se cierran todas las sesiones de esa cuenta y el aviso repite la contraseña temporal para entregársela. En su próximo ingreso deberá cambiarla.
+
+Si restableces tu propia cuenta, la aplicación cierra tu sesión y vuelve a la pantalla de inicio de sesión: ingresa con la contraseña temporal y elige una nueva.
+
+### Desactivar o reactivar un usuario
+
+1. Rol Administrador. En **Usuarios**, pulsar **Desactivar** en la tarjeta de la cuenta y confirmar.
+2. La cuenta queda como **Inactiva**, sus sesiones se cierran al instante y no puede volver a iniciar sesión. Sus datos y lo que cargó en el sistema no cambian.
+3. Para devolverle el acceso, pulsar **Reactivar** y confirmar: vuelve a entrar con su contraseña de siempre.
+
+No se puede desactivar la propia cuenta ni la del último administrador activo.
 
 ### Crear una división
 
@@ -740,6 +841,7 @@ Cómo funciona para quien usa la aplicación:
 | **Deshacer** una entrada o una falta                                                                  | La jugada queda marcada como eliminada en el servidor (no se borra) y desaparece en todas las tablets. Una jugada eliminada no vuelve.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | El servidor rechaza un cambio                                                                    | Si el rol no tiene permiso o el dato no es válido, el cambio se descarta y el estado muestra **Error** con la cantidad de cambios rechazados. Si el servidor tiene una versión más nueva, se descarta el cambio local y se descarga la del servidor.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Jugadas de un partido que el servidor no tiene                                                   | El servidor las rechaza: una jugada solo se acepta si su partido existe (o llega en el mismo envío) y no está eliminado. La tablet envía siempre el partido antes que sus jugadas.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| La cuenta debe cambiar su contraseña temporal                                                    | No sincroniza: el servidor rechaza envíos y descargas (403) hasta que la cuenta [cambie su contraseña](#cambiar-contraseña-accountpassword). Después del cambio la sincronización arranca sola. |
 | La sesión venció                                                                                 | La aplicación pide iniciar sesión de nuevo. Si vuelve a entrar la misma cuenta, la cola se conserva y se envía después del ingreso.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Otra persona inicia sesión en la misma tablet                                                    | La cola guarda quién hizo los cambios. Si entra una cuenta distinta, los cambios pendientes de la anterior se descartan (nunca se envían con la identidad de otra persona), un aviso informa "Se descartaron N cambios sin sincronizar de <nombre>" y la tablet descarga todo de nuevo del servidor.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Los datos del servidor se reemplazaron (por ejemplo, al [importar las actas](#importar-las-actas-oficiales)) | El servidor cambia su época de datos y rechaza los envíos hechos sobre los datos anteriores. La tablet descarta su copia local, su cola de cambios y su cursor, y descarga todo de nuevo. Los cambios sin sincronizar se pierden: el estado muestra **Error** con el aviso "Los datos del servidor se reemplazaron: se descartaron N cambios sin sincronizar de este dispositivo." Los datos viejos de un navegador nunca vuelven al servidor. |
@@ -789,7 +891,7 @@ Se definen en `.env.local` (no se sube al repositorio; `.env.example` documenta 
 
 ### Datos de demostración en el servidor
 
-`npm run db:seed` carga el mismo club de demostración de la [sección 8](#datos-de-demostración) y las [cuentas de demostración](#cuentas-de-demostración). Con los datos del club solo inserta: nunca sobrescribe ni revive registros o jugadas que ya existen (tampoco los que alguien eliminó), así que se puede correr varias veces sin pisar lo cargado por los usuarios. Al terminar informa cuántos registros y jugadas nuevos insertó (`recordsInserted`, `eventsInserted`) y lista las cuentas. Las cuentas de demostración, en cambio, se actualizan por ID: cada corrida restablece su nombre, correo y rol, y su contraseña a la de `SEED_DEMO_PASSWORD`.
+`npm run db:seed` carga el mismo club de demostración de la [sección 8](#datos-de-demostración) y las [cuentas de demostración](#cuentas-de-demostración). Con los datos del club solo inserta: nunca sobrescribe ni revive registros o jugadas que ya existen (tampoco los que alguien eliminó), así que se puede correr varias veces sin pisar lo cargado por los usuarios. Al terminar informa cuántos registros y jugadas nuevos insertó (`recordsInserted`, `eventsInserted`) y lista las cuentas. Las cuentas de demostración, en cambio, se actualizan por ID: cada corrida restablece su nombre, correo y rol, y su contraseña a la de `SEED_DEMO_PASSWORD`; no cambia si están activas ni si deben cambiar la contraseña. Las cuentas creadas desde [Usuarios](#usuarios-users) no se tocan.
 
 ### Importar las actas oficiales
 
@@ -811,9 +913,16 @@ npm run db:import-actas -- --csv <planilla.csv> --pdfs <carpeta> --yes       # b
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `POST /api/auth/login`              | `{ email, password }` en JSON. Responde `{ user }` y crea la cookie de sesión, o 401 con "Email o contraseña incorrectos".                                              |
 | `POST /api/auth/logout`             | Cierra la sesión y borra la cookie. Exige `Content-Type: application/json` (cuerpo `{}`); sin él responde 415.                                                          |
-| `GET /api/auth/me`                  | El usuario de la sesión (`id`, `email`, `name`, `role`) o 401.                                                                                                          |
+| `GET /api/auth/me`                  | El usuario de la sesión (`id`, `email`, `name`, `role`, `mustChangePassword`) o 401.                                                                                    |
+| `POST /api/auth/password`           | `{ currentPassword, newPassword }` (nueva de 8 a 256 caracteres). Responde `{ user }` con `mustChangePassword` en `false` y cierra las demás sesiones de la cuenta; 400 con `reason: WRONG_CURRENT_PASSWORD` si la actual no coincide. |
+| `GET /api/users`                    | Solo `MANAGE_USERS`. `{ users: [{ id, email, name, role, active, mustChangePassword, createdAt }] }`, por nombre. Nunca devuelve datos de contraseñas.                  |
+| `POST /api/users`                   | Solo `MANAGE_USERS`. `{ name, email, role, temporaryPassword }` -> 201 `{ user }` (activa y con cambio obligatorio); 409 `EMAIL_TAKEN`.                                  |
+| `PATCH /api/users/[id]`             | Solo `MANAGE_USERS`. `{ name?, email?, role?, active? }` -> `{ user }`; 404 `USER_NOT_FOUND`; 409 `EMAIL_TAKEN`, `SELF_DEACTIVATION`, `SELF_ROLE_CHANGE` o `LAST_ADMIN`. Desactivar cierra las sesiones de la cuenta. |
+| `POST /api/users/[id]/password`     | Solo `MANAGE_USERS`. `{ temporaryPassword }` -> `{ user }`: marca el cambio obligatorio y cierra todas las sesiones de la cuenta (también la propia si es la del administrador); 404 `USER_NOT_FOUND`. |
 | `POST /api/sync/push`               | Recibe registros (los partidos con `fieldVersions` opcional: campo -> hora de su último cambio) y jugadas; responde `{ accepted, rejected: [{ id, reason }], cursor }`. |
 | `GET /api/sync/pull?since=<cursor>` | Cambios posteriores al cursor (incluye eliminaciones), de a páginas (`hasMore`). Sin `since`, todo.                                                                     |
+
+Los errores responden `{ error, reason? }`: `error` es el mensaje en español que la aplicación muestra tal cual y `reason`, el código para reaccionar. Mientras la cuenta debe cambiar su contraseña temporal, `push` y `pull` responden 403 con `reason: PASSWORD_CHANGE_REQUIRED`.
 
 Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el esquema del dominio, un `updatedAt` más de 5 minutos adelantado respecto del reloj del servidor, una versión de campo posterior a su `updatedAt`, o una jugada cuyo partido no existe en el servidor ni llega aceptado en el mismo envío), `FORBIDDEN` (el rol no tiene el permiso) y `STALE` (el servidor ya tiene una versión igual o más nueva de todos los campos, o la jugada fue eliminada).
 
@@ -822,8 +931,10 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 - Contraseñas con hash scrypt y sal aleatoria; la sesión es un token aleatorio del que el servidor solo guarda el hash.
 - Cookie `hoop_session` httpOnly, `SameSite=Lax`, `Secure` en producción (ver `SESSION_COOKIE_SECURE`).
 - Mensaje genérico ante credenciales incorrectas: no revela qué correos existen.
-- `login`, `logout` y `push` exigen JSON y rechazan con 403 ("Solicitud rechazada: el origen no está permitido.") los pedidos cuyo encabezado `Origin` no coincide con el host del servidor. Detrás de un proxy inverso, el proxy debe enviar `X-Forwarded-Host` (o conservar `Host`).
+- `login`, `logout`, `push`, `POST /api/auth/password` y los cambios de `/api/users` exigen JSON y rechazan con 403 ("Solicitud rechazada: el origen no está permitido.") los pedidos cuyo encabezado `Origin` no coincide con el host del servidor. Detrás de un proxy inverso, el proxy debe enviar `X-Forwarded-Host` (o conservar `Host`).
 - Los permisos de cada cambio se validan en el servidor con la misma matriz de roles que usa la interfaz.
+- Las cuentas no se borran: desactivar una cierra sus sesiones al instante y bloquea su ingreso con el mismo mensaje genérico. Restablecer una contraseña cierra todas las sesiones de la cuenta; cambiar la propia cierra las demás y conserva la actual.
+- Una cuenta con contraseña temporal solo puede cambiarla: el servidor rechaza su sincronización hasta entonces. El último administrador activo no se puede desactivar ni cambiar de rol, y un administrador no puede desactivar ni cambiar el rol de su propia cuenta.
 - `updatedAt` más de 5 minutos en el futuro se rechaza, para que un reloj adelantado no gane todos los conflictos.
 
 ### Solución de problemas
@@ -906,7 +1017,8 @@ Resueltas en esta versión: los partidos se combinan campo por campo entre table
 | Correcciones en el entretiempo       | Durante el entretiempo no se puede deshacer la última entrada ni la última falta del rival del 2.º cuarto: hay que comenzar el 3.er cuarto primero.                                                                                      |
 | Empate tras el 4.º suplementario     | Si el reloj llega a 00:00 con empate al final del 4.º suplementario, solo se muestra un aviso.                                                                                                             |
 | Dorsal repetido                      | No se impide que dos jugadores del mismo equipo usen el mismo dorsal.                                                                                                                                      |
-| Usuarios sin pantalla de gestión     | Las cuentas se crean con `npm run db:seed`. No hay pantalla para crear usuarios ni cambiar contraseñas.                                                                                                    |
+| Contraseña olvidada                  | No hay recuperación por correo: el administrador le asigna una contraseña temporal desde [Usuarios](#usuarios-users).                                                                                     |
+| Intentos de contraseña               | No hay límite de intentos ni bloqueo temporal, ni al iniciar sesión ni al escribir la contraseña actual para cambiarla.                                                                                   |
 | Cambio de usuario sin conexión       | Si otra cuenta entra en la tablet sin conexión, se descarta la cola de la anterior, pero sus cambios siguen a la vista hasta que llega la copia completa del servidor.                                     |
 | Cierre de sesión sin conexión        | La sesión del servidor sigue válida hasta que vence (30 días) o hasta el próximo ingreso en esa tablet. La aplicación lo avisa al cerrar sesión.                                                           |
 | Cierre de sesión con varias pestañas | Cerrar sesión en una pestaña no cierra las demás al instante: la pestaña principal pide iniciar sesión con su próximo envío al servidor.                                                                   |

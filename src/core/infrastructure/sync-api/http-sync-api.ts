@@ -1,8 +1,12 @@
-import type { AuthApi } from '@/core/application/auth/auth-session';
-import type { ApiResult, SyncApi } from '@/core/application/sync/sync-types';
+import type { AccountApiResult, AuthApi } from '@/core/application/auth/auth-session';
+import type { SyncApi } from '@/core/application/sync/sync-types';
+import type { UsersApi } from '@/core/application/users/user-admin';
 import {
   parseAuthUser,
   parseErrorMessage,
+  parseErrorReason,
+  parseManagedUser,
+  parseManagedUsers,
   parsePullPage,
   parsePushResult,
   parseRejectionReason,
@@ -10,7 +14,7 @@ import {
 
 /**
  * =============================================================================
- * HOOP - HTTP ADAPTERS FOR THE AUTH AND SYNC API
+ * HOOP - HTTP ADAPTERS FOR THE AUTH, USERS AND SYNC API
  * Same-origin `fetch`: the `hoop_session` httpOnly cookie travels on its own and
  * the client never sees a token. Failures come back as values, never throws.
  * =============================================================================
@@ -26,7 +30,7 @@ async function request<T>(
   url: string,
   init: RequestInit,
   parse: (body: unknown) => T | null
-): Promise<ApiResult<T>> {
+): Promise<AccountApiResult<T>> {
   let response: Response;
   try {
     response = await fetchImpl(url, {
@@ -53,17 +57,26 @@ async function request<T>(
     return { ok: false, error: 'EPOCH_MISMATCH', status: 409, message: parseErrorMessage(body) };
   }
   if (!response.ok) {
-    return { ok: false, error: 'HTTP', status: response.status, message: parseErrorMessage(body) };
+    const reason = parseErrorReason(body);
+    return {
+      ok: false,
+      error: 'HTTP',
+      status: response.status,
+      message: parseErrorMessage(body),
+      ...(reason !== undefined && { reason }),
+    };
   }
   const value = parse(body);
   return value === null ? { ok: false, error: 'INVALID_RESPONSE', status: response.status } : { ok: true, value };
 }
 
-const postJson = (body: unknown): RequestInit => ({
-  method: 'POST',
+const sendJson = (method: 'POST' | 'PATCH', body: unknown): RequestInit => ({
+  method,
   headers: JSON_HEADERS,
   body: JSON.stringify(body),
 });
+
+const postJson = (body: unknown): RequestInit => sendJson('POST', body);
 
 export function createHttpSyncApi(fetchImpl: typeof fetch = (...args) => fetch(...args)): SyncApi {
   return {
@@ -84,5 +97,19 @@ export function createHttpAuthApi(fetchImpl: typeof fetch = (...args) => fetch(.
     // The route requires a JSON content type (cross-site forms cannot send it).
     logout: () => request(fetchImpl, '/api/auth/logout', postJson({}), () => undefined),
     me: () => request(fetchImpl, '/api/auth/me', { method: 'GET' }, parseAuthUser),
+    changePassword: (currentPassword, newPassword) =>
+      request(fetchImpl, '/api/auth/password', postJson({ currentPassword, newPassword }), parseAuthUser),
+  };
+}
+
+const userUrl = (id: string) => `/api/users/${encodeURIComponent(id)}`;
+
+export function createHttpUsersApi(fetchImpl: typeof fetch = (...args) => fetch(...args)): UsersApi {
+  return {
+    list: () => request(fetchImpl, '/api/users', { method: 'GET' }, parseManagedUsers),
+    create: (input) => request(fetchImpl, '/api/users', postJson(input), parseManagedUser),
+    update: (id, patch) => request(fetchImpl, userUrl(id), sendJson('PATCH', patch), parseManagedUser),
+    resetPassword: (id, temporaryPassword) =>
+      request(fetchImpl, `${userUrl(id)}/password`, postJson({ temporaryPassword }), parseManagedUser),
   };
 }

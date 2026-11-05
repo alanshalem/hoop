@@ -1,6 +1,16 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { LOGIN_PATH, loginRedirectPath, safeNextPath, toClubUser } from './auth-session';
+import {
+  afterPasswordChangePath,
+  LOGIN_PATH,
+  loginRedirectPath,
+  mustChangePasswordAt,
+  PASSWORD_CHANGE_PATH,
+  passwordChangeRedirectPath,
+  safeNextPath,
+  toClubUser,
+  type AuthUser,
+} from './auth-session';
 import { SEED_USERS } from '@/core/infrastructure/mocks/seed-data';
 
 const NOW = new Date('2026-10-30T18:00:00.000Z');
@@ -73,5 +83,45 @@ describe('loginRedirectPath', () => {
   it('keeps the requested page as `next`', () => {
     assert.strictEqual(loginRedirectPath('/matches/m-1/live'), '/login?next=%2Fmatches%2Fm-1%2Flive');
     assert.strictEqual(loginRedirectPath('/'), '/login');
+  });
+});
+
+const FLAGGED: AuthUser = { id: 'u-1', email: 'nuevo@camg.com.ar', name: 'Nuevo', role: 'HEAD_COACH', mustChangePassword: true };
+
+describe('mustChangePasswordAt (S3)', () => {
+  it('sends a flagged user away from every screen except login and the change-password screen', () => {
+    for (const pathname of ['/', '/players', '/matches/m-1/live', '/users', '/help', '/account']) {
+      assert.strictEqual(mustChangePasswordAt(FLAGGED, pathname), true, pathname);
+    }
+    assert.strictEqual(mustChangePasswordAt(FLAGGED, LOGIN_PATH), false);
+    assert.strictEqual(mustChangePasswordAt(FLAGGED, PASSWORD_CHANGE_PATH), false);
+  });
+
+  it('never redirects without a user or once the flag is clear', () => {
+    assert.strictEqual(mustChangePasswordAt(null, '/players'), false);
+    assert.strictEqual(mustChangePasswordAt({ ...FLAGGED, mustChangePassword: false }, '/players'), false);
+  });
+});
+
+describe('passwordChangeRedirectPath (S3)', () => {
+  it('keeps the requested page as a safe `next`', () => {
+    assert.strictEqual(PASSWORD_CHANGE_PATH, '/account/password');
+    assert.strictEqual(passwordChangeRedirectPath('/matches/m-1/live?tab=x'), '/account/password?next=%2Fmatches%2Fm-1%2Flive%3Ftab%3Dx');
+    assert.strictEqual(passwordChangeRedirectPath('/'), '/account/password');
+  });
+
+  it('drops external, login and change-password targets', () => {
+    for (const value of ['//evil.example', '/\t/evil.com', LOGIN_PATH, PASSWORD_CHANGE_PATH, '/account/password?next=/players']) {
+      assert.strictEqual(passwordChangeRedirectPath(value), PASSWORD_CHANGE_PATH, JSON.stringify(value));
+    }
+  });
+});
+
+describe('afterPasswordChangePath (S3)', () => {
+  it('continues to a safe `next` or the dashboard, never back to the change-password screen', () => {
+    assert.strictEqual(afterPasswordChangePath('/players?division=u19'), '/players?division=u19');
+    for (const value of [null, undefined, '', 'https://evil.example', '//evil.example', LOGIN_PATH, PASSWORD_CHANGE_PATH, '/account/password?x=1']) {
+      assert.strictEqual(afterPasswordChangePath(value), '/', String(value));
+    }
   });
 });

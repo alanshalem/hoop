@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { UserRoleSchema } from '@/core/domain/entities/club.types';
 import { PlayByPlayEventSchema } from '@/core/domain/entities/match.types';
 import type { AuthUser } from '@/core/application/auth/auth-session';
+import type { ManagedUser } from '@/core/application/users/user-admin';
 import { pickFieldVersions } from '@/core/application/sync/match-fields';
 import { SYNC_RECORD_KINDS, SYNC_RECORDS } from '@/core/application/sync/record-kinds';
 import type { PullPage, PushResult, SyncEvent, SyncRecord } from '@/core/application/sync/sync-types';
@@ -27,7 +28,23 @@ export const AuthUserSchema = z.object({
 
 export const AuthUserResponseSchema = z.object({ user: AuthUserSchema });
 
+export const ManagedUserSchema = z.object({
+  id: z.string().min(1),
+  email: z.string().min(1),
+  name: z.string().min(1),
+  role: UserRoleSchema,
+  active: z.boolean(),
+  mustChangePassword: z.boolean(),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+const ManagedUserResponseSchema = z.object({ user: ManagedUserSchema });
+const ManagedUsersResponseSchema = z.object({ users: z.array(ManagedUserSchema) });
+
 export const ErrorResponseSchema = z.object({ error: z.string() });
+
+/** Typed code of a refusal (`{ error, reason }`), e.g. `EMAIL_TAKEN`. */
+const ErrorReasonSchema = z.object({ reason: z.string().min(1) });
 
 /** Typed refusal of a whole request (409): the push was made in another data epoch. */
 const RejectionResponseSchema = z.object({ reason: z.literal('EPOCH_MISMATCH') });
@@ -99,6 +116,21 @@ export function parsePushResult(body: unknown): PushResult | null {
 export function parseAuthUser(body: unknown): AuthUser | null {
   const parsed = AuthUserResponseSchema.safeParse(body);
   return parsed.success ? parsed.data.user : null;
+}
+
+export function parseManagedUser(body: unknown): ManagedUser | null {
+  const parsed = ManagedUserResponseSchema.safeParse(body);
+  return parsed.success ? parsed.data.user : null;
+}
+
+export function parseManagedUsers(body: unknown): ManagedUser[] | null {
+  const parsed = ManagedUsersResponseSchema.safeParse(body);
+  return parsed.success ? parsed.data.users : null;
+}
+
+export function parseErrorReason(body: unknown): string | undefined {
+  const parsed = ErrorReasonSchema.safeParse(body);
+  return parsed.success ? parsed.data.reason : undefined;
 }
 
 export function parseRejectionReason(body: unknown): 'EPOCH_MISMATCH' | undefined {

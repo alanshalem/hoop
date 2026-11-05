@@ -1,0 +1,34 @@
+.form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+.note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Temporary password with its Generar button aligned to the input */
+.passwordRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.passwordField {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Monospace so look-alike characters are easy to tell apart when copying */
+.passwordInput {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  letter-spacing: 0.04em;
+}
+
+/* Skips the field label (one line plus the field gap), so the button sits beside the input */
+.generateButton {
+  flex-shrink: 0;
+  margin-top: calc(var(--text-xs) * var(--leading-normal) + var(--space-1-5));
+}

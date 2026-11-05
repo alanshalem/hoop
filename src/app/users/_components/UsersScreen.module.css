@@ -1,0 +1,177 @@
+/* User accounts: one card per account, as on the coaches screen. */
+.readOnlyNote {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--bg-surface-2);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.status {
+  padding: var(--space-6) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.userCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background-color: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+/* Club red accent along the top edge, as on the division cards */
+.userCard::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--brand-primary), transparent);
+}
+
+.userCardInactive {
+  background-color: var(--bg-surface-2);
+}
+
+.userCardInactive::before {
+  background: var(--border-subtle);
+}
+
+.userCardInactive .userName,
+.userCardInactive .userEmail {
+  color: var(--text-muted);
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.userName {
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-display);
+  line-height: var(--leading-snug);
+  text-transform: uppercase;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.userEmail {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.roleTag {
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--brand-primary);
+  color: var(--text-on-brand);
+  font-family: var(--font-display);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-display);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.roleTagMuted {
+  background-color: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+}
+
+.badge {
+  padding: var(--space-0-5) var(--space-2);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+
+.badgeOwn {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary-ink);
+}
+
+.badgeInactive {
+  background-color: var(--bg-surface-3);
+  color: var(--text-muted);
+}
+
+.badgeWarning {
+  background-color: var(--color-warning-subtle);
+  border-color: var(--color-warning);
+  color: var(--text-primary);
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.userCard .deactivateButton {
+  color: var(--text-secondary);
+}
+
+.userCard .deactivateButton:not(:disabled):hover {
+  color: var(--color-danger);
+}
+
+/* Temporary password in the success notice: easy to read and copy */
+.password {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  letter-spacing: 0.04em;
+  user-select: all;
+}

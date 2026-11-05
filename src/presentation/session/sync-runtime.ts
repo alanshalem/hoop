@@ -25,7 +25,11 @@ import {
   browserVisibility,
   createBrowserTabChannel,
 } from '@/core/infrastructure/sync-api/browser-adapters';
-import { createHttpAuthApi, createHttpSyncApi } from '@/core/infrastructure/sync-api/http-sync-api';
+import {
+  createHttpAuthApi,
+  createHttpSyncApi,
+  createHttpUsersApi,
+} from '@/core/infrastructure/sync-api/http-sync-api';
 import { claimSyncData } from './sync-ownership';
 
 /**
@@ -35,6 +39,9 @@ import { claimSyncData } from './sync-ownership';
  */
 
 export const authApi = createHttpAuthApi();
+
+/** Account administration (S1): straight to the server, never through the sync engine. */
+export const usersApi = createHttpUsersApi();
 
 const clubPort: ClubDataPort = {
   getData: () => pickSyncableClubData(useClubStore.getState()),
