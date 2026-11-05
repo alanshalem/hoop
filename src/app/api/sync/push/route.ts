@@ -1,6 +1,7 @@
 import { unstable_rethrow } from 'next/navigation';
 import { getCurrentUser } from '@/server/auth/current-user';
 import { AUTH_MESSAGES } from '@/server/auth/messages';
+import { passwordChangeRefusal } from '@/server/auth/password-change-gate';
 import { getDb } from '@/server/db/client';
 import { INTERNAL_ERROR_MESSAGE, jsonError, jsonOk } from '@/server/http/json';
 import { logServerError } from '@/server/http/log-server-error';
@@ -23,7 +24,7 @@ import { applyPush } from '@/server/sync/push';
  * records use last-write-wins. Events
  * whose match is neither stored live nor accepted earlier in the batch are INVALID.
  * 403 when a present `Origin` is not this host (checked first), 401 without a session,
- * 415 if not JSON, 413 over 500 records / 2000 events / 8 MiB, 400 for malformed JSON
+ * 403 `PASSWORD_CHANGE_REQUIRED` while the account holds a temporary password, 415 if not JSON, 413 over 500 records / 2000 events / 8 MiB, 400 for malformed JSON
  * or envelopes. Per-item problems never fail the request; a record whose `updatedAt`
  * is more than 5 minutes ahead of the server clock is rejected as INVALID (a skewed
  * clock would otherwise win every future last-write-wins comparison).
@@ -33,6 +34,8 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return jsonError(401, AUTH_MESSAGES.unauthenticated);
+    const pendingChange = passwordChangeRefusal(user);
+    if (pendingChange) return pendingChange;
     if (!isJsonRequest(request)) return jsonError(415, AUTH_MESSAGES.unsupportedMediaType);
 
     const body = await readJsonBody(request, MAX_PUSH_BODY_BYTES);

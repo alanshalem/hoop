@@ -22,6 +22,7 @@ export const AuthUserSchema = z.object({
   email: z.string().min(1),
   name: z.string().min(1),
   role: UserRoleSchema,
+  mustChangePassword: z.boolean(),
 });
 
 export const AuthUserResponseSchema = z.object({ user: AuthUserSchema });

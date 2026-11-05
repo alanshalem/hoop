@@ -12,10 +12,18 @@ export interface PublicUser {
   email: string;
   name: string;
   role: UserRole;
+  /** True until the user replaces a temporary password set by the admin (S3). */
+  mustChangePassword: boolean;
 }
 
 export function toPublicUser(row: UserRow): PublicUser {
-  return { id: row.id, email: row.email, name: row.name, role: row.role };
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    role: row.role,
+    mustChangePassword: row.mustChangePassword,
+  };
 }
 
 export function normalizeEmail(email: string): string {

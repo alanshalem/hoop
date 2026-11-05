@@ -22,7 +22,7 @@ function fakeFetch(respond: (call: Call) => Response | Promise<Response>) {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-const USER = { id: 'user-admin-1', email: 'admin@camg.com.ar', name: 'Admin', role: 'ADMIN' };
+const USER = { id: 'user-admin-1', email: 'admin@camg.com.ar', name: 'Admin', role: 'ADMIN', mustChangePassword: false };
 
 describe('http sync api', () => {
   it('pulls the full snapshot without `since` and pages with it', async () => {

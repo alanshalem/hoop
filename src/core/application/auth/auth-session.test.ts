@@ -8,7 +8,11 @@ const NOW = new Date('2026-10-30T18:00:00.000Z');
 describe('toClubUser (S10.8)', () => {
   it('takes name and role from the server for a known user', () => {
     const known = SEED_USERS[0];
-    const user = toClubUser({ id: known.id, email: known.email, name: 'Nombre Servidor', role: 'ADMIN' }, SEED_USERS, NOW);
+    const user = toClubUser(
+      { id: known.id, email: known.email, name: 'Nombre Servidor', role: 'ADMIN', mustChangePassword: false },
+      SEED_USERS,
+      NOW
+    );
     assert.strictEqual(user.id, known.id);
     assert.strictEqual(user.name, 'Nombre Servidor');
     assert.strictEqual(user.role, 'ADMIN');
@@ -16,7 +20,11 @@ describe('toClubUser (S10.8)', () => {
   });
 
   it('builds a full club user for an account the club data does not know', () => {
-    const user = toClubUser({ id: 'u-new', email: 'nuevo@camg.com.ar', name: 'Nuevo', role: 'ASSISTANT_STATISTICIAN' }, [], NOW);
+    const user = toClubUser(
+      { id: 'u-new', email: 'nuevo@camg.com.ar', name: 'Nuevo', role: 'ASSISTANT_STATISTICIAN', mustChangePassword: false },
+      [],
+      NOW
+    );
     assert.deepStrictEqual(user, {
       id: 'u-new',
       email: 'nuevo@camg.com.ar',

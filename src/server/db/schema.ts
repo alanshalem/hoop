@@ -49,6 +49,10 @@ export const users = pgTable(
     name: text('name').notNull(),
     role: userRole('role').notNull(),
     passwordHash: text('password_hash').notNull(),
+    /** Deactivated accounts stay listed but cannot log in or use a session (S4). */
+    active: boolean('active').notNull().default(true),
+    /** Set by the admin's temporary passwords; sync is refused until the user picks a new one (S2, S3). */
+    mustChangePassword: boolean('must_change_password').notNull().default(false),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

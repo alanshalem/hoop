@@ -7,7 +7,8 @@ import { findUserByEmail, toPublicUser, type PublicUser } from './users';
 
 /**
  * Checks email + password. Unknown emails still run a full scrypt verification
- * against a dummy hash, so both failure paths cost the same time.
+ * against a dummy hash, so both failure paths cost the same time. A deactivated
+ * account fails like a wrong password, after the same verification (S4).
  *
  * After a successful check, a hash written with other cost parameters (an
  * older release) is replaced by one with the current cost.
@@ -20,7 +21,7 @@ export async function authenticateUser(
   const user = await findUserByEmail(db, email);
   const passwordHash = user?.passwordHash ?? (await getDummyPasswordHash());
   const valid = await verifyPassword(password, passwordHash);
-  if (!user || !valid) return null;
+  if (!user || !valid || !user.active) return null;
 
   if (needsRehash(user.passwordHash)) {
     // Guarded by the old hash, so a password change that raced this login is not overwritten.

@@ -126,6 +126,7 @@ describe('database seed', () => {
         email: user.email.toLowerCase(),
         name: user.name,
         role: user.role,
+        mustChangePassword: false,
       });
     }
   });

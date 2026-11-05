@@ -15,6 +15,8 @@ export interface AuthUser {
   email: string;
   name: string;
   role: UserRole;
+  /** True until the user replaces a temporary password set by the admin. */
+  mustChangePassword: boolean;
 }
 
 /** Port implemented by the HTTP adapter (src/core/infrastructure/sync-api). */

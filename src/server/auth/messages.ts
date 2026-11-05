@@ -7,4 +7,7 @@ export const AUTH_MESSAGES = {
   unsupportedMediaType: 'La solicitud debe enviarse en formato JSON.',
   unauthenticated: 'No has iniciado sesión o tu sesión expiró.',
   forbiddenOrigin: 'Solicitud rechazada: el origen no está permitido.',
+  invalidPasswordChangeBody: 'Ingresa tu contraseña actual y una nueva de 8 a 256 caracteres.',
+  wrongCurrentPassword: 'La contraseña actual no es correcta.',
+  passwordChangeRequired: 'Debes cambiar tu contraseña temporal antes de continuar.',
 } as const;

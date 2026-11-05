@@ -43,6 +43,13 @@
       "when": 1793761530315,
       "tag": "0005_sour_valkyrie",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793839596530,
+      "tag": "0006_black_serpent_society",
+      "breakpoints": true
     }
   ]
 }

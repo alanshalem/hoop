@@ -15,7 +15,13 @@ describe('sessions and credentials (database)', () => {
   let connection: DatabaseConnection;
   const userId = `test-user-${randomUUID()}`;
   const email = `${userId}@test.camg.com.ar`;
-  const expectedUser = { id: userId, email, name: 'Usuario de prueba', role: 'HEAD_COACH' as const };
+  const expectedUser = {
+    id: userId,
+    email,
+    name: 'Usuario de prueba',
+    role: 'HEAD_COACH' as const,
+    mustChangePassword: false,
+  };
 
   before(async () => {
     connection = await openTestDatabase();
@@ -131,5 +137,45 @@ describe('sessions and credentials (database)', () => {
     assert.deepStrictEqual(await authenticateUser(connection.db, email.toUpperCase(), PASSWORD), expectedUser);
     assert.strictEqual(await authenticateUser(connection.db, email, 'wrong-password'), null);
     assert.strictEqual(await authenticateUser(connection.db, `missing-${email}`, PASSWORD), null);
+  });
+
+  it('carries the must-change-password flag in the public user (S3)', async () => {
+    const flaggedId = `test-user-${randomUUID()}`;
+    const flaggedEmail = `${flaggedId}@test.camg.com.ar`;
+    await connection.db.insert(users).values({
+      id: flaggedId,
+      email: flaggedEmail,
+      name: 'Temporal',
+      role: 'HEAD_COACH',
+      passwordHash: await hashPassword(PASSWORD),
+      mustChangePassword: true,
+    });
+    try {
+      const user = await authenticateUser(connection.db, flaggedEmail, PASSWORD);
+      assert.strictEqual(user?.mustChangePassword, true);
+      const { token } = await createSession(connection.db, flaggedId);
+      assert.strictEqual((await validateSessionToken(connection.db, token))?.mustChangePassword, true);
+    } finally {
+      await connection.db.delete(users).where(eq(users.id, flaggedId));
+    }
+  });
+
+  it('refuses an inactive account with the same null as a wrong password (S4)', async () => {
+    const inactiveId = `test-user-${randomUUID()}`;
+    const inactiveEmail = `${inactiveId}@test.camg.com.ar`;
+    await connection.db.insert(users).values({
+      id: inactiveId,
+      email: inactiveEmail,
+      name: 'Inactivo',
+      role: 'ADMIN',
+      passwordHash: await hashPassword(PASSWORD),
+      active: false,
+    });
+    try {
+      assert.strictEqual(await authenticateUser(connection.db, inactiveEmail, PASSWORD), null);
+      assert.strictEqual(await authenticateUser(connection.db, inactiveEmail, 'wrong-password'), null);
+    } finally {
+      await connection.db.delete(users).where(eq(users.id, inactiveId));
+    }
   });
 });

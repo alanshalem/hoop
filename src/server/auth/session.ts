@@ -1,6 +1,6 @@
 import 'server-only';
 import { createHash, randomBytes } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
 import type { DbExecutor } from '../db/client';
 import { sessions, users } from '../db/schema';
 import { toPublicUser, type PublicUser } from './users';
@@ -75,8 +75,8 @@ export async function createSession(db: DbExecutor, userId: string, now: Date = 
 }
 
 /**
- * Returns the session owner, or null when the token is unknown or expired.
- * Expired rows are deleted on sight.
+ * Returns the session owner, or null when the token is unknown or expired, or
+ * its account is deactivated. Expired rows are deleted on sight.
  */
 export async function validateSessionToken(
   db: DbExecutor,
@@ -96,9 +96,19 @@ export async function validateSessionToken(
     await db.delete(sessions).where(eq(sessions.id, id));
     return null;
   }
+  // Deactivating deletes the sessions too; this also covers a row deactivated by hand.
+  if (!row.user.active) return null;
   return toPublicUser(row.user);
 }
 
 export async function revokeSession(db: DbExecutor, token: string): Promise<void> {
   await db.delete(sessions).where(eq(sessions.id, hashSessionToken(token)));
+}
+
+/** Deletes every session of `userId`, except the one of `keepToken` when given. */
+export async function revokeUserSessions(db: DbExecutor, userId: string, keepToken?: string): Promise<void> {
+  const ofUser = eq(sessions.userId, userId);
+  await db
+    .delete(sessions)
+    .where(keepToken === undefined ? ofUser : and(ofUser, ne(sessions.id, hashSessionToken(keepToken))));
 }
