@@ -16,7 +16,7 @@ Commits go directly on `main` (user request, user-management L1). Not pushed: th
 
 - [x] T1 [S1-S3, S6] Throttling: migration, server module, login + password-change + admin-reset wiring, client messages, docs. Route: worker A. Commit: 42b9f89
 - [x] T2 [S4, S5] Seed keeps existing accounts' profile; isolated test DB for admin-guard tests; overlap proof in concurrency tests. Route: worker B (after T1; parallel launch rejected by surface overlap). Commit: 693c09f
-- [ ] T3 Full checks, native review per RDD, close. Route: inline. Commit: docs
+- [x] T3 Full checks, native review per RDD, close. Route: inline. Commit: docs
 
 ## Log
 
@@ -26,3 +26,4 @@ Commits go directly on `main` (user request, user-management L1). Not pushed: th
 - L4 (T1 evidence, commit 42b9f89): tsc, eslint, `npm test` 886/886, `npm run test:db` 90/90 (confirmed by the parent), local dev DB migrated (0007 = CREATE TABLE auth_throttles). Beyond design: admin reset also clears password-user:<id>. Limitations documented: IP limit shared per network and not clearable by the admin; X-Forwarded-For spoofable outside Vercel.
 - L5 (native review of T1, 824ab9f..ebc285f, lineage review-8a383fa8decefc38): high tier, lenses risk/resilience/reliability -> approved and acknowledged. Non-blocking advisories: R1-email-lockout-dos (anyone can lock a known email for 15 min; inherent to per-email limits), R1/R3/R4 check-then-act (concurrent bursts can exceed the limit by the number of in-flight attempts), R4-cleanup-scan-per-failure (DELETE without index on every failure), R4-login-hard-dependency (login fails if the throttle table is unavailable), R3-cleanup-cross-test, R3-screen-branch-untested.
 - L6 (T2 evidence, commit 693c09f): tsc, eslint, `npm test` 886/886, `npm run test:db` 92/92 (worker 3 runs + parent 1 run). New test databases hoop_test_users_guards and hoop_test_users_service.
+- L7 (native review of T2, ebc285f..15cdaf5, lineage review-d9a13b78da4afbcf): high tier, lenses risk/reliability -> approved and acknowledged. Non-blocking advisories: R3-001 (seed.db.test.ts:192-195), R3-002 (seed.ts:111), R3-003 (overlap.ts:68-77). Feature closed; Supabase needs `npm run db:migrate` (0006 + 0007) before the user pushes.
