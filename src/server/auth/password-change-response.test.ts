@@ -17,6 +17,16 @@ describe('own password change refusals (S3, S5)', () => {
     }
   });
 
+  it('answers a blocked change with 429, the Spanish message and TOO_MANY_ATTEMPTS (S2)', async () => {
+    const response = passwordChangeErrorResponse('TOO_MANY_ATTEMPTS');
+    assert.strictEqual(response.status, 429);
+    assert.strictEqual(response.headers.get('cache-control'), 'no-store');
+    assert.deepStrictEqual(await response.json(), {
+      error: 'Demasiados intentos fallidos. Espera 15 minutos e inténtalo de nuevo.',
+      reason: 'TOO_MANY_ATTEMPTS',
+    });
+  });
+
   it('answers a session that ended with 401 and no reason', async () => {
     const response = passwordChangeErrorResponse('UNAUTHENTICATED');
     assert.strictEqual(response.status, 401);

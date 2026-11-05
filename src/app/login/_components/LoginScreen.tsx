@@ -14,6 +14,7 @@ import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
 import { MOTION, gsap } from '@/presentation/motion/motion';
 import { useMotion } from '@/presentation/motion/useMotion';
 import { notify } from '@/presentation/organisms/DialogHost/dialog-store';
+import { loginFailureNotice } from '@/presentation/session/login-notice';
 import { authApi } from '@/presentation/session/sync-runtime';
 import { useHydrated } from '@/presentation/session/useHydrated';
 import styles from './LoginScreen.module.css';
@@ -91,26 +92,7 @@ export function LoginScreen() {
     }
 
     setPassword('');
-    if (result.error === 'NETWORK') {
-      await notify({
-        title: 'Sin conexión',
-        message:
-          'Para iniciar sesión necesitas conexión con el servidor del club. Si ya ingresaste antes en esta tablet, tu última sesión sigue disponible sin conexión.',
-        tone: 'warning',
-      });
-    } else if (result.error === 'UNAUTHORIZED') {
-      await notify({
-        title: 'No pudimos iniciar sesión',
-        message: result.message ?? 'Email o contraseña incorrectos',
-        tone: 'danger',
-      });
-    } else {
-      await notify({
-        title: 'Error del servidor',
-        message: result.message ?? 'El servidor no respondió como se esperaba. Inténtalo de nuevo en unos minutos.',
-        tone: 'danger',
-      });
-    }
+    await notify(loginFailureNotice(result));
   };
 
   return (

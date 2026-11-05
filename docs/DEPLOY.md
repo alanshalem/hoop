@@ -97,7 +97,7 @@ Qué queda después del paso 5:
 - Solo la cuenta **admin@camg.com.ar**, con la contraseña del paso 3. Las cuentas de demostración se borran.
 - La división Primera, los jugadores, los rivales, los entrenadores y los 21 partidos de las actas.
 
-`db:migrate` del paso 2 aplica todas las migraciones, también la `0006` (cuentas activas y cambio obligatorio de contraseña).
+`db:migrate` del paso 2 aplica todas las migraciones, también la `0006` (cuentas activas y cambio obligatorio de contraseña) y la `0007` (límite de intentos de contraseña).
 
 **Las demás cuentas no se crean con el seed.** Después del primer ingreso, el admin las crea desde **Usuarios** (en el menú lateral), cada una con una contraseña temporal (el botón **Generar** arma una). Pasásela a cada persona por un medio privado: al entrar por primera vez, Hoop la obliga a elegir una propia.
 
@@ -119,6 +119,8 @@ Si `pdftotext` no está en el PATH, indicalo con `PDFTOTEXT=/ruta/a/pdftotext` (
 2. **Si el cambio agrega una migración** (archivos nuevos en `drizzle/`), corré `npm run db:migrate` contra Supabase **antes** del push, con `DATABASE_URL` apuntando al Session pooler (como en la sección 5). Las migraciones de Hoop solo agregan; nunca borran datos.
 
    **La versión con Usuarios trae la migración `0006_black_serpent_society.sql`.** Agrega a `users` las columnas `active` (por defecto `true`) y `must_change_password` (por defecto `false`): las cuentas existentes siguen activas y con su contraseña. Aplicala con `npm run db:migrate` contra el Session pooler **antes** de pushear: la versión nueva lee esas columnas en cada inicio de sesión y, sin ellas, nadie puede entrar. Desde esta versión las cuentas nuevas se crean desde **Usuarios**, no con `db:seed`.
+
+   **La versión con límite de intentos trae la migración `0007_wide_adam_destine.sql`.** Crea la tabla `auth_throttles`, donde se cuentan las contraseñas incorrectas (no toca datos existentes). Aplicala con `npm run db:migrate` contra el Session pooler **antes** de pushear: la versión nueva usa esa tabla en cada inicio de sesión y, sin ella, nadie puede entrar. Si todavía no aplicaste la `0006`, el mismo `npm run db:migrate` aplica las dos, en orden.
 3. `git push origin main`: Vercel construye y publica la nueva versión sola. Cada rama o PR también recibe una dirección de vista previa.
 4. **No** vuelvas a correr `db:seed` ni `db:import-actas --yes` en producción salvo que quieras reemplazar todos los datos: `db:import-actas --yes` borra todo excepto el admin.
 
@@ -139,6 +141,7 @@ Usá la dirección del Session pooler. Guardá el archivo **fuera del repositori
 - **Variables secretas:** `DATABASE_URL` vive solo en las variables de Vercel y en tu terminal, nunca en archivos versionados.
 - **Supabase:** Hoop no usa la API de Supabase ni sus claves `anon`/`service_role`; solo la conexión PostgreSQL. No publiques esas claves.
 - **Usuarios:** después de importar solo existe el admin. Los entrenadores son fichas sin login; si otra persona necesita entrar, el admin le crea una cuenta desde **Usuarios** con una contraseña temporal. Si alguien deja el club, desactivá su cuenta (no se borra y sus sesiones se cierran al instante); si olvida la contraseña, usá **Restablecer contraseña**.
+- **Intentos de contraseña:** tras 5 inicios de sesión fallidos con el mismo correo, o 20 desde la misma IP, en 15 minutos, Hoop rechaza los intentos durante 15 minutos ("Demasiados intentos fallidos. Espera 15 minutos e inténtalo de nuevo."); lo mismo tras 5 contraseñas actuales incorrectas al cambiarla. La IP sale del encabezado `X-Forwarded-For` que fija Vercel, así que todas las tablets del club que salen por la misma conexión comparten el límite de 20. Para desbloquear una cuenta antes, el admin le restablece la contraseña desde **Usuarios**.
 
 ## 10. Problemas comunes
 
@@ -151,4 +154,6 @@ Usá la dirección del Session pooler. Guardá el archivo **fuera del repositori
 | No se puede iniciar sesión, sin mensaje de error | Se entró por `http://` | Entrá siempre por la dirección `https://` de Vercel. |
 | La app tarda mucho en cada pantalla | Función de Vercel lejos de la base | Elegí la región de funciones más cercana a Supabase (sección 4). |
 | Nadie puede iniciar sesión después de publicar, o `column "active" does not exist` en los logs de Vercel | Falta la migración `0006` en Supabase | Corré `npm run db:migrate` con el Session pooler (sección 7). |
+| Nadie puede iniciar sesión después de publicar, o `relation "auth_throttles" does not exist` en los logs de Vercel | Falta la migración `0007` en Supabase | Corré `npm run db:migrate` con el Session pooler (sección 7). |
+| "Demasiados intentos" al iniciar sesión | 5 contraseñas incorrectas para ese correo, o 20 desde la misma conexión, en 15 minutos | Esperá 15 minutos, o restablecé la contraseña de la cuenta desde **Usuarios** (levanta el bloqueo del correo, no el de la conexión). |
 | Una tablet perdió cambios sin sincronizar y mostró un aviso | Se reemplazaron los datos (importación) y su copia local era de la versión anterior | Es el comportamiento esperado: la tablet descarta la copia vieja y descarga la nueva. |

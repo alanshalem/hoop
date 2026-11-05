@@ -11,4 +11,5 @@ export const AUTH_MESSAGES = {
   wrongCurrentPassword: 'La contraseña actual no es correcta.',
   samePassword: 'La nueva contraseña debe ser distinta de la actual.',
   passwordChangeRequired: 'Debes cambiar tu contraseña temporal antes de continuar.',
+  tooManyAttempts: 'Demasiados intentos fallidos. Espera 15 minutos e inténtalo de nuevo.',
 } as const;

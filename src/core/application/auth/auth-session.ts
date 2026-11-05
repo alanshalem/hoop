@@ -30,10 +30,14 @@ export type AccountApiResult<T> =
 
 /** Port implemented by the HTTP adapter (src/core/infrastructure/sync-api). */
 export interface AuthApi {
-  login(email: string, password: string): Promise<ApiResult<AuthUser>>;
+  /** A blocked login is refused with `reason: 'TOO_MANY_ATTEMPTS'` (HTTP 429). */
+  login(email: string, password: string): Promise<AccountApiResult<AuthUser>>;
   logout(): Promise<ApiResult<void>>;
   me(): Promise<ApiResult<AuthUser>>;
-  /** `POST /api/auth/password`: clears `mustChangePassword` and closes the user's other sessions (S3, S5). */
+  /**
+   * `POST /api/auth/password`: clears `mustChangePassword` and closes the user's other sessions (S3, S5).
+   * Refused with `reason: 'TOO_MANY_ATTEMPTS'` (HTTP 429) after too many wrong current passwords.
+   */
   changePassword(currentPassword: string, newPassword: string): Promise<AccountApiResult<AuthUser>>;
 }
 

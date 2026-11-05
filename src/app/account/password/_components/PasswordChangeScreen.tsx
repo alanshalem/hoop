@@ -20,6 +20,7 @@ import { PageHeader } from '@/presentation/molecules/PageHeader/PageHeader';
 import { notify } from '@/presentation/organisms/DialogHost/dialog-store';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
 import { accountFailureMessage, SERVER_FALLBACK_MESSAGE } from '@/presentation/session/account-messages';
+import { TOO_MANY_ATTEMPTS_MESSAGE } from '@/presentation/session/login-notice';
 import { logoutWithConfirmation } from '@/presentation/session/logout';
 import { authApi } from '@/presentation/session/sync-runtime';
 import { useHydrated } from '@/presentation/session/useHydrated';
@@ -80,6 +81,15 @@ export function PasswordChangeScreen() {
     if (result.reason === 'WRONG_CURRENT_PASSWORD') {
       setValues((current) => ({ ...current, currentPassword: '' }));
       setErrors({ currentPassword: accountFailureMessage(result, 'La contraseña actual no es correcta.') });
+      return;
+    }
+    if (result.reason === 'TOO_MANY_ATTEMPTS') {
+      setValues((current) => ({ ...current, currentPassword: '' }));
+      await notify({
+        title: 'Demasiados intentos',
+        message: accountFailureMessage(result, TOO_MANY_ATTEMPTS_MESSAGE),
+        tone: 'warning',
+      });
       return;
     }
     if (result.error === 'UNAUTHORIZED') {

@@ -301,6 +301,7 @@ Pantalla con el escudo del club, campos **Email** y **Contraseña** y el botón 
 | Ya hay una sesión guardada en la tablet | Botón **Continuar como \<nombre\>** para volver sin escribir la contraseña.                                                 |
 | Cuenta con contraseña temporal          | Entra y pasa directo a [Cambiar contraseña](#cambiar-contraseña-accountpassword): hasta elegir una contraseña propia no se puede usar ninguna otra pantalla. |
 | Cuenta desactivada                      | El mismo mensaje genérico "Email o contraseña incorrectos": una cuenta desactivada no puede iniciar sesión.                 |
+| Demasiados intentos fallidos            | Tras 5 intentos fallidos con el mismo correo en 15 minutos (exista o no la cuenta), o 20 desde la misma conexión, modal "Demasiados intentos" con "Demasiados intentos fallidos. Espera 15 minutos e inténtalo de nuevo.". Durante esos 15 minutos se rechaza incluso la contraseña correcta; el administrador puede levantar el bloqueo de una cuenta [restableciendo su contraseña](#restablecer-la-contraseña-de-un-usuario). |
 
 Cualquier otra pantalla, sin una sesión guardada, redirige a `/login` y después vuelve a la pantalla pedida.
 
@@ -575,6 +576,7 @@ Cualquier usuario cambia su propia contraseña desde **Cambiar contraseña** en 
 | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Datos correctos                                  | Aviso "Contraseña actualizada". Se cierran tus sesiones en otros dispositivos; la de este sigue abierta.                                       |
 | Contraseña actual incorrecta                     | El campo lo marca con "La contraseña actual no es correcta." y no cambia nada.                                                                |
+| 5 contraseñas actuales incorrectas en 15 minutos | Aviso "Demasiados intentos" con "Demasiados intentos fallidos. Espera 15 minutos e inténtalo de nuevo.": durante 15 minutos no se acepta ningún cambio, ni con la contraseña correcta. Un cambio correcto reinicia la cuenta de intentos. |
 | Nueva contraseña de menos de 8 o más de 256 caracteres | "La contraseña debe tener entre 8 y 256 caracteres."                                                                                         |
 | Nueva contraseña igual a la actual               | "La nueva contraseña debe ser distinta de la actual."                                                                                         |
 | Las dos nuevas no coinciden                      | "Las contraseñas no coinciden."                                                                                                               |
@@ -630,6 +632,8 @@ Para alguien que olvidó su contraseña (no hay recuperación por correo):
 1. Rol Administrador. En **Usuarios**, pulsar **Restablecer contraseña** en su tarjeta.
 2. Escribir o generar una contraseña temporal y pulsar **Restablecer**.
 3. Confirmar. Se cierran todas las sesiones de esa cuenta y el aviso repite la contraseña temporal para entregársela. En su próximo ingreso deberá cambiarla.
+
+Restablecer también levanta los bloqueos por demasiados intentos de esa cuenta (el del inicio de sesión con su correo y el del cambio de contraseña), así que puede ingresar enseguida con la temporal. El bloqueo por conexión (20 intentos fallidos desde la misma) no se levanta: vence solo a los 15 minutos.
 
 Si restableces tu propia cuenta, la aplicación cierra tu sesión y vuelve a la pantalla de inicio de sesión: ingresa con la contraseña temporal y elige una nueva.
 
@@ -911,14 +915,14 @@ npm run db:import-actas -- --csv <planilla.csv> --pdfs <carpeta> --yes       # b
 
 | Ruta                                | Qué hace                                                                                                                                                                |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /api/auth/login`              | `{ email, password }` en JSON. Responde `{ user }` y crea la cookie de sesión, o 401 con "Email o contraseña incorrectos".                                              |
+| `POST /api/auth/login`              | `{ email, password }` en JSON. Responde `{ user }` y crea la cookie de sesión, o 401 con "Email o contraseña incorrectos". 429 con `reason: TOO_MANY_ATTEMPTS` durante 15 minutos tras 5 fallos con ese correo (exista o no) o 20 desde la misma IP (primera entrada de `X-Forwarded-For`) en 15 minutos, aunque la contraseña sea correcta. |
 | `POST /api/auth/logout`             | Cierra la sesión y borra la cookie. Exige `Content-Type: application/json` (cuerpo `{}`); sin él responde 415.                                                          |
 | `GET /api/auth/me`                  | El usuario de la sesión (`id`, `email`, `name`, `role`, `mustChangePassword`) o 401.                                                                                    |
-| `POST /api/auth/password`           | `{ currentPassword, newPassword }` (nueva de 8 a 256 caracteres). Responde `{ user }` con `mustChangePassword` en `false` y cierra las demás sesiones de la cuenta; 400 con `reason: WRONG_CURRENT_PASSWORD` si la actual no coincide y 400 `SAME_PASSWORD` si la nueva es igual a la actual. |
+| `POST /api/auth/password`           | `{ currentPassword, newPassword }` (nueva de 8 a 256 caracteres). Responde `{ user }` con `mustChangePassword` en `false` y cierra las demás sesiones de la cuenta; 400 con `reason: WRONG_CURRENT_PASSWORD` si la actual no coincide y 400 `SAME_PASSWORD` si la nueva es igual a la actual; 429 `TOO_MANY_ATTEMPTS` durante 15 minutos tras 5 contraseñas actuales incorrectas en 15 minutos. |
 | `GET /api/users`                    | Solo `MANAGE_USERS`. `{ users: [{ id, email, name, role, active, mustChangePassword, createdAt }] }`, por nombre. Nunca devuelve datos de contraseñas.                  |
 | `POST /api/users`                   | Solo `MANAGE_USERS`. `{ name, email, role, temporaryPassword }` -> 201 `{ user }` (activa y con cambio obligatorio); 409 `EMAIL_TAKEN`.                                  |
 | `PATCH /api/users/[id]`             | Solo `MANAGE_USERS`. `{ name?, email?, role?, active? }` -> `{ user }`; 404 `USER_NOT_FOUND`; 409 `EMAIL_TAKEN`, `SELF_DEACTIVATION`, `SELF_ROLE_CHANGE` o `LAST_ADMIN`. Desactivar cierra las sesiones de la cuenta. |
-| `POST /api/users/[id]/password`     | Solo `MANAGE_USERS`. `{ temporaryPassword }` -> `{ user }`: marca el cambio obligatorio y cierra todas las sesiones de la cuenta (también la propia si es la del administrador); 404 `USER_NOT_FOUND`. |
+| `POST /api/users/[id]/password`     | Solo `MANAGE_USERS`. `{ temporaryPassword }` -> `{ user }`: marca el cambio obligatorio, cierra todas las sesiones de la cuenta (también la propia si es la del administrador) y levanta sus bloqueos por intentos (inicio de sesión con su correo y cambio de contraseña); 404 `USER_NOT_FOUND`. |
 | `POST /api/sync/push`               | Recibe registros (los partidos con `fieldVersions` opcional: campo -> hora de su último cambio) y jugadas; responde `{ accepted, rejected: [{ id, reason }], cursor }`. |
 | `GET /api/sync/pull?since=<cursor>` | Cambios posteriores al cursor (incluye eliminaciones), de a páginas (`hasMore`). Sin `since`, todo.                                                                     |
 
@@ -931,6 +935,7 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 - Contraseñas con hash scrypt y sal aleatoria; la sesión es un token aleatorio del que el servidor solo guarda el hash.
 - Cookie `hoop_session` httpOnly, `SameSite=Lax`, `Secure` en producción (ver `SESSION_COOKIE_SECURE`).
 - Mensaje genérico ante credenciales incorrectas: no revela qué correos existen.
+- Límite de intentos de contraseña, guardado en PostgreSQL (tabla `auth_throttles`) para que valga en todas las instancias del servidor: 5 inicios de sesión fallidos por correo y 20 por IP en 15 minutos, y 5 contraseñas actuales incorrectas por cuenta al cambiarla. Al llegar al límite se rechaza todo intento durante 15 minutos con 429 `TOO_MANY_ATTEMPTS`, antes de comprobar la contraseña; los correos inexistentes se bloquean igual. Un ingreso correcto reinicia la cuenta de su correo (no la de la IP) y un cambio correcto, la de su cuenta. Restablecer la contraseña desde Usuarios levanta los bloqueos de esa cuenta. La IP es la primera entrada de `X-Forwarded-For` (Vercel la fija); sin ese encabezado solo cuenta el límite por correo, y fuera de un proxy que lo fije el cliente puede falsearlo. Las filas vencidas se borran al registrar un nuevo fallo.
 - `login`, `logout`, `push`, `POST /api/auth/password` y los cambios de `/api/users` exigen JSON y rechazan con 403 ("Solicitud rechazada: el origen no está permitido.") los pedidos cuyo encabezado `Origin` no coincide con el host del servidor. Detrás de un proxy inverso, el proxy debe enviar `X-Forwarded-Host` (o conservar `Host`).
 - Los permisos de cada cambio se validan en el servidor con la misma matriz de roles que usa la interfaz.
 - Las cuentas no se borran: desactivar una cierra sus sesiones al instante y bloquea su ingreso con el mismo mensaje genérico. Restablecer una contraseña cierra todas las sesiones de la cuenta; cambiar la propia cierra las demás y conserva la actual.
@@ -949,6 +954,7 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 | 403 "Solicitud rechazada: el origen no está permitido."                 | Un proxy cambia el `Host` sin enviar `X-Forwarded-Host`.                                                | Configurar el proxy para conservar el host original.                                |
 | Una tablet no ve cambios de otra                                        | Pasaron menos de 10 s, la pestaña estuvo oculta o una descarga falló y espera para reintentar.         | Tocar el estado de sincronización para descargar al instante.                       |
 | Después de reiniciar la base, una tablet muestra datos viejos           | Todavía no detectó el reinicio (lo hace con el próximo envío).                                          | Cerrar sesión y volver a ingresar.                                                  |
+| "Demasiados intentos" al iniciar sesión o al cambiar la contraseña       | 5 contraseñas incorrectas para ese correo o cuenta (o 20 desde la misma conexión) en 15 minutos.        | Esperar 15 minutos, o que el administrador restablezca la contraseña de la cuenta. |
 | `npm run test:db` no conecta                                            | Falta `TEST_DATABASE_URL` o `DATABASE_URL`, o el contenedor no está levantado.                          | `npm run db:up` y revisar `.env.local`.                                             |
 
 ---
@@ -1018,7 +1024,7 @@ Resueltas en esta versión: los partidos se combinan campo por campo entre table
 | Empate tras el 4.º suplementario     | Si el reloj llega a 00:00 con empate al final del 4.º suplementario, solo se muestra un aviso.                                                                                                             |
 | Dorsal repetido                      | No se impide que dos jugadores del mismo equipo usen el mismo dorsal.                                                                                                                                      |
 | Contraseña olvidada                  | No hay recuperación por correo: el administrador le asigna una contraseña temporal desde [Usuarios](#usuarios-users).                                                                                     |
-| Intentos de contraseña               | No hay límite de intentos ni bloqueo temporal, ni al iniciar sesión ni al escribir la contraseña actual para cambiarla.                                                                                   |
+| Bloqueo por intentos desde una red   | El límite de 20 inicios de sesión fallidos por IP se comparte entre todas las tablets que salen a internet por la misma conexión (por ejemplo, la red del club), y el administrador no puede levantarlo: vence solo a los 15 minutos. |
 | Cambio de usuario sin conexión       | Si otra cuenta entra en la tablet sin conexión, se descarta la cola de la anterior, pero sus cambios siguen a la vista hasta que llega la copia completa del servidor.                                     |
 | Cierre de sesión sin conexión        | La sesión del servidor sigue válida hasta que vence (30 días) o hasta el próximo ingreso en esa tablet. La aplicación lo avisa al cerrar sesión.                                                           |
 | Cierre de sesión con varias pestañas | Cerrar sesión en una pestaña no cierra las demás al instante: la pestaña principal pide iniciar sesión con su próximo envío al servidor.                                                                   |
@@ -1098,7 +1104,7 @@ Un club agrega sus propios códigos desde la pantalla [Códigos de la planilla](
 - Runner: `node:test` con `node:assert`, ejecutado por `tsx` (`npm test`). Los archivos `*.test.ts` viven junto al código que prueban.
 - Cubren: reglas FIBA (faltas de equipo, bonus, box score), reloj y períodos, tiempos muertos, convocatoria, permisos, clasificación de jugadas, esquemas, derivación del marcador y parciales, analítica de temporada, casos de uso de club y de partido, estado del store y migración, reducer del reloj, reglas de la consola, columnas del box score, planilla táctica (catálogo, carga, deshacer y grilla), integridad e identidad de los datos de demostración.
 - Sincronización del cliente: diferencias entre estados, coalescencia de la cola, límites del envío, resultado del envío (aceptado, `STALE`, `FORBIDDEN`, `INVALID`), fusión last-write-wins, eliminaciones, orden de jugadas, primera sincronización, cambios hechos antes de la primera sincronización, cola reaplicada sobre la copia completa, reinicio del cursor, dueño de la cola al cambiar de usuario, motor (debounce, reintentos con espera creciente, 401, sin conexión, consultas periódicas solo con alguna pestaña visible y solo en la pestaña principal), cierre de sesión sin conexión, destino seguro tras el ingreso, adaptador HTTP y textos del indicador.
-- Servidor: hash de contraseñas, sesiones, RBAC, esquemas de la API, reglas de fusión, tamaño del pool de la base y, con `npm run test:db`, integración contra PostgreSQL.
+- Servidor: hash de contraseñas, sesiones, RBAC, esquemas de la API, reglas de fusión, tamaño del pool de la base y, con `npm run test:db`, integración contra PostgreSQL (incluido el límite de intentos de contraseña: bloqueo, vencimiento, fallos concurrentes y desbloqueo al restablecer).
 - No cubren: componentes React ni flujos en navegador.
 - Controles de calidad antes de integrar: `npx tsc --noEmit`, `npm run lint`, `npm test` y `npm run build`.
 

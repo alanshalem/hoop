@@ -17,7 +17,8 @@ import { resetUserPassword } from '@/server/users/service';
  * Sets a new temporary password (8 to 256 characters): the account must change it
  * at its next login and EVERY session of the account is deleted. When an admin
  * resets their own password this includes the session making the request, so the
- * admin is logged out and logs in again with the temporary password.
+ * admin is logged out and logs in again with the temporary password. It also lifts
+ * the account's login and password change blocks (429 `TOO_MANY_ATTEMPTS`).
  * 403 when a present `Origin` is not this host, 415 if not JSON, 401 without a session,
  * 403 `PASSWORD_CHANGE_REQUIRED` while the caller must change a temporary password,
  * 403 without `MANAGE_USERS`, 400 for a malformed body, 404 `USER_NOT_FOUND`,

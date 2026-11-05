@@ -5,7 +5,8 @@ import type { PasswordChangeError } from './password-change';
 
 /**
  * The refusal of an own password change (S3, S5): 401 when the session ended,
- * else 400 with the error code as `reason`.
+ * 429 `TOO_MANY_ATTEMPTS` while the user is blocked (auth-followups S2), else
+ * 400 with the error code as `reason`.
  */
 export function passwordChangeErrorResponse(error: PasswordChangeError): Response {
   switch (error) {
@@ -15,5 +16,7 @@ export function passwordChangeErrorResponse(error: PasswordChangeError): Respons
       return jsonError(400, AUTH_MESSAGES.samePassword, error);
     case 'WRONG_CURRENT_PASSWORD':
       return jsonError(400, AUTH_MESSAGES.wrongCurrentPassword, error);
+    case 'TOO_MANY_ATTEMPTS':
+      return jsonError(429, AUTH_MESSAGES.tooManyAttempts, error);
   }
 }

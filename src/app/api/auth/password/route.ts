@@ -20,7 +20,9 @@ import { MAX_USER_BODY_BYTES } from '@/server/users/schemas';
  * 403 when a present `Origin` is not this host, 415 if not JSON, 401 without a
  * session, 400 for a malformed body, 400 `WRONG_CURRENT_PASSWORD` when the
  * current password does not match, 400 `SAME_PASSWORD` when the new password
- * equals the current one (nothing changes in either case).
+ * equals the current one (nothing changes in either case), 429 `TOO_MANY_ATTEMPTS`
+ * for 15 minutes after 5 wrong current passwords within 15 minutes (a successful
+ * change clears the counter).
  */
 export async function POST(request: Request): Promise<Response> {
   if (!isSameOriginRequest(request)) return jsonError(403, AUTH_MESSAGES.forbiddenOrigin);

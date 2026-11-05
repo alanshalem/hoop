@@ -5,6 +5,7 @@ import {
   boolean,
   check,
   index,
+  integer,
   jsonb,
   pgEnum,
   pgSequence,
@@ -124,6 +125,18 @@ export const matchEvents = pgTable(
 export const syncMeta = pgTable('sync_meta', {
   key: text('key').primaryKey(),
   value: text('value').notNull(),
+});
+
+/**
+ * Failed password attempts by key (`login-email:<email>`, `login-ip:<ip>`,
+ * `password-user:<user id>`), see src/server/auth/throttle.ts. Rows are counters
+ * only: expired ones are deleted opportunistically.
+ */
+export const authThrottles = pgTable('auth_throttles', {
+  key: text('key').primaryKey(),
+  failures: integer('failures').notNull(),
+  windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
+  blockedUntil: timestamp('blocked_until', { withTimezone: true }),
 });
 
 export type UserRow = typeof users.$inferSelect;

@@ -4,6 +4,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import type { UserRole } from '@/core/domain/entities/club.types';
 import { hashPassword } from '../auth/password';
 import { revokeUserSessions } from '../auth/session';
+import { clearThrottle, throttleKey } from '../auth/throttle';
 import { normalizeEmail } from '../auth/users';
 import type { DbExecutor } from '../db/client';
 import { users, type UserRow } from '../db/schema';
@@ -20,6 +21,8 @@ import type { CreateUserBody, UpdateUserBody } from './schemas';
  * upgrades a lock it shares with another one. Login (session insert, `KEY SHARE`)
  * does not conflict with it, and a self-service password change locks only its
  * own row and no other account afterwards, so neither can close a cycle.
+ * Throttle rows (`auth_throttles`) are only ever locked after the account rows
+ * or alone, one statement at a time.
  * =============================================================================
  */
 
@@ -182,7 +185,9 @@ export async function updateUser(
 /**
  * Sets a new temporary password (S2): the account must change it at the next
  * login and every one of its sessions closes, including the caller's own when
- * an admin resets their own password.
+ * an admin resets their own password. It also lifts the account's login and
+ * password change blocks (auth-followups S3), so the user can log in with the
+ * temporary password and replace it right away.
  */
 export async function resetUserPassword(
   db: DbExecutor,
@@ -200,6 +205,8 @@ export async function resetUserPassword(
       .returning();
     if (!row) return fail('USER_NOT_FOUND');
     await revokeUserSessions(tx, row.id);
+    await clearThrottle(tx, throttleKey.loginEmail(row.email));
+    await clearThrottle(tx, throttleKey.passwordChange(row.id));
     return { ok: true, user: toManagedUser(row) };
   });
 }

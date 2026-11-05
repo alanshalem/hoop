@@ -248,6 +248,13 @@ describe('http auth api', () => {
     });
   });
 
+  it('returns the message and reason of a blocked login (S1)', async () => {
+    const message = 'Demasiados intentos fallidos. Espera 15 minutos e inténtalo de nuevo.';
+    const { fetchImpl } = fakeFetch(() => json({ error: message, reason: 'TOO_MANY_ATTEMPTS' }, 429));
+    const result = await createHttpAuthApi(fetchImpl).login('x@y.z', 'nope');
+    assert.deepStrictEqual(result, { ok: false, error: 'HTTP', status: 429, message, reason: 'TOO_MANY_ATTEMPTS' });
+  });
+
   it('reads the session user and logs out with a JSON request', async () => {
     const { fetchImpl, calls } = fakeFetch((call) => (call.url.endsWith('/me') ? json({ user: USER }) : json({ ok: true })));
     const api = createHttpAuthApi(fetchImpl);
@@ -285,6 +292,13 @@ describe('http auth api: change own password (S3, S5)', () => {
       message: 'La contraseña actual no es correcta.',
       reason: 'WRONG_CURRENT_PASSWORD',
     });
+  });
+
+  it('returns the message and reason of a blocked password change (S2)', async () => {
+    const message = 'Demasiados intentos fallidos. Espera 15 minutos e inténtalo de nuevo.';
+    const { fetchImpl } = fakeFetch(() => json({ error: message, reason: 'TOO_MANY_ATTEMPTS' }, 429));
+    const result = await createHttpAuthApi(fetchImpl).changePassword('mal', 'nueva-clave-1');
+    assert.deepStrictEqual(result, { ok: false, error: 'HTTP', status: 429, message, reason: 'TOO_MANY_ATTEMPTS' });
   });
 
   it('maps a lost session, a network failure and a malformed user', async () => {
