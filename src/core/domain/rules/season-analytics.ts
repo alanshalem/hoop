@@ -110,3 +110,15 @@ export function calculateSeasonLeaders(
 
   return { points: findLeader() };
 }
+
+/** Points per player over the FINISHED matches of every team (players listed in each match). */
+export function seasonPointsByPlayer(matches: readonly Match[]): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const match of matches) {
+    if (match.status !== 'FINISHED') continue;
+    for (const stats of Object.values(calculateMatchBoxScore(match).players)) {
+      totals.set(stats.playerId, (totals.get(stats.playerId) ?? 0) + stats.points);
+    }
+  }
+  return totals;
+}

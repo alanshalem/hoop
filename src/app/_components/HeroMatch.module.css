@@ -1,0 +1,178 @@
+/* -----------------------------------------------------------------------------
+   HERO MATCH CARD
+   ----------------------------------------------------------------------------- */
+.hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  overflow: hidden;
+  background-color: var(--bg-surface-1);
+  background-image: var(--motif-glow), var(--motif-stripes);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+
+@media (min-width: 768px) {
+  .hero {
+    padding: var(--space-6) var(--space-8);
+  }
+}
+
+/* Half-court arc watermark in club red */
+.hero::after {
+  content: '';
+  position: absolute;
+  right: -120px;
+  bottom: -160px;
+  width: 360px;
+  height: 360px;
+  border: 2px solid var(--brand-primary);
+  border-radius: var(--radius-full);
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.hero > * {
+  position: relative;
+  z-index: var(--z-base);
+}
+
+.heroLive {
+  border: 2px solid var(--brand-primary);
+  box-shadow: 0 12px 40px -8px var(--brand-primary-glow);
+}
+
+.heroTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.heroEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-display);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--brand-primary-ink);
+}
+
+.heroCompetition {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+}
+
+.heroBoard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.heroTeam {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  text-align: center;
+}
+
+.heroTeamName {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-display);
+  line-height: var(--leading-tight);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.heroTeamOwn .heroTeamName {
+  color: var(--text-primary);
+}
+
+.heroScore {
+  font-size: var(--text-scoreboard);
+  font-weight: var(--font-weight-display);
+  line-height: var(--leading-display);
+  color: var(--text-primary);
+}
+
+.heroTeamOwn .heroScore {
+  color: var(--brand-primary-ink);
+  text-shadow: 0 0 24px var(--brand-primary-glow);
+}
+
+.heroTeamSide {
+  font-family: var(--font-display);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-display);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.heroTeamOwn .heroTeamSide {
+  color: var(--brand-primary-ink);
+}
+
+.heroCenter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.heroQuarter {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  background-color: var(--brand-primary);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-display);
+  letter-spacing: 0.08em;
+  color: var(--text-on-brand);
+}
+
+.heroClock {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--brand-black);
+  border: 1px solid var(--border-strong);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-display);
+  letter-spacing: 0.06em;
+  color: var(--brand-primary-ink);
+}
+
+.heroVersus {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: var(--font-weight-display);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+@media (max-width: 639px) {
+  .heroActions > * {
+    flex: 1 1 100%;
+  }
+}

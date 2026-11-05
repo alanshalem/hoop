@@ -18,10 +18,6 @@ export const MATCH_CONDITION_LABELS: Record<MatchCondition, string> = {
   AWAY: 'Visitante',
 };
 
-/** LIVE and HALFTIME are both "in play" for navigation purposes. */
-export const isMatchInPlay = (match: Pick<Match, 'status'>): boolean =>
-  match.status === 'LIVE' || match.status === 'HALFTIME';
-
 const DATE_FORMAT = new Intl.DateTimeFormat('es-AR', {
   weekday: 'short',
   day: '2-digit',

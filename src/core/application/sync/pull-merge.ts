@@ -1,4 +1,5 @@
 import type { Match } from '@/core/domain/entities/match.types';
+import { isMatchInPlay } from '@/core/domain/rules/match-status';
 import {
   changedMatchFields,
   coversFieldVersions,
@@ -209,7 +210,7 @@ export function reconcileSelection(selection: ClubSelection, data: SyncableClubD
   const hasDivision = data.divisions.some((division) => division.id === selection.activeDivisionId);
   const hasMatch = data.matches.some((match) => match.id === selection.activeMatchId);
   const fallbackMatch =
-    data.matches.find((match) => match.status === 'LIVE' || match.status === 'HALFTIME') ?? data.matches[0];
+    data.matches.find(isMatchInPlay) ?? data.matches[0];
   return {
     activeDivisionId: hasDivision ? selection.activeDivisionId : (data.divisions[0]?.id ?? ''),
     activeMatchId: hasMatch ? selection.activeMatchId : (fallbackMatch?.id ?? ''),

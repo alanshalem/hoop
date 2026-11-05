@@ -1,0 +1,33 @@
+.columns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+/* Tablet landscape and up: roster and starters side by side */
+@media (min-width: 1024px) {
+  .columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.playerList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+}
+
+.medicalNote {
+  flex-basis: 100%;
+  font-size: var(--text-2xs);
+  color: var(--color-warning);
+}
+
+.dialogList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-left: var(--space-5);
+}

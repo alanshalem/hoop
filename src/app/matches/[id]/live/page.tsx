@@ -3,6 +3,7 @@
 import React, { Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import { BarChart3, CalendarX2, ClipboardList } from 'lucide-react';
+import { isMatchInPlay } from '@/core/domain/rules/match-status';
 import { can } from '@/core/domain/rules/permissions';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
@@ -10,7 +11,7 @@ import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAp
 import { PageHeader } from '@/presentation/molecules/PageHeader/PageHeader';
 import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
 import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
-import { getMatchOutcome, isMatchInPlay } from '@/presentation/organisms/MatchCard/match-display';
+import { getMatchOutcome } from '@/presentation/organisms/MatchCard/match-display';
 import { LiveConsole } from './_components/LiveConsole';
 import styles from './page.module.css';
 

@@ -1,11 +1,11 @@
-import type { Player, Team } from '@/core/domain/entities/club.types';
+import type { DivisionCategory, Player, Team } from '../entities/club.types';
 
 /**
  * Players of a team: the ones assigned to it (`player.teamId`) plus the ones
  * listed in its roster (`team.playerIds`, which includes called-up juveniles).
  * Sorted by dorsal.
  */
-export const getTeamRosterPlayers = (team: Team | undefined, players: Player[]): Player[] => {
+export const getTeamRosterPlayers = (team: Team | undefined, players: readonly Player[]): Player[] => {
   if (!team) return [];
   const rosterIds = new Set(team.playerIds);
   return players
@@ -16,3 +16,7 @@ export const getTeamRosterPlayers = (team: Team | undefined, players: Player[]):
 /** A player listed in a team roster without belonging to that team. */
 export const isCalledUpTo = (player: Player, team: Team | undefined): boolean =>
   Boolean(team && player.teamId !== team.id && team.playerIds.includes(player.id));
+
+/** Youth categories whose players can be called up to the first team. */
+export const isYouthCategory = (category: DivisionCategory): boolean =>
+  category !== 'PRIMERA' && category !== 'FEMENINO' && category !== 'CUSTOM';

@@ -5,6 +5,7 @@ import { Award, CalendarRange, Pencil, Plus, Shield, Trash2, UserCog, Users } fr
 import clsx from 'clsx';
 import type { Division } from '@/core/domain/entities/club.types';
 import { can } from '@/core/domain/rules/permissions';
+import { getTeamRosterPlayers } from '@/core/domain/rules/team-roster';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { CLUB_PROFILE } from '@/core/domain/club-profile';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
@@ -19,7 +20,6 @@ import { DivisionFormModal } from '@/presentation/organisms/DivisionFormModal/Di
 import { DIVISION_CATEGORY_LABELS } from '@/presentation/organisms/DivisionFormModal/division-labels';
 import { coachNames } from '@/presentation/organisms/DivisionFormModal/division-staff';
 import { DivisionRosterModal } from '@/presentation/organisms/DivisionRosterModal/DivisionRosterModal';
-import { getTeamRosterPlayers } from '@/presentation/organisms/DivisionRosterModal/team-roster';
 import { useEditModal } from '@/presentation/hooks/useEditModal';
 import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import styles from './page.module.css';

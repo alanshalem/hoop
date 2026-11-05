@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { BarChart3, CalendarDays, ClipboardList, Pencil, Plus, Radio, Swords, Trash2, Users } from 'lucide-react';
 import type { Match, MatchStatus } from '@/core/domain/entities/match.types';
+import { isMatchInPlay } from '@/core/domain/rules/match-status';
 import { can } from '@/core/domain/rules/permissions';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
@@ -16,11 +17,7 @@ import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
 import { IconButton } from '@/presentation/atoms/IconButton/IconButton';
 import { confirm } from '@/presentation/organisms/DialogHost/dialog-store';
 import { MatchCard } from '@/presentation/organisms/MatchCard/MatchCard';
-import {
-  formatMatchDate,
-  isMatchInPlay,
-  sortMatchesForCalendar,
-} from '@/presentation/organisms/MatchCard/match-display';
+import { formatMatchDate, sortMatchesForCalendar } from '@/presentation/organisms/MatchCard/match-display';
 import { MatchFormModal } from '@/presentation/organisms/MatchFormModal/MatchFormModal';
 import {
   ALL,

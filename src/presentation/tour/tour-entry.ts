@@ -1,5 +1,5 @@
 import type { Match } from '@/core/domain/entities/match.types';
-import { isMatchInPlay } from '@/presentation/organisms/MatchCard/match-display';
+import { isMatchInPlay } from '@/core/domain/rules/match-status';
 import type { TourId } from './tour-model';
 
 /** Where a tour can be replayed from the picker, or why it cannot open now. */

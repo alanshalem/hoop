@@ -11,7 +11,3 @@ export const DIVISION_CATEGORY_LABELS: Record<DivisionCategory, string> = {
   FEMENINO: 'Femenino',
   CUSTOM: 'Otra categoría',
 };
-
-/** Youth categories whose players can be called up to the first team. */
-export const isYouthCategory = (category: DivisionCategory): boolean =>
-  category !== 'PRIMERA' && category !== 'FEMENINO' && category !== 'CUSTOM';

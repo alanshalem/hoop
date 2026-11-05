@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { calculateSeasonLeaders, calculateSeasonSummary } from './season-analytics';
+import { calculateSeasonLeaders, calculateSeasonSummary, seasonPointsByPlayer } from './season-analytics';
 import type { Player } from '../entities/club.types';
 import { makeEvent, makeMatch } from '@/core/testing/fixtures';
 
@@ -118,5 +118,23 @@ describe('calculateSeasonLeaders', () => {
   it('has no shooting percentages in the season summary', () => {
     const summary = calculateSeasonSummary([win, loss], 'team-own');
     assert.ok(!('fgPct' in summary) && !('fg3Pct' in summary));
+  });
+});
+
+describe('seasonPointsByPlayer', () => {
+  it('adds the points of every finished match of every team, per listed player', () => {
+    const otherTeamWin = makeMatch({
+      id: 'm-other-win',
+      status: 'FINISHED',
+      ownTeamId: 'team-x',
+      rosterOwnPlayerIds: ['p1', 'p3'],
+      events: [makeEvent({ playerId: 'p3', type: 'FG2_MADE', teamId: 'team-x' })],
+    });
+    const totals = seasonPointsByPlayer([win, loss, live, otherTeamWin]);
+    assert.deepStrictEqual(Object.fromEntries(totals), { p1: 4, p2: 2, p3: 2 });
+  });
+
+  it('is empty without finished matches', () => {
+    assert.strictEqual(seasonPointsByPlayer([live]).size, 0);
   });
 });

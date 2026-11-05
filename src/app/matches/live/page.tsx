@@ -3,13 +3,13 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarDays, Radio } from 'lucide-react';
+import { isMatchInPlay } from '@/core/domain/rules/match-status';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
 import { PageHeader } from '@/presentation/molecules/PageHeader/PageHeader';
 import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
 import { LinkButton } from '@/presentation/atoms/LinkButton/LinkButton';
-import { isMatchInPlay } from '@/presentation/organisms/MatchCard/match-display';
 
 /** Shortcut from the nav rail: opens the match in play, if any. */
 export default function CurrentLiveMatchPage() {

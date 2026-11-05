@@ -1,5 +1,5 @@
 import type { Match } from '@/core/domain/entities/match.types';
-import { isMatchInPlay } from '@/presentation/organisms/MatchCard/match-display';
+import { isMatchInPlay } from '@/core/domain/rules/match-status';
 
 /** SETUP: before tip-off. IN_PLAY: starters locked, roster can grow. FINISHED: read-only. */
 export type LineupMode = 'SETUP' | 'IN_PLAY' | 'FINISHED';

@@ -1,3 +1,7 @@
+import type { Player, Team } from '../entities/club.types';
+import type { Match } from '../entities/match.types';
+import { getTeamRosterPlayers } from './team-roster';
+
 /**
  * =============================================================================
  * HOOP - LINEUP RULES (FIBA Art. 4)
@@ -50,4 +54,26 @@ export function validateLineup(rosterIds: string[], starterIds: string[]): Lineu
     });
   }
   return issues;
+}
+
+/**
+ * Players that can be listed for a match: the match team roster (own players
+ * plus called-up juveniles) and anyone already listed, sorted by dorsal.
+ * Suspended players are left out, except the ones already listed once the
+ * match has started.
+ */
+export function getLineupCandidates(
+  match: Pick<Match, 'status' | 'rosterOwnPlayerIds'>,
+  team: Team | undefined,
+  players: readonly Player[]
+): Player[] {
+  const listed = match.rosterOwnPlayerIds;
+  const candidateIds = new Set([...getTeamRosterPlayers(team, players).map((p) => p.id), ...listed]);
+  return players
+    .filter(
+      (p) =>
+        candidateIds.has(p.id) &&
+        (p.status !== 'SUSPENDED' || (match.status !== 'SCHEDULED' && listed.includes(p.id)))
+    )
+    .sort((a, b) => a.dorsal - b.dorsal);
 }

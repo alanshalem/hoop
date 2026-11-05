@@ -2,10 +2,11 @@ import React from 'react';
 import clsx from 'clsx';
 import { CalendarDays, Clock, MapPin, Trophy } from 'lucide-react';
 import type { Match } from '@/core/domain/entities/match.types';
+import { isMatchInPlay } from '@/core/domain/rules/match-status';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { MatchStatusBadge } from './MatchStatusBadge';
 import { OfficialResultBadge } from './OfficialResultBadge';
-import { MATCH_CONDITION_LABELS, formatMatchDate, hasOnlyOfficialResult, isMatchInPlay } from './match-display';
+import { MATCH_CONDITION_LABELS, formatMatchDate, hasOnlyOfficialResult } from './match-display';
 import styles from './MatchCard.module.css';
 
 export interface MatchCardProps {

@@ -6,6 +6,7 @@ import clsx from 'clsx';
 import { BarChart3, CalendarX2, ClipboardList, Radio, Table2 } from 'lucide-react';
 import type { Match } from '@/core/domain/entities/match.types';
 import { calculateMatchBoxScore, getQuarterPartials } from '@/core/domain/rules/match-derivations';
+import { isMatchInPlay } from '@/core/domain/rules/match-status';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { selectChartCatalog, selectRivalRoster } from '@/core/application/stores/club-state';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
@@ -25,7 +26,6 @@ import {
   formatMatchDate,
   getMatchOutcome,
   hasOnlyOfficialResult,
-  isMatchInPlay,
   type MatchOutcome,
 } from '@/presentation/organisms/MatchCard/match-display';
 import { useScreenTour } from '@/presentation/tour/useScreenTour';

@@ -1,18 +1,14 @@
 'use client';
 
-import React, { useId, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useWatch } from 'react-hook-form';
 import { z } from 'zod';
-import { Pencil, Trash2, UserPlus } from 'lucide-react';
 import { Match, MatchConditionSchema } from '@/core/domain/entities/match.types';
 import type { RivalPlayer } from '@/core/domain/entities/rival.types';
 import { can } from '@/core/domain/rules/permissions';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { CLUB_PROFILE } from '@/core/domain/club-profile';
-import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { FilterChipGroup } from '@/presentation/molecules/FilterChipGroup/FilterChipGroup';
-import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
-import { IconButton } from '@/presentation/atoms/IconButton/IconButton';
 import { FilterChip } from '@/presentation/atoms/FilterChip/FilterChip';
 import { TextField } from '@/presentation/atoms/TextField/TextField';
 import { SelectField, type SelectFieldOption } from '@/presentation/atoms/SelectField/SelectField';
@@ -22,15 +18,11 @@ import { RivalPlayerFormModal } from '@/presentation/organisms/RivalPlayerFormMo
 import { FormModalSheet } from '@/presentation/templates/FormModalSheet/FormModalSheet';
 import { useModalForm } from '@/presentation/hooks/useModalForm';
 import { useEditModal } from '@/presentation/hooks/useEditModal';
-import {
-  formatRivalPlayerCount,
-  type RivalPlayerFormData,
-} from '@/presentation/organisms/RivalTeamFormModal/rival-roster';
+import type { RivalPlayerFormData } from '@/presentation/organisms/RivalTeamFormModal/rival-roster';
 import {
   EMPTY_ROSTER_DRAFT,
   applyRosterOperations,
   divisionRivalSuggestions,
-  formatMissingRoster,
   planRosterOperations,
   removeDraftPlayer,
   resolveMatchRivalRoster,
@@ -38,6 +30,7 @@ import {
   saveDraftPlayer,
   type RosterRow,
 } from './match-rival-roster';
+import { MatchRivalRosterSection } from './MatchRivalRosterSection';
 import styles from './MatchFormModal.module.css';
 
 const MatchFormSchema = z.object({
@@ -103,7 +96,6 @@ export const MatchFormModal: React.FC<MatchFormModalProps> = ({
   matchToEdit,
   defaultDivisionId,
 }) => {
-  const rosterTitleId = useId();
   const divisions = useClubStore((state) => state.divisions);
   const teams = useClubStore((state) => state.teams);
   const rivalTeams = useClubStore((state) => state.rivalTeams);
@@ -305,65 +297,16 @@ export const MatchFormModal: React.FC<MatchFormModalProps> = ({
         />
 
         {roster.kind !== 'NONE' && (
-          <section className={styles.roster} aria-labelledby={rosterTitleId}>
-            <div className={styles.rosterHeader}>
-              <h3 id={rosterTitleId} className={styles.rosterTitle}>
-                Plantel rival
-              </h3>
-              <span className={styles.rosterCount}>{formatRivalPlayerCount(rows.length)}</span>
-            </div>
-            {roster.kind === 'MISSING' && (
-              <p className={styles.rosterNote}>{formatMissingRoster(roster.name, divisionName)}</p>
-            )}
-            {roster.kind === 'FOUND' && rows.length === 0 && (
-              <p className={styles.rosterNote}>Todavía no hay jugadores cargados.</p>
-            )}
-            {rows.length > 0 && (
-              <ul className={styles.rosterList} aria-label={`Plantel de ${rosterName}`}>
-                {rows.map((row) => (
-                  <li key={row.key} className={styles.playerRow}>
-                    <span className={styles.dorsal}>{row.dorsal}</span>
-                    <span className={styles.playerName}>
-                      {row.firstName} <strong>{row.lastName}</strong>
-                    </span>
-                    {canManageRoster && (
-                      <span className={styles.playerActions}>
-                        <IconButton
-                          aria-label={`Editar a #${row.dorsal} ${row.lastName}`}
-                          variant="ghost"
-                          icon={<Pencil size={ICON_SIZE.md} />}
-                          onClick={() => openPlayerForm(row)}
-                        />
-                        <IconButton
-                          aria-label={`Quitar a #${row.dorsal} ${row.lastName}`}
-                          variant="ghost"
-                          icon={<Trash2 size={ICON_SIZE.md} />}
-                          onClick={() => setRosterDraft(removeDraftPlayer(baseline, rosterDraft, row.key))}
-                        />
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {canManageRoster && (
-              <TouchButton
-                variant="secondary"
-                fullWidth
-                leftIcon={<UserPlus size={ICON_SIZE.md} />}
-                onClick={() => openPlayerForm(null)}
-              >
-                Agregar jugador
-              </TouchButton>
-            )}
-            {hasPendingRoster && (
-              <p className={styles.rosterPending}>
-                {roster.kind === 'MISSING'
-                  ? `Al guardar el partido se crea el rival ${roster.name} en ${divisionName} con estos jugadores.`
-                  : 'Los cambios del plantel se guardan junto con el partido.'}
-              </p>
-            )}
-          </section>
+          <MatchRivalRosterSection
+            roster={roster}
+            rows={rows}
+            divisionName={divisionName}
+            rosterName={rosterName}
+            canManageRoster={canManageRoster}
+            hasPendingRoster={hasPendingRoster}
+            onEditPlayer={openPlayerForm}
+            onRemovePlayer={(rowKey) => setRosterDraft(removeDraftPlayer(baseline, rosterDraft, rowKey))}
+          />
         )}
       </FormModalSheet>
       {/* Sibling, not child: the match sheet is transformed by its animation and already holds a form. */}

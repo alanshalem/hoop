@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Award, Users } from 'lucide-react';
+import { getTeamRosterPlayers, isCalledUpTo } from '@/core/domain/rules/team-roster';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { ModalSheet } from '@/presentation/molecules/ModalSheet/ModalSheet';
@@ -9,7 +10,6 @@ import { EmptyState } from '@/presentation/molecules/EmptyState/EmptyState';
 import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
 import { LineupPlayerRow } from '@/presentation/organisms/LineupPlayerRow/LineupPlayerRow';
 import { coachNames } from '@/presentation/organisms/DivisionFormModal/division-staff';
-import { getTeamRosterPlayers, isCalledUpTo } from './team-roster';
 import styles from './DivisionRosterModal.module.css';
 
 export interface DivisionRosterModalProps {

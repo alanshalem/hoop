@@ -11,7 +11,8 @@ import {
   PlayerPhysicalStatusSchema,
 } from '@/core/domain/entities/club.types';
 import { can } from '@/core/domain/rules/permissions';
-import { calculateMatchBoxScore } from '@/core/domain/rules/match-derivations';
+import { seasonPointsByPlayer } from '@/core/domain/rules/season-analytics';
+import { isCalledUpTo, isYouthCategory } from '@/core/domain/rules/team-roster';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import { ICON_SIZE } from '@/presentation/icon-sizes';
 import { formatPlayerHeight, MISSING_VALUE } from '@/presentation/player-display';
@@ -28,7 +29,6 @@ import {
   DOMINANT_HAND_LABELS,
   PlayerFormModal,
 } from '@/presentation/organisms/PlayerFormModal/PlayerFormModal';
-import { isYouthCategory } from '@/presentation/organisms/DivisionFormModal/division-labels';
 import { ALL, NO_DIVISION, buildDivisionChips } from '@/presentation/molecules/FilterChipGroup/division-chips';
 import { useEditModal } from '@/presentation/hooks/useEditModal';
 import { useScreenTour } from '@/presentation/tour/useScreenTour';
@@ -66,17 +66,7 @@ export default function PlayersPage() {
     return player.status;
   };
 
-  // Season points per player, from the finished matches of every team.
-  const seasonPoints = useMemo(() => {
-    const totals = new Map<string, number>();
-    for (const match of matches) {
-      if (match.status !== 'FINISHED') continue;
-      for (const stats of Object.values(calculateMatchBoxScore(match).players)) {
-        totals.set(stats.playerId, (totals.get(stats.playerId) ?? 0) + stats.points);
-      }
-    }
-    return totals;
-  }, [matches]);
+  const seasonPoints = useMemo(() => seasonPointsByPlayer(matches), [matches]);
 
   const query = search.trim().toLowerCase();
   const searched = players.filter(
@@ -208,7 +198,7 @@ export default function PlayersPage() {
               const division = divisionOf(player);
               const canCallUp =
                 canManage && firstTeam !== undefined && division !== undefined && isYouthCategory(division.category);
-              const isCalledUp = firstTeam?.playerIds.includes(player.id) && player.teamId !== firstTeam.id;
+              const isCalledUp = isCalledUpTo(player, firstTeam);
 
               return (
                 <li key={player.id} className={styles.playerItem} data-reveal data-tour="player-card">
