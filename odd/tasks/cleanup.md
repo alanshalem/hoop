@@ -20,10 +20,10 @@ Branch: `refactor/cleanup` (from main 7b853e2), merged into main at the end. UI 
 - [x] T9b [S4] Hidden-leader polling gap + lock-count test filter (L8). Route: inline/worker. Commit: fb9bc2a
 - [x] T5 [S1] #6 #7: `FormModalSheet` template + `useModalForm`; `useEditModal`; division chips helper. Route: worker. Commit: 17304cb
 - [x] T6 [S1] #8 + oversized files: domain rules out of presentation/pages (`isMatchInPlay`, roster helpers, season points); split `acta-parser.ts`, `app/page.tsx`, lineup page, `MatchFormModal`. Route: worker. Commit: f7a6bbe
-- T7 [S2] Single-language routes. Route: worker. Commit: _pending_
+- [x] T7 [S2] Single-language routes. Route: inline. Commit: a0b02ff
 - [x] T9 [S4] Replace SSE/LISTEN with polling; serverless-friendly DB pool. Route: worker after T4; independent verify. Commit: f2fedce
 - [x] T10 [S4] Rewrite docs/DEPLOY.md for Vercel + Supabase (free). Route: inline/worker. Commit: e1be58c
-- [x] T8 Merge into main after a full check (tests, db tests, build, read-only browser check). Route: inline. Commit: fast-forward of main to the T6 docs commit (L10; T7 still open, browser check not run)
+- [x] T8 Merge into main after a full check (tests, db tests, build, read-only browser check). Route: inline. Commit: fast-forward of main (L10, L11)
 
 ## Log
 
@@ -37,3 +37,4 @@ Branch: `refactor/cleanup` (from main 7b853e2), merged into main at the end. UI 
 - L8 (T9 review approved): advisories R4-hidden-leader-stops-polling (browser-adapters.ts:152-153: if the leader tab is hidden while another tab of the same browser is visible, nobody polls) -> fix in T9b (poll while ANY tab of the browser is visible, e.g. visible followers ask the leader / leadership follows visibility); R4-small-pool-advisory-lock (client.ts:27: pushes queue on the pool while the advisory xact lock is held; acceptable at club scale); R3-pg-locks-global-count (sync.db.test.ts:128-132 counts locks globally; make it filter by the lock key).
 - L9 (T5+T9b review approved): advisory R4-hidden-leader-timer-throttling (sync-runtime.ts:74-75: a hidden leader timer may be throttled by the browser; acceptable, visible tabs trigger an immediate pull).
 - L10 (user): "Necesito que todos los cambios queden en master..." -> decision: finish T6, check, and merge into main now (no `master` branch exists; `main` is the default); T7 stays pending. T6 checks: tsc, eslint, `npm test` 796/796, `npm run test:db` 45/45, `next build` all green. Native review assess unavailable (package-local-binary-missing; gentle-pi postinstall blocked by npm allowScripts). Read-only browser check not run.
+- L11 (user): "Termina todo lo que falta ... Pushea main." -> T7 done (a0b02ff): /rivales->/rivals, /entrenadores->/coaches, /planilla->/chart-codes, /ayuda->/help; MANUAL anchors updated; internal tour ids kept (not URLs). Checks: tsc, eslint, `npm test` 796/796, `npm run test:db` 45/45, `next build` green. gentle-pi postinstall approved and rebuilt; native assess on T6 and T7 (base-ref parent): medium, review due: no. Smoke check on `next start` as admin (no browser tool available): every new route 200, old routes 404, shell links point to the new paths, no server errors. main pushed to origin.
