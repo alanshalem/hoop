@@ -1,8 +1,10 @@
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert';
+import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { createSeedState } from '@/core/infrastructure/mocks/seed-data';
 import { authenticateUser } from '../auth/authenticate';
+import { hashPassword, verifyPassword } from '../auth/password';
 import { readDataEpoch } from '../sync/epoch';
 import { applyPush } from '../sync/push';
 import { openTestDatabase } from '../testing/test-database';
@@ -139,6 +141,76 @@ describe('database seed', () => {
 
     assert.ok(!JSON.stringify(summary).includes('scrypt$'), 'summary never exposes hashes');
     assert.deepStrictEqual(Object.keys(summary.accounts[0]).sort(), ['email', 'name', 'role']);
+  });
+
+  it('keeps the profile of an existing demo account and only resets its password (S4)', async () => {
+    await seedDatabase(connection.db, { now: new Date(), demoPassword: DEMO_PASSWORD });
+    const account = seed.users.find((user) => user.role === 'HEAD_COACH');
+    assert.ok(account);
+    const edited = {
+      email: `editado-${randomUUID()}@test.camg.com.ar`,
+      name: 'Nombre editado desde Usuarios',
+      role: 'ASSISTANT_STATISTICIAN' as const,
+      active: false,
+      mustChangePassword: true,
+    };
+    await connection.db
+      .update(users)
+      .set({ ...edited, passwordHash: await hashPassword('otra-clave-2024') })
+      .where(eq(users.id, account.id));
+
+    try {
+      const summary = await seedDatabase(connection.db, { now: new Date(), demoPassword: DEMO_PASSWORD });
+      const [row] = await connection.db.select().from(users).where(eq(users.id, account.id));
+      assert.deepStrictEqual(
+        { email: row.email, name: row.name, role: row.role, active: row.active, mustChangePassword: row.mustChangePassword },
+        edited
+      );
+      assert.ok(await verifyPassword(DEMO_PASSWORD, row.passwordHash), 'the password is reset to the demo one');
+      // The summary shows the stored account, not the seed template.
+      assert.deepStrictEqual(
+        summary.accounts.find((entry) => entry.email === edited.email),
+        { email: edited.email, name: edited.name, role: edited.role }
+      );
+      assert.ok(!summary.accounts.some((entry) => entry.email === account.email.toLowerCase()));
+      assert.deepStrictEqual(summary.skippedAccounts, []);
+    } finally {
+      await connection.db
+        .update(users)
+        .set({ email: account.email.toLowerCase(), name: account.name, role: account.role, active: true, mustChangePassword: false })
+        .where(eq(users.id, account.id));
+    }
+  });
+
+  it('skips a missing demo account whose email belongs to another account (S4)', async () => {
+    await seedDatabase(connection.db, { now: new Date(), demoPassword: DEMO_PASSWORD });
+    const account = seed.users.find((user) => user.role === 'ASSISTANT_STATISTICIAN');
+    assert.ok(account);
+    const email = account.email.toLowerCase();
+    const otherId = `test-seed-${randomUUID()}`;
+    const otherHash = await hashPassword('clave-de-otra-cuenta');
+    await connection.db.delete(users).where(eq(users.id, account.id));
+    await connection.db
+      .insert(users)
+      .values({ id: otherId, email, name: 'Cuenta creada desde Usuarios', role: 'HEAD_COACH', passwordHash: otherHash });
+
+    try {
+      const summary = await seedDatabase(connection.db, { now: new Date(), demoPassword: DEMO_PASSWORD });
+      assert.deepStrictEqual(summary.skippedAccounts, [email]);
+      assert.strictEqual(summary.accounts.length, seed.users.length - 1);
+      assert.ok(!summary.accounts.some((entry) => entry.email === email));
+      assert.deepStrictEqual(await connection.db.select().from(users).where(eq(users.id, account.id)), []);
+      const [other] = await connection.db.select().from(users).where(eq(users.id, otherId));
+      assert.deepStrictEqual(
+        [other.email, other.name, other.role, other.passwordHash],
+        [email, 'Cuenta creada desde Usuarios', 'HEAD_COACH', otherHash]
+      );
+      assert.strictEqual(summary.recordsInserted, 0, 'the rest of the seed still runs');
+    } finally {
+      await connection.db.delete(users).where(eq(users.id, otherId));
+      await seedDatabase(connection.db, { now: new Date(), demoPassword: DEMO_PASSWORD });
+    }
+    assert.ok(await authenticateUser(connection.db, email, DEMO_PASSWORD), 'the demo account is back');
   });
 
   it('stores the seed rival teams as rivalTeam records (S14)', async () => {

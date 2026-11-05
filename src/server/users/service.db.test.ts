@@ -7,6 +7,7 @@ import { verifyPassword } from '../auth/password';
 import { createSession, validateSessionToken } from '../auth/session';
 import type { DatabaseConnection } from '../db/client';
 import { users } from '../db/schema';
+import { overlapping } from '../testing/overlap';
 import { openTestDatabase } from '../testing/test-database';
 import { createUser, listUsers, resetUserPassword, updateUser, type UserAdminResult } from './service';
 import { createUserFixtures, FIXTURE_PASSWORD as PASSWORD } from './user-fixtures';
@@ -21,7 +22,8 @@ describe('user administration (database)', () => {
   const { insertUser, storedUser, sessionCount, withOnlyAdmins } = fixtures;
 
   before(async () => {
-    connection = await openTestDatabase();
+    // A database of its own: `withOnlyAdmins` deactivates every other admin.
+    connection = await openTestDatabase({ name: 'users_service' });
   });
 
   after(async () => {
@@ -261,24 +263,16 @@ describe('user administration (database)', () => {
       const second = await insertUser('ADMIN');
 
       await withOnlyAdmins([first.id, second.id], async () => {
-        // The first change stays uncommitted while the second one runs, so both
-        // overlap for certain: the second must wait for it and then refuse.
-        let commitFirst = () => {};
-        const firstMayCommit = new Promise<void>((resolve) => (commitFirst = resolve));
-        let firstApplied: (result: UserAdminResult) => void = () => {};
-        const firstResult = new Promise<UserAdminResult>((resolve) => (firstApplied = resolve));
-        const firstTransaction = db().transaction(async (tx) => {
-          firstApplied(await updateUser(tx, first, second.id, { role: 'HEAD_COACH' }));
-          await firstMayCommit;
-        });
+        // The first change stays uncommitted until the second one waits on its
+        // locks, so both overlap for certain: the second must then refuse.
+        const [firstResult, secondResult] = await overlapping<UserAdminResult, UserAdminResult>(
+          connection,
+          (tx) => updateUser(tx, first, second.id, { role: 'HEAD_COACH' }),
+          (otherDb) => updateUser(otherDb, second, first.id, { active: false })
+        );
 
-        assert.ok((await firstResult).ok);
-        const secondResult = updateUser(db(), second, first.id, { active: false });
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        commitFirst();
-        await firstTransaction;
-
-        assert.deepStrictEqual(await secondResult, { ok: false, error: 'LAST_ADMIN' });
+        assert.ok(firstResult.ok);
+        assert.deepStrictEqual(secondResult, { ok: false, error: 'LAST_ADMIN' });
         const admins = await db()
           .select({ id: users.id })
           .from(users)

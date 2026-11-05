@@ -5,8 +5,9 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { authenticateUser } from '../auth/authenticate';
 import { changeOwnPassword, type PasswordChangeResult } from '../auth/password-change';
 import { createSession, hashSessionToken, validateSessionToken } from '../auth/session';
-import type { DatabaseConnection, DbExecutor } from '../db/client';
+import type { DatabaseConnection } from '../db/client';
 import { sessions, users } from '../db/schema';
+import { overlapping } from '../testing/overlap';
 import { openTestDatabase } from '../testing/test-database';
 import { createUser, resetUserPassword, updateUser, type UserAdminResult } from './service';
 import { createUserFixtures, FIXTURE_PASSWORD } from './user-fixtures';
@@ -22,53 +23,14 @@ const PREFIX = `guard-probe-${randomUUID().slice(0, 8)}`;
 const TEMPORARY_PASSWORD = 'temporal-2024';
 const NEW_PASSWORD = 'nueva-clave-2024';
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/** Waits (up to ~10 s) until a connection of the test database waits on a lock, or `settled()`. */
-async function waitForLockWait(connection: DatabaseConnection, settled: () => boolean): Promise<void> {
-  for (let attempt = 0; attempt < 200 && !settled(); attempt++) {
-    const { rows } = await connection.pool.query<{ waiting: number }>(
-      "SELECT count(*)::int AS waiting FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'"
-    );
-    if (rows[0].waiting > 0) return;
-    await sleep(50);
-  }
-}
-
-/**
- * Runs `change` inside a transaction that stays open until `overlap` blocks on
- * the rows it locked, so both changes overlap for certain whatever the timing.
- */
-async function overlapping<T, U>(
-  connection: DatabaseConnection,
-  change: (tx: DbExecutor) => Promise<T>,
-  overlap: () => Promise<U>
-): Promise<[T, U]> {
-  let commitFirst = () => {};
-  const firstMayCommit = new Promise<void>((resolve) => (commitFirst = resolve));
-  let firstApplied: (result: T) => void = () => {};
-  const firstResult = new Promise<T>((resolve) => (firstApplied = resolve));
-  const firstTransaction = connection.db.transaction(async (tx) => {
-    firstApplied(await change(tx));
-    await firstMayCommit;
-  });
-
-  const first = await firstResult;
-  let secondSettled = false;
-  const second = overlap().finally(() => (secondSettled = true));
-  await waitForLockWait(connection, () => secondSettled);
-  commitFirst();
-  await firstTransaction;
-  return [first, await second];
-}
-
 describe('user administration guards (database probes)', () => {
   let connection: DatabaseConnection;
   const fixtures = createUserFixtures(() => connection.db, PREFIX);
   const { insertUser, storedUser, sessionCount, withOnlyAdmins } = fixtures;
 
   before(async () => {
-    connection = await openTestDatabase();
+    // A database of its own: `withOnlyAdmins` deactivates every other admin.
+    connection = await openTestDatabase({ name: 'users_guards' });
   });
 
   after(async () => {
@@ -155,7 +117,7 @@ describe('user administration guards (database probes)', () => {
         const [firstResult, secondResult] = await overlapping<UserAdminResult, UserAdminResult>(
           connection,
           (tx) => updateUser(tx, first, second.id, { active: false }),
-          () => updateUser(connection.db, second, first.id, { active: false })
+          (db) => updateUser(db, second, first.id, { active: false })
         );
 
         assert.ok(firstResult.ok);
@@ -272,8 +234,8 @@ describe('user administration guards (database probes)', () => {
       const [firstResult, secondResult] = await overlapping<PasswordChangeResult, PasswordChangeResult>(
         connection,
         (tx) => changeOwnPassword(tx, first.token, { currentPassword: FIXTURE_PASSWORD, newPassword: NEW_PASSWORD }),
-        () =>
-          changeOwnPassword(connection.db, second.token, {
+        (db) =>
+          changeOwnPassword(db, second.token, {
             currentPassword: FIXTURE_PASSWORD,
             newPassword: 'otra-clave-2024',
           })

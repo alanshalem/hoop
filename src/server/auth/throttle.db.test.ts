@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { inArray } from 'drizzle-orm';
 import type { DatabaseConnection } from '../db/client';
 import { authThrottles } from '../db/schema';
+import { overlapping } from '../testing/overlap';
 import { openTestDatabase } from '../testing/test-database';
 import { THROTTLE_WINDOW_MS, clearThrottle, isThrottled, recordFailure } from './throttle';
 
@@ -90,11 +91,19 @@ describe('auth throttle (database, S3)', () => {
   it('counts concurrent failures exactly', async () => {
     const key = newKey();
     const now = new Date();
+    // The second failure waits on the row the first one has not committed yet.
+    const [first, second] = await overlapping(
+      connection,
+      (tx) => recordFailure(tx, key, 20, now),
+      (db) => recordFailure(db, key, 20, now)
+    );
+    assert.deepStrictEqual([first.failures, second.failures], [1, 2]);
+
     const states = await Promise.all(
       Array.from({ length: 10 }, () => recordFailure(connection.db, key, 20, now))
     );
-    assert.deepStrictEqual(states.map((state) => state.failures).sort((a, b) => a - b), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-    assert.strictEqual((await recordFailure(connection.db, key, 20, now)).failures, 11);
+    assert.deepStrictEqual(states.map((state) => state.failures).sort((a, b) => a - b), [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    assert.strictEqual((await recordFailure(connection.db, key, 20, now)).failures, 13);
   });
 
   it('clears a key: blocked no more and counting starts again', async () => {

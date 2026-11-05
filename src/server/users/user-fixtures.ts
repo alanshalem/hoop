@@ -46,6 +46,8 @@ export function createUserFixtures(db: () => DbExecutor, prefix: string) {
   /**
    * Runs `body` while the given users are the only active admins of the test
    * database: every other active admin is deactivated and restored afterwards.
+   * Only for a test file with a database of its own (`openTestDatabase({ name })`),
+   * so no other file ever sees those admins deactivated.
    */
   async function withOnlyAdmins(ids: string[], body: () => Promise<void>): Promise<void> {
     const others = await db()

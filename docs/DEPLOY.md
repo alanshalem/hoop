@@ -122,7 +122,7 @@ Si `pdftotext` no está en el PATH, indicalo con `PDFTOTEXT=/ruta/a/pdftotext` (
 
    **La versión con límite de intentos trae la migración `0007_wide_adam_destine.sql`.** Crea la tabla `auth_throttles`, donde se cuentan las contraseñas incorrectas (no toca datos existentes). Aplicala con `npm run db:migrate` contra el Session pooler **antes** de pushear: la versión nueva usa esa tabla en cada inicio de sesión y, sin ella, nadie puede entrar. Si todavía no aplicaste la `0006`, el mismo `npm run db:migrate` aplica las dos, en orden.
 3. `git push origin main`: Vercel construye y publica la nueva versión sola. Cada rama o PR también recibe una dirección de vista previa.
-4. **No** vuelvas a correr `db:seed` ni `db:import-actas --yes` en producción salvo que quieras reemplazar todos los datos: `db:import-actas --yes` borra todo excepto el admin.
+4. **No** vuelvas a correr `db:seed` ni `db:import-actas --yes` en producción salvo que quieras reemplazar todos los datos: `db:import-actas --yes` borra todo excepto el admin. `db:seed` vuelve a crear las cuentas de demostración que borró la importación y restablece la contraseña de `admin@camg.com.ar` a la de `SEED_DEMO_PASSWORD` (su nombre, correo y rol se mantienen).
 
 ## 8. Backups
 

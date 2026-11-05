@@ -1,6 +1,7 @@
 /**
  * `npm run db:seed` - loads the demo club and demo users into PostgreSQL.
- * Safe to run repeatedly: existing records and events are never rewritten.
+ * Safe to run repeatedly: existing records and events are never rewritten, and
+ * existing demo accounts keep their profile (only their password is reset).
  * Prints the demo accounts; never prints hashes or query parameters.
  */
 import { USER_ROLE_LABELS } from '@/core/domain/entities/club.types';
@@ -30,6 +31,9 @@ async function main(): Promise<void> {
     );
     for (const account of summary.accounts) {
       console.log(`  ${account.email.padEnd(28)} ${account.role.padEnd(24)} ${USER_ROLE_LABELS[account.role]}`);
+    }
+    for (const email of summary.skippedAccounts) {
+      console.log(`Skipped demo account ${email}: another account already uses that email.`);
     }
   } finally {
     await pool.end();

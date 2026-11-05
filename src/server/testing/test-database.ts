@@ -9,9 +9,14 @@ import { createDatabase, type DatabaseConnection } from '../db/client';
  * `TEST_DATABASE_URL`, or `DATABASE_URL` with `_test` appended to the database
  * name, so integration tests never touch the development data. The database is
  * created if missing and migrated to the latest schema.
+ *
+ * With `name`, the file gets a database of its own (`<test database>_<name>`),
+ * for tests that change state other files rely on, such as which admins are
+ * active. Give each such file its own name.
  */
-export async function openTestDatabase(): Promise<DatabaseConnection> {
+export async function openTestDatabase({ name }: { name?: string } = {}): Promise<DatabaseConnection> {
   const url = resolveTestDatabaseUrl();
+  if (name !== undefined) url.pathname = `${url.pathname}_${name}`;
   await ensureDatabaseExists(url);
   const connection = createDatabase(url.toString());
   await migrate(connection.db, { migrationsFolder: path.resolve(process.cwd(), 'drizzle') });

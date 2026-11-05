@@ -272,7 +272,7 @@ Los [entrenadores](#entrenadores-coaches) del club no son cuentas: son fichas si
 
 Para usar otro rol hay que cerrar sesión y entrar con otra cuenta. Si el rol de una cuenta cambia en el servidor, la aplicación lo toma la próxima vez que confirma la sesión con conexión.
 
-> Fuera de un entorno de prueba, cambiar la contraseña de demostración: cada cuenta lo hace desde **Cambiar contraseña** en su menú de usuario. Volver a correr `npm run db:seed` restablece la contraseña de las cuentas de demostración a la de `SEED_DEMO_PASSWORD`.
+> Fuera de un entorno de prueba, cambiar la contraseña de demostración: cada cuenta lo hace desde **Cambiar contraseña** en su menú de usuario. Volver a correr `npm run db:seed` restablece la contraseña de las cuentas de demostración a la de `SEED_DEMO_PASSWORD`; el nombre, el correo, el rol y el estado que les haya dado el administrador se mantienen.
 
 ---
 
@@ -895,7 +895,7 @@ Se definen en `.env.local` (no se sube al repositorio; `.env.example` documenta 
 
 ### Datos de demostración en el servidor
 
-`npm run db:seed` carga el mismo club de demostración de la [sección 8](#datos-de-demostración) y las [cuentas de demostración](#cuentas-de-demostración). Con los datos del club solo inserta: nunca sobrescribe ni revive registros o jugadas que ya existen (tampoco los que alguien eliminó), así que se puede correr varias veces sin pisar lo cargado por los usuarios. Al terminar informa cuántos registros y jugadas nuevos insertó (`recordsInserted`, `eventsInserted`) y lista las cuentas. Las cuentas de demostración, en cambio, se actualizan por ID: cada corrida restablece su nombre, correo y rol, y su contraseña a la de `SEED_DEMO_PASSWORD`; no cambia si están activas ni si deben cambiar la contraseña. Las cuentas creadas desde [Usuarios](#usuarios-users) no se tocan.
+`npm run db:seed` carga el mismo club de demostración de la [sección 8](#datos-de-demostración) y las [cuentas de demostración](#cuentas-de-demostración). Con los datos del club solo inserta: nunca sobrescribe ni revive registros o jugadas que ya existen (tampoco los que alguien eliminó), así que se puede correr varias veces sin pisar lo cargado por los usuarios. Al terminar informa cuántos registros y jugadas nuevos insertó (`recordsInserted`, `eventsInserted`) y lista las cuentas. Con las cuentas de demostración, en cambio, crea las que faltan (por ID) y en las que ya existen solo restablece la contraseña a la de `SEED_DEMO_PASSWORD`: conservan el nombre, el correo y el rol que tengan (por ejemplo, los que cambió el administrador desde [Usuarios](#usuarios-users)), y no cambia si están activas ni si deben cambiar la contraseña. La lista de cuentas que muestra al terminar es la de la base, con esos datos. Si falta una cuenta de demostración y otra cuenta ya usa su correo, no la crea y lo avisa (`Skipped demo account <correo>`). Las cuentas creadas desde [Usuarios](#usuarios-users) no se tocan.
 
 ### Importar las actas oficiales
 

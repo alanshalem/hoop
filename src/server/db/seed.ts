@@ -1,5 +1,5 @@
 import 'server-only';
-import { inArray, sql } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import type { UserRole } from '@/core/domain/entities/club.types';
 import { createSeedState } from '@/core/infrastructure/mocks/seed-data';
 import { hashPassword, needsRehash, verifyPassword } from '../auth/password';
@@ -24,7 +24,10 @@ export interface SeedOptions {
 }
 
 export interface SeedSummary {
+  /** The demo accounts as stored after the seed (an existing account keeps its profile). */
   accounts: { email: string; name: string; role: UserRole }[];
+  /** Emails of missing demo accounts not created because another account already uses them. */
+  skippedAccounts: string[];
   recordsInserted: number;
   eventsInserted: number;
 }
@@ -32,11 +35,14 @@ export interface SeedSummary {
 /**
  * Loads the shared demo club (`createSeedState`) and the demo users.
  *
- * Idempotent: users are upserted by id (an existing hash is kept when it still
- * matches the demo password with the current cost), while records and events
- * are insert-only: an id that already exists is never rewritten, so re-running
- * the seed cannot overwrite user edits or resurrect a deleted (tombstoned)
- * entity. Only demo entities missing from the database are added.
+ * Idempotent: a missing demo user is inserted, while an existing one (by id)
+ * keeps its name, email, role, `active` and `mustChangePassword`; only its
+ * password is reset to the demo one (an existing hash is kept when it still
+ * matches the demo password with the current cost). A missing demo user whose
+ * email another account already uses is skipped and reported. Records and
+ * events are insert-only: an id that already exists is never rewritten, so
+ * re-running the seed cannot overwrite user edits or resurrect a deleted
+ * (tombstoned) entity. Only demo entities missing from the database are added.
  */
 export async function seedDatabase(db: Database, { now, demoPassword }: SeedOptions): Promise<SeedSummary> {
   const seed = createSeedState(now);
@@ -85,24 +91,24 @@ export async function seedDatabase(db: Database, { now, demoPassword }: SeedOpti
   return db.transaction(async (tx) => {
     // Seq values must commit in order, like sync pushes (see ../sync/repository.ts).
     await lockSyncWrites(tx);
-    await tx
-      .insert(users)
-      .values(userRows)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          email: sql`excluded.email`,
-          name: sql`excluded.name`,
-          role: sql`excluded.role`,
-          passwordHash: sql`excluded.password_hash`,
-          updatedAt: sql`excluded.updated_at`,
-        },
-      });
+    for (const row of userRows.filter((row) => existingHashes.has(row.id))) {
+      await tx.update(users).set({ passwordHash: row.passwordHash, updatedAt: now }).where(eq(users.id, row.id));
+    }
+    const missing = userRows.filter((row) => !existingHashes.has(row.id));
+    // Without a conflict target, an email already used by another account skips the row instead of failing.
+    if (missing.length > 0) await tx.insert(users).values(missing).onConflictDoNothing();
     const insertedRecords = await insertRecordsIfNew(tx, records);
     const insertedEvents = await insertEventsIfNew(tx, events);
 
+    const stored = await tx
+      .select({ id: users.id, email: users.email, name: users.name, role: users.role })
+      .from(users)
+      .where(inArray(users.id, userRows.map((row) => row.id)));
+    const storedById = new Map(stored.map(({ id, ...account }) => [id, account]));
+
     return {
-      accounts: userRows.map(({ email, name, role }) => ({ email, name, role })),
+      accounts: userRows.flatMap((row) => storedById.get(row.id) ?? []),
+      skippedAccounts: userRows.filter((row) => !storedById.has(row.id)).map((row) => row.email),
       recordsInserted: insertedRecords.length,
       eventsInserted: insertedEvents.length,
     };
