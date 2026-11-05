@@ -16,9 +16,9 @@ Branch: commits go directly on `main` (user request, L1). Not pushed: the user p
 ## Tasks
 
 - [x] T1 [S1-S6] Server: migration (`active`, `must_change_password`), `MANAGE_USERS`, user-admin service with guards, auth changes (inactive login/session, flag in public user, sync refusal), API routes, DB tests. Route: worker (context backstop). Commit: 3f3ebf4
-- [ ] T2 [S1-S5] Client: auth API + store (flag), forced change gate, `/account/password` screen, user menu link, `/users` screen with create/edit/reset/deactivate, nav item. Route: worker. Commit: _pending_
-- [ ] T3 [S7] Manual + deploy docs. Route: inline. Commit: with T2
-- [ ] T4 Independent verify (security, high risk item 2) + full checks + migrate local DB. Route: gentle-ai-verify. Commit: fixes if any
+- [x] T2 [S1-S5] Client: auth API + store (flag), forced change gate, `/account/password` screen, user menu link, `/users` screen with create/edit/reset/deactivate, nav item. Route: worker. Commit: 2199cf5
+- [x] T3 [S7] Manual + deploy docs. Route: worker (with T2). Commit: 2199cf5
+- [x] T4 Independent verify (security, high risk item 2) + full checks + migrate local DB. Route: gentle-ai-verify + worker. Commit: bac0d9a, cc30e52
 
 ## Log
 
@@ -34,3 +34,6 @@ Branch: commits go directly on `main` (user request, L1). Not pushed: the user p
   - Worker risks: seed upsert leaves `active`/flag untouched; no rate limit on wrong current password (same as login).
 - L4 (native review of T1, committed range 61638bd..674c81a, lineage review-f3725491639288bb): high tier, lenses risk/resilience/reliability -> approved and acknowledged (authority burned). Non-blocking advisories: R3-only-admins-shared-db (service.db.test.ts:50-62 temporarily deactivates other admins in the shared test DB), R3-same-password-clears-flag (password-change.ts:36: choosing the same password as the temporary one clears the flag; the T2 client refuses it, the server does not) -> handle in T4.
 - L5 (T2+T3 worker evidence): tsc, eslint, `npm test` 870/870, build green; HTTP smoke /users and /account/password 200. Decisions: v1 auth cache migration keeps the flag if present; client refuses a new password equal to the current one; current-user badge "Tu cuenta"; temporary password shown in the success notice for copying; no /users screen tour.
+- L6 (T4 independent verify, gentle-ai-verify): S1-S7 PASS, no CRITICAL/WARNING; checks tsc/eslint/870 unit/66 db/build green; 33 HTTP probes and 8 DB probes on the isolated test DB. Suggestions: flagged admin can still use /api/users (gate only on the client); acting admin is checked before the transaction (narrow race); no rate limit on wrong current password; /api/auth/me comment; route 401/403 paths only smoke-tested.
+- L7 (native review of 674c81a..bac0d9a, lineage review-c1f095ec6c44d2fe): high tier, lenses risk/readability/reliability -> approved and acknowledged. Advisories: duplicated server fallback (PasswordChangeScreen.tsx:36), EditUserModal imports CreateUserModal, email max magic number (user-form.ts:13), MANUAL API row missing SAME_PASSWORD, SAME_PASSWORD route mapping untested. All routed to a T4 hardening worker together with L6.
+- L8 (T4 hardening, commit cc30e52): flagged accounts refused by /api/users (PASSWORD_CHANGE_REQUIRED); acting admin re-checked inside the transaction (ACTOR_NOT_ALLOWED, 403); guards.db.test.ts with P1-P8 probes; pure password-change error mapping; shared SERVER_FALLBACK_MESSAGE; manual updated. Checks: tsc, eslint, `npm test` 874/874, `npm run test:db` 76/76, build green. Local dev DB already migrated by the T1 worker (`npm run db:migrate`). Supabase migration is the user's step before pushing (L2).
