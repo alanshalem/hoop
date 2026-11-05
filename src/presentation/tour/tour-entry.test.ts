@@ -17,10 +17,10 @@ describe('tourEntry', () => {
     assert.deepStrictEqual(tourEntry('divisions', []), { href: '/divisions' });
     assert.deepStrictEqual(tourEntry('players', []), { href: '/players' });
     assert.deepStrictEqual(tourEntry('matches', []), { href: '/matches' });
-    assert.deepStrictEqual(tourEntry('planilla', []), { href: '/planilla' });
-    assert.deepStrictEqual(tourEntry('rivales', []), { href: '/rivales' });
-    assert.deepStrictEqual(tourEntry('entrenadores', []), { href: '/entrenadores' });
-    assert.deepStrictEqual(tourEntry('help', []), { href: '/ayuda' });
+    assert.deepStrictEqual(tourEntry('planilla', []), { href: '/chart-codes' });
+    assert.deepStrictEqual(tourEntry('rivales', []), { href: '/rivals' });
+    assert.deepStrictEqual(tourEntry('entrenadores', []), { href: '/coaches' });
+    assert.deepStrictEqual(tourEntry('help', []), { href: '/help' });
   });
 
   it('opens the lineup of the next scheduled match, else of a match in play', () => {

@@ -53,7 +53,7 @@ const NAV_ITEMS: NavItem[] = [
 const HELP_ITEM: NavItem = {
   label: 'Ayuda',
   shortLabel: 'Ayuda',
-  href: '/ayuda',
+  href: '/help',
   icon: LifeBuoy,
   tourTarget: 'nav-help',
 };
@@ -61,7 +61,7 @@ const HELP_ITEM: NavItem = {
 const CHART_CATALOG_ITEM: NavItem = {
   label: 'Planilla',
   shortLabel: 'Planilla',
-  href: '/planilla',
+  href: '/chart-codes',
   icon: ClipboardList,
   tourTarget: 'nav-planilla',
 };
@@ -70,7 +70,7 @@ const CHART_CATALOG_ITEM: NavItem = {
 const RIVALS_ITEM: NavItem = {
   label: 'Rivales',
   shortLabel: 'Rivales',
-  href: '/rivales',
+  href: '/rivals',
   icon: Swords,
   tourTarget: 'nav-rivales',
 };
@@ -79,7 +79,7 @@ const RIVALS_ITEM: NavItem = {
 const COACHES_ITEM: NavItem = {
   label: 'Entrenadores',
   shortLabel: 'Entrenadores',
-  href: '/entrenadores',
+  href: '/coaches',
   icon: UserCog,
   tourTarget: 'nav-entrenadores',
 };

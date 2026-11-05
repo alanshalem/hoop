@@ -11,10 +11,10 @@ const FIXED_ROUTES: Partial<Record<TourId, string>> = {
   divisions: '/divisions',
   players: '/players',
   matches: '/matches',
-  planilla: '/planilla',
-  rivales: '/rivales',
-  entrenadores: '/entrenadores',
-  help: '/ayuda',
+  planilla: '/chart-codes',
+  rivales: '/rivals',
+  entrenadores: '/coaches',
+  help: '/help',
 };
 
 const byDate = (a: Match, b: Match) => a.date.localeCompare(b.date);

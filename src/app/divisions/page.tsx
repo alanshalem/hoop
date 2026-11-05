@@ -62,7 +62,7 @@ export default function DivisionsPage() {
             <>
               {/* Coaching staff: the phone top bar has no room for it (S5). */}
               <LinkButton
-                href="/entrenadores"
+                href="/coaches"
                 variant="secondary"
                 leftIcon={<UserCog size={ICON_SIZE.md} />}
                 data-tour="divisions-coaches"

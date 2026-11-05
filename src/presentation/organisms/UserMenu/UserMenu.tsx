@@ -67,7 +67,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ variant = 'inline', classNam
       <SyncStatusIndicator className={styles.syncStatus} />
 
       <LinkButton
-        href="/ayuda"
+        href="/help"
         variant="ghost"
         fullWidth={variant === 'rail'}
         className={styles.menuLink}

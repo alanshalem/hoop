@@ -139,7 +139,7 @@ Las tablas siguientes son los códigos de fábrica. Cada club los puede renombra
 
 ### Catálogo del club
 
-Cada club tiene su propio catálogo de códigos. Mientras nadie lo edite, es el de las tablas anteriores. Se edita en la pantalla [Códigos de la planilla](#códigos-de-la-planilla-planilla) (**Planilla** en el menú, `/planilla`).
+Cada club tiene su propio catálogo de códigos. Mientras nadie lo edite, es el de las tablas anteriores. Se edita en la pantalla [Códigos de la planilla](#códigos-de-la-planilla-chart-codes) (**Planilla** en el menú, `/chart-codes`).
 
 | Acción    | Qué pasa                                                                                                                                                                                                                                                                            |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -154,7 +154,7 @@ Cada club tiene su propio catálogo de códigos. Mientras nadie lo edite, es el 
 
 ### Planteles rivales
 
-El club puede cargar el plantel de cada rival, por división, en la pantalla [Rivales](#rivales-rivales) o directamente en el formulario del partido (sección **Plantel rival**, ver [Partidos](#partidos-matches)); los dos lugares editan los mismos planteles. Con ese plantel, una entrada de **Puntos recibidos** puede guardar quién convirtió y una **Acción ofensiva** quién defendió (ver el paso **Rival (opcional)** en [Cargar la planilla durante el partido](#cargar-la-planilla-durante-el-partido)).
+El club puede cargar el plantel de cada rival, por división, en la pantalla [Rivales](#rivales-rivals) o directamente en el formulario del partido (sección **Plantel rival**, ver [Partidos](#partidos-matches)); los dos lugares editan los mismos planteles. Con ese plantel, una entrada de **Puntos recibidos** puede guardar quién convirtió y una **Acción ofensiva** quién defendió (ver el paso **Rival (opcional)** en [Cargar la planilla durante el partido](#cargar-la-planilla-durante-el-partido)).
 
 **Cómo encuentra la consola el plantel.** El partido no se vincula a mano: la consola usa el rival de la **misma división** del partido cuyo nombre es **igual al nombre del rival del partido**, sin importar mayúsculas, acentos ni espacios al principio o al final. Por ejemplo, el partido de Primera División contra "Obras Sanitarias" usa el rival "obras sanitarias" de Primera División, pero no el de Sub-19 ni uno llamado "Obras". Si el nombre no coincide, la consola no ofrece el paso del rival; para arreglarlo se renombra el rival (o el partido) hasta que coincidan.
 
@@ -263,7 +263,7 @@ El rol sale de la cuenta con la que se inicia sesión. `npm run db:seed` crea es
 
 Después de [importar las actas oficiales](#importar-las-actas-oficiales) solo queda la cuenta `admin@camg.com.ar` (con su misma contraseña); las demás cuentas y todas las sesiones se borran.
 
-Los [entrenadores](#entrenadores-entrenadores) del club no son cuentas: son fichas sin usuario que no inician sesión. Cargarlos o asignarlos no cambia los usuarios ni sus roles.
+Los [entrenadores](#entrenadores-coaches) del club no son cuentas: son fichas sin usuario que no inician sesión. Cargarlos o asignarlos no cambia los usuarios ni sus roles.
 
 Para usar otro rol hay que cerrar sesión y entrar con otra cuenta. Si el rol de una cuenta cambia en el servidor, la aplicación lo toma la próxima vez que confirma la sesión con conexión.
 
@@ -277,7 +277,7 @@ Para usar otro rol hay que cerrar sesión y entrar con otra cuenta. Si el rol de
 
 | Elemento                   | Dónde                  | Función                                                                                                                                                                                                                                                                                                                                   |
 | -------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Riel lateral (tablet)      | Izquierda              | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, Rivales ([planteles rivales](#rivales-rivales), icono `Swords`), Entrenadores ([cuerpo técnico](#entrenadores-entrenadores), icono `UserCog`), Planilla ([códigos de la planilla](#códigos-de-la-planilla-planilla)), Ayuda, botón **Partido en vivo** y, al pie, el menú de usuario: nombre, rol, botón de tema claro/oscuro, [estado de sincronización](#estado-de-sincronización) y **Cerrar sesión**. |
+| Riel lateral (tablet)      | Izquierda              | Escudo y marca (vuelve al inicio), Dashboard, Divisiones, Jugadores, Partidos, Rivales ([planteles rivales](#rivales-rivals), icono `Swords`), Entrenadores ([cuerpo técnico](#entrenadores-coaches), icono `UserCog`), Planilla ([códigos de la planilla](#códigos-de-la-planilla-chart-codes)), Ayuda, botón **Partido en vivo** y, al pie, el menú de usuario: nombre, rol, botón de tema claro/oscuro, [estado de sincronización](#estado-de-sincronización) y **Cerrar sesión**. |
 | Barra superior (teléfono)  | Arriba                 | Escudo y marca (vuelve al inicio), el estado de sincronización compacto y los iconos de Planilla (`ClipboardList`, códigos de la planilla) y Ayuda (`LifeBuoy`).                                                                                                                                                                          |
 | Barra inferior (teléfono)  | Abajo                  | Inicio, Equipos, botón central de partido en vivo (icono `Radio`), Plantel y Fechas.                                                                                                                                                                                                                                                      |
 | Menú de usuario (teléfono) | Cabecera del Dashboard | Nombre, rol, estado de sincronización y **Cerrar sesión**.                                                                                                                                                                                                                                                                                |
@@ -308,7 +308,7 @@ Botón visible en el riel lateral (tablet), en la barra superior (teléfono), en
 | Sin conexión  | `CloudOff`         | No hay red o el servidor no responde. Muestra cuántos cambios esperan en la cola ("3 pendientes"). La aplicación sigue funcionando igual. |
 | Error         | `AlertTriangle`    | El servidor rechazó cambios o respondió con un error. Muestra el motivo y "Toca para reintentar".                                         |
 
-### Ayuda (`/ayuda`)
+### Ayuda (`/help`)
 
 Este manual, dentro de la aplicación. Se abre desde **Ayuda** en el menú lateral, desde el icono de ayuda de la barra superior en el teléfono y desde **Ayuda y manual** en el menú de usuario. El índice de la izquierda resalta la sección que se está leyendo (en pantallas angostas se pliega arriba). La página queda disponible sin conexión una vez cargada. El botón **Ver tutorial** abre la lista de recorridos guiados.
 
@@ -339,7 +339,7 @@ Resumen de la temporada de la división elegida.
 
 ### Divisiones (`/divisions`)
 
-Cada tarjeta muestra nombre, categoría, descripción, cantidad de jugadores, temporada, entrenador principal y ayudantes. El botón **Entrenadores** de la cabecera abre las [fichas del cuerpo técnico](#entrenadores-entrenadores); en el teléfono es el acceso a esa pantalla.
+Cada tarjeta muestra nombre, categoría, descripción, cantidad de jugadores, temporada, entrenador principal y ayudantes. El botón **Entrenadores** de la cabecera abre las [fichas del cuerpo técnico](#entrenadores-coaches); en el teléfono es el acceso a esa pantalla.
 
 | Control             | Qué hace                                                                                                                      | Permiso            |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------ |
@@ -348,7 +348,7 @@ Cada tarjeta muestra nombre, categoría, descripción, cantidad de jugadores, te
 | Lápiz (`Pencil`)    | Editar la división, su entrenador principal y sus ayudantes.                                                                  | `MANAGE_DIVISIONS` |
 | Papelera (`Trash2`) | Eliminar la división, con confirmación.                                                                                       | `MANAGE_DIVISIONS` |
 
-Campos del formulario: **Nombre** (mínimo 2 caracteres), **Categoría** (Primera, Sub-21, Sub-19, Sub-17, Sub-15, Sub-13, Mini básquet, Femenino, Otra categoría), **Entrenador principal** (cualquier [entrenador](#entrenadores-entrenadores) cargado, con su rol al lado, u opción "Sin entrenador asignado"), **Ayudantes** (un chip por entrenador, salvo el elegido como principal; aparece cuando hay entrenadores) y **Descripción o torneo** (máximo 120 caracteres). Sin entrenadores cargados, el campo lo avisa: "Todavía no hay entrenadores: cárgalos desde Entrenadores."
+Campos del formulario: **Nombre** (mínimo 2 caracteres), **Categoría** (Primera, Sub-21, Sub-19, Sub-17, Sub-15, Sub-13, Mini básquet, Femenino, Otra categoría), **Entrenador principal** (cualquier [entrenador](#entrenadores-coaches) cargado, con su rol al lado, u opción "Sin entrenador asignado"), **Ayudantes** (un chip por entrenador, salvo el elegido como principal; aparece cuando hay entrenadores) y **Descripción o torneo** (máximo 120 caracteres). Sin entrenadores cargados, el campo lo avisa: "Todavía no hay entrenadores: cárgalos desde Entrenadores."
 
 ### Jugadores (`/players`)
 
@@ -373,7 +373,7 @@ Orden fijo: primero los partidos en juego, después los programados (el más pr�
 | Chips **Estado**   | Todos, En vivo, Programados, Finalizados.                                                       |
 | Chips **División** | Filtra por división. Los partidos de una división eliminada aparecen como "División eliminada". |
 | **Nuevo partido**  | Abre el formulario (requiere `MANAGE_MATCHES`).                                                 |
-| **Rivales**        | Abre los [planteles rivales](#rivales-rivales). En el teléfono es el acceso a esa pantalla.     |
+| **Rivales**        | Abre los [planteles rivales](#rivales-rivals). En el teléfono es el acceso a esa pantalla.     |
 
 Acciones de cada tarjeta según su estado:
 
@@ -389,7 +389,7 @@ Campos del formulario: **División** (el equipo propio se deduce de ella), **Equ
 
 **Rivales de esta división.** Debajo de **Equipo rival** aparece un chip por cada rival cargado en la división elegida, ordenados por nombre. Tocar un chip escribe ese nombre en el campo; también se puede escribir cualquier otro nombre. Si la división no tiene rivales cargados, la fila no aparece.
 
-**Plantel rival.** Al final del formulario, en crear y en editar, una sección muestra el plantel del rival escrito, buscado igual que en la consola: el rival de la **misma división** con el mismo nombre, sin importar mayúsculas, acentos ni espacios (ver [Planteles rivales](#planteles-rivales)). Son los mismos planteles de la pantalla [Rivales](#rivales-rivales): lo que se cambia acá se ve allá y al revés.
+**Plantel rival.** Al final del formulario, en crear y en editar, una sección muestra el plantel del rival escrito, buscado igual que en la consola: el rival de la **misma división** con el mismo nombre, sin importar mayúsculas, acentos ni espacios (ver [Planteles rivales](#planteles-rivales)). Son los mismos planteles de la pantalla [Rivales](#rivales-rivals): lo que se cambia acá se ve allá y al revés.
 
 | Situación                                  | Qué muestra la sección                                                                                                                                       |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -397,7 +397,7 @@ Campos del formulario: **División** (el equipo propio se deduce de ella), **Equ
 | El rival tiene plantel en la división      | Sus jugadores ordenados por dorsal (dorsal, nombre y apellido), con lápiz y papelera por jugador y el botón **Agregar jugador**.                                |
 | El rival no tiene plantel en la división   | El texto "Boca Juniors no tiene plantel en Primera División." (con el nombre y la división elegidos) y el botón **Agregar jugador**.                            |
 
-**Agregar jugador** y el lápiz abren el mismo formulario del jugador de [Rivales](#rivales-rivales) (**Dorsal**, **Nombre** y **Apellido**, con los mismos mensajes, incluido "Ya hay un jugador con ese dorsal en este equipo."). La papelera quita al jugador sin confirmación, porque nada se guarda todavía.
+**Agregar jugador** y el lápiz abren el mismo formulario del jugador de [Rivales](#rivales-rivals) (**Dorsal**, **Nombre** y **Apellido**, con los mismos mensajes, incluido "Ya hay un jugador con ese dorsal en este equipo."). La papelera quita al jugador sin confirmación, porque nada se guarda todavía.
 
 **Cuándo se guarda.** Los cambios del plantel quedan en el formulario (un aviso en amarillo lo recuerda) y se guardan recién al pulsar **Crear partido** o **Guardar cambios**, después de guardar el partido. Si el rival no tenía plantel, se crea con el nombre escrito y la división elegida y se le agregan los jugadores. **Cancelar**, la cruz, Escape o tocar fuera del formulario descartan los cambios del plantel. Sin cambios en el plantel, el formulario no toca los rivales. Si algún cambio del plantel es rechazado (por ejemplo, otra tablet ya usó ese dorsal), el partido queda guardado igual y un aviso "El partido se guardó, pero no todo el plantel rival" lista cada jugador rechazado con su motivo.
 
@@ -454,7 +454,7 @@ Un partido programado muestra "El partido todavía no comenzó".
 
 **Resultado oficial (acta).** Un partido que tiene el resultado del acta oficial y ninguna jugada de puntos (los [importados](#importar-las-actas-oficiales)) muestra el tanteo final y los parciales del acta. Debajo del resultado aparece la marca **Resultado oficial (acta)** con el aviso "El resultado y los parciales vienen del acta oficial. El partido no tiene jugadas cargadas, por eso la planilla y el box score quedan vacíos." No se inventan jugadas. Si después se cargan jugadas de puntos, el marcador vuelve a salir de ellas.
 
-### Códigos de la planilla (`/planilla`)
+### Códigos de la planilla (`/chart-codes`)
 
 El catálogo de códigos de la planilla táctica del club (ver [Catálogo del club](#catálogo-del-club)). Se abre desde **Planilla** en el riel lateral o desde el icono `ClipboardList` de la barra superior en el teléfono.
 
@@ -469,7 +469,7 @@ Hay una sección por categoría (**Pérdidas**, **Puntos recibidos**, **Acciones
 
 Campos del formulario: **Símbolo** (1 a 3 caracteres), **Tono** (Azul (positiva) o Rojo (negativa)) y **Nombre** (1 a 40 caracteres). Un código nuevo empieza en rojo en **Pérdidas** y **Puntos recibidos** y en azul en las otras dos categorías. Sin el permiso `MANAGE_CHART_CATALOG` la pantalla muestra la lista en modo lectura con el aviso "Solo el administrador y los entrenadores principales pueden editar los códigos."
 
-### Rivales (`/rivales`)
+### Rivales (`/rivals`)
 
 Los planteles de los equipos rivales, por división (ver [Planteles rivales](#planteles-rivales)). Se abre desde **Rivales** en el riel lateral o, en el teléfono, desde el botón **Rivales** de la cabecera de [Partidos](#partidos-matches); la barra superior del teléfono no cambia.
 
@@ -496,7 +496,7 @@ Validaciones del formulario del jugador, con su mensaje:
 
 **Sincronización.** Cada rival viaja con todo su plantel como un registro de tipo `rivalTeam`, con la misma cola de salida que las divisiones y los jugadores: funciona sin conexión y llega a todas las tablets. Si dos tablets cambian el mismo rival, queda el último cambio que llega al servidor.
 
-### Entrenadores (`/entrenadores`)
+### Entrenadores (`/coaches`)
 
 El cuerpo técnico del club. Cada entrenador es una ficha sin usuario: no inicia sesión ni tiene rol de acceso; los usuarios y sus roles siguen siendo los de [Roles y permisos](#4-roles-y-permisos). Las divisiones asignan un entrenador principal y ayudantes elegidos entre estas fichas (ver [Asignar el cuerpo técnico de una división](#asignar-el-cuerpo-técnico-de-una-división)). Se abre desde **Entrenadores** en el riel lateral o, en el teléfono, desde el botón **Entrenadores** de la cabecera de [Divisiones](#divisiones-divisions).
 
@@ -637,14 +637,14 @@ Con varias tablets en el mismo partido, cada **Deshacer** quita la última de la
 
 ### Editar los códigos de la planilla
 
-1. Abrir **Planilla** en el menú (pantalla [Códigos de la planilla](#códigos-de-la-planilla-planilla)). Hace falta el permiso `MANAGE_CHART_CATALOG`.
+1. Abrir **Planilla** en el menú (pantalla [Códigos de la planilla](#códigos-de-la-planilla-chart-codes)). Hace falta el permiso `MANAGE_CHART_CATALOG`.
 2. Para renombrar, tocar el lápiz del código, cambiar el símbolo, el nombre o el tono y pulsar **Guardar cambios**.
 3. Para agregar, pulsar **Nuevo código** en la categoría, completar el formulario y pulsar **Agregar código**. El código aparece al final de la categoría en el panel de carga en vivo.
 4. Para dejar de usar un código, tocar **Archivar** y confirmar. Las entradas ya cargadas lo siguen mostrando; **Restaurar** lo devuelve al panel.
 
 ### Cargar el plantel de un rival
 
-1. Abrir **Rivales** en el menú o, en el teléfono, el botón **Rivales** de Partidos (pantalla [Rivales](#rivales-rivales)). Hace falta el permiso `MANAGE_MATCHES`.
+1. Abrir **Rivales** en el menú o, en el teléfono, el botón **Rivales** de Partidos (pantalla [Rivales](#rivales-rivals)). Hace falta el permiso `MANAGE_MATCHES`.
 2. Pulsar **Nuevo rival**, elegir la división y escribir el nombre igual que en los partidos (por ejemplo, "Obras Sanitarias"). Pulsar **Crear rival**.
 3. En la tarjeta del rival, pulsar **Agregar jugador**, completar dorsal, nombre y apellido y pulsar **Agregar jugador**. Repetir por cada jugador.
 4. Revisar la línea del enlace: debe decir "1 partido con este nombre" (o más). Si dice "Ningún partido con este nombre", renombrar el rival con el lápiz.
@@ -937,7 +937,7 @@ El motor de sincronización (`createSyncEngine`) no conoce el navegador: recibe 
 src/
   app/                      rutas: /, /divisions, /players, /matches,
                             /matches/live, /matches/[id]/{lineup,live,stats},
-                            /planilla, /rivales, /entrenadores, /ayuda
+                            /chart-codes, /rivals, /coaches, /help
                             /login, /api/auth/*, /api/sync/*
   core/
     domain/                 entities/, rules/, club-profile.ts
@@ -968,7 +968,7 @@ public/brand/               escudo del club
 
 ### Cómo agregar un código de la planilla
 
-Un club agrega sus propios códigos desde la pantalla [Códigos de la planilla](#códigos-de-la-planilla-planilla), sin tocar el código fuente. Para sumar un código de fábrica, para todos los clubes:
+Un club agrega sus propios códigos desde la pantalla [Códigos de la planilla](#códigos-de-la-planilla-chart-codes), sin tocar el código fuente. Para sumar un código de fábrica, para todos los clubes:
 
 1. Agregarlo a `CHART_CATALOG` (`src/core/domain/entities/chart.types.ts`) con su símbolo, su etiqueta y su tono. El id (`code`) se guarda en cada entrada: no se renombra ni se reutiliza. El símbolo y la etiqueta sí pueden cambiar.
 2. La consola, la grilla y las referencias leen el catálogo del club (`resolveChartCatalog`, en `src/core/domain/rules/chart-catalog.ts`: los códigos de fábrica con los cambios del club, más sus códigos propios), así que lo toman sin más cambios.

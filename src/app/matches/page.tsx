@@ -176,7 +176,7 @@ export default function MatchesPage() {
             <>
               {/* Rival rosters: the phone top bar has no room for them (S14). */}
               <LinkButton
-                href="/rivales"
+                href="/rivals"
                 variant="secondary"
                 leftIcon={<Swords size={ICON_SIZE.md} />}
                 data-tour="matches-rivals"
