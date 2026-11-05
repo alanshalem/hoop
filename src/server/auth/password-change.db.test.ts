@@ -71,6 +71,26 @@ describe('self-service password change (database)', () => {
     assert.ok(await validateSessionToken(connection.db, other.token));
   });
 
+  it('refuses keeping the current password and changes nothing (S3)', async () => {
+    const user = await insertUser(true);
+    const current = await createSession(connection.db, user.id);
+    const other = await createSession(connection.db, user.id);
+    const before = await storedRow(user.id);
+    const sessionsBefore = await sessionIds(user.id);
+
+    const result = await changeOwnPassword(connection.db, current.token, {
+      currentPassword: PASSWORD,
+      newPassword: PASSWORD,
+    });
+    assert.deepStrictEqual(result, { ok: false, error: 'SAME_PASSWORD' });
+
+    const after = await storedRow(user.id);
+    assert.strictEqual(after.passwordHash, before.passwordHash);
+    assert.strictEqual(after.mustChangePassword, true);
+    assert.deepStrictEqual(await sessionIds(user.id), sessionsBefore);
+    assert.ok(await validateSessionToken(connection.db, other.token));
+  });
+
   it('stores the new password, clears the flag and keeps only the current session (S3, S5)', async () => {
     const user = await insertUser(true);
     const current = await createSession(connection.db, user.id);

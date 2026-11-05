@@ -18,7 +18,8 @@ import { MAX_USER_BODY_BYTES } from '@/server/users/schemas';
  * the current session and its cookie stay valid.
  * 403 when a present `Origin` is not this host, 415 if not JSON, 401 without a
  * session, 400 for a malformed body, 400 `WRONG_CURRENT_PASSWORD` when the
- * current password does not match (nothing changes).
+ * current password does not match, 400 `SAME_PASSWORD` when the new password
+ * equals the current one (nothing changes in either case).
  */
 export async function POST(request: Request): Promise<Response> {
   if (!isSameOriginRequest(request)) return jsonError(403, AUTH_MESSAGES.forbiddenOrigin);
@@ -34,9 +35,10 @@ export async function POST(request: Request): Promise<Response> {
 
     const outcome = await changeOwnPassword(getDb(), token, parsed.data);
     if (outcome.ok) return jsonOk({ user: outcome.user });
-    return outcome.error === 'UNAUTHENTICATED'
-      ? jsonError(401, AUTH_MESSAGES.unauthenticated)
-      : jsonError(400, AUTH_MESSAGES.wrongCurrentPassword, outcome.error);
+    if (outcome.error === 'UNAUTHENTICATED') return jsonError(401, AUTH_MESSAGES.unauthenticated);
+    const message =
+      outcome.error === 'SAME_PASSWORD' ? AUTH_MESSAGES.samePassword : AUTH_MESSAGES.wrongCurrentPassword;
+    return jsonError(400, message, outcome.error);
   } catch (error) {
     unstable_rethrow(error);
     logServerError('auth/password', error);

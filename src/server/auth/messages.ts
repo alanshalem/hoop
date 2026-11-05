@@ -9,5 +9,6 @@ export const AUTH_MESSAGES = {
   forbiddenOrigin: 'Solicitud rechazada: el origen no está permitido.',
   invalidPasswordChangeBody: 'Ingresa tu contraseña actual y una nueva de 8 a 256 caracteres.',
   wrongCurrentPassword: 'La contraseña actual no es correcta.',
+  samePassword: 'La nueva contraseña debe ser distinta de la actual.',
   passwordChangeRequired: 'Debes cambiar tu contraseña temporal antes de continuar.',
 } as const;

@@ -9,12 +9,13 @@ import { toPublicUser, type PublicUser } from './users';
 
 export type PasswordChangeResult =
   | { ok: true; user: PublicUser }
-  | { ok: false; error: 'UNAUTHENTICATED' | 'WRONG_CURRENT_PASSWORD' };
+  | { ok: false; error: 'UNAUTHENTICATED' | 'WRONG_CURRENT_PASSWORD' | 'SAME_PASSWORD' };
 
 /**
  * Self-service password change for the owner of `sessionToken` (S3, S5): checks
  * the current password, stores the new one, clears `mustChangePassword` and
- * closes every other session of the user (the current one stays open).
+ * closes every other session of the user (the current one stays open). Keeping
+ * the current password is refused, so a temporary password cannot stay in use.
  */
 export async function changeOwnPassword(
   db: DbExecutor,
@@ -32,6 +33,7 @@ export async function changeOwnPassword(
   if (!stored || !(await verifyPassword(currentPassword, stored.passwordHash))) {
     return { ok: false, error: 'WRONG_CURRENT_PASSWORD' };
   }
+  if (newPassword === currentPassword) return { ok: false, error: 'SAME_PASSWORD' };
 
   const passwordHash = await hashPassword(newPassword);
   return db.transaction(async (tx) => {
