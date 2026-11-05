@@ -15,7 +15,8 @@ import { createUser, listUsers } from '@/server/users/service';
 /**
  * GET /api/users
  *   -> 200 { users: [{ id, email, name, role, active, mustChangePassword, createdAt }] } sorted by name (S1).
- * Never returns password data. 401 without a session, 403 without `MANAGE_USERS` (ADMIN only).
+ * Never returns password data. 401 without a session, 403 `PASSWORD_CHANGE_REQUIRED` while the
+ * caller must change a temporary password, 403 without `MANAGE_USERS` (ADMIN only).
  */
 export async function GET(): Promise<Response> {
   try {
@@ -33,21 +34,24 @@ export async function GET(): Promise<Response> {
  * POST /api/users  { name, email, role, temporaryPassword } -> 201 { user } (S2, S6).
  * The account starts active and must change the temporary password at its next login.
  * 403 when a present `Origin` is not this host, 415 if not JSON, 401 without a session,
- * 403 without `MANAGE_USERS`, 400 for a malformed body (name 2-60 characters, valid email,
- * known role, password 8-256), 409 `EMAIL_TAKEN` when the email (any case) is in use.
+ * 403 `PASSWORD_CHANGE_REQUIRED` while the caller must change a temporary password, 403 without
+ * `MANAGE_USERS`, 400 for a malformed body (name 2-60 characters, valid email, known role,
+ * password 8-256), 409 `EMAIL_TAKEN` when the email (any case) is in use, 403 `ACTOR_NOT_ALLOWED`
+ * when the caller stopped being an active admin after the session check.
  */
 export async function POST(request: Request): Promise<Response> {
   if (!isSameOriginRequest(request)) return jsonError(403, AUTH_MESSAGES.forbiddenOrigin);
   if (!isJsonRequest(request)) return jsonError(415, AUTH_MESSAGES.unsupportedMediaType);
   try {
-    const refusal = userManagementRefusal(await getCurrentUser());
-    if (refusal) return refusal;
+    const actor = await getCurrentUser();
+    const refusal = userManagementRefusal(actor);
+    if (refusal || !actor) return refusal ?? jsonError(401, AUTH_MESSAGES.unauthenticated);
 
     const body = await readJsonBody(request, MAX_USER_BODY_BYTES);
     const parsed = body.ok ? CreateUserBodySchema.safeParse(body.value) : null;
     if (!parsed?.success) return jsonError(400, USER_MESSAGES.invalidCreateBody);
 
-    const outcome = await createUser(getDb(), parsed.data);
+    const outcome = await createUser(getDb(), actor, parsed.data);
     return outcome.ok ? jsonOk({ user: outcome.user }, 201) : userAdminErrorResponse(outcome.error);
   } catch (error) {
     unstable_rethrow(error);

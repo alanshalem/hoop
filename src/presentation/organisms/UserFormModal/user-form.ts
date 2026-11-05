@@ -6,11 +6,15 @@ import type { ManagedUser, UserPatch } from '@/core/application/users/user-admin
 /** Same limits as `/api/users` (S2, S6), so the form refuses what the server would refuse. */
 const USER_NAME_MIN_LENGTH = 2;
 const USER_NAME_MAX_LENGTH = 60;
+/** Longest email the server accepts (RFC 5321 path limit). */
+const EMAIL_MAX_LENGTH = 254;
+
+const EMAIL_MESSAGE = 'El email no tiene un formato válido.';
 
 const NAME_MESSAGE = `El nombre debe tener de ${USER_NAME_MIN_LENGTH} a ${USER_NAME_MAX_LENGTH} caracteres.`;
 
 const NameSchema = z.string().trim().min(USER_NAME_MIN_LENGTH, NAME_MESSAGE).max(USER_NAME_MAX_LENGTH, NAME_MESSAGE);
-const EmailSchema = z.string().trim().max(254, 'El email no tiene un formato válido.').pipe(z.email('El email no tiene un formato válido.'));
+const EmailSchema = z.string().trim().max(EMAIL_MAX_LENGTH, EMAIL_MESSAGE).pipe(z.email(EMAIL_MESSAGE));
 const RoleSchema = z.enum(UserRoleSchema.options, { message: 'Elige el rol del usuario.' });
 /** Kept exactly as typed, like the server does. */
 const TemporaryPasswordSchema = z.string().min(PASSWORD_MIN_LENGTH, NEW_PASSWORD_MESSAGE).max(PASSWORD_MAX_LENGTH, NEW_PASSWORD_MESSAGE);

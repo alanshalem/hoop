@@ -5,7 +5,7 @@ import { INTERNAL_ERROR_MESSAGE, jsonError, jsonOk } from '@/server/http/json';
 import { logServerError } from '@/server/http/log-server-error';
 
 /**
- * GET /api/auth/me -> 200 { user } (id, email, name, role) or 401.
+ * GET /api/auth/me -> 200 { user } (id, email, name, role, mustChangePassword) or 401.
  * Reads the session cookie, so it always runs at request time.
  */
 export async function GET(): Promise<Response> {

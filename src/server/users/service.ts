@@ -14,6 +14,12 @@ import type { CreateUserBody, UpdateUserBody } from './schemas';
  * HOOP - USER ADMINISTRATION (S1, S2, S4, S6)
  * Accounts are never deleted: they are deactivated. Every rule the admin screen
  * shows is enforced here, inside one transaction per change.
+ *
+ * Lock order (deadlock-free): every change first locks the active ADMIN rows in
+ * id order, then the target row. Always `FOR NO KEY UPDATE`, so no transaction
+ * upgrades a lock it shares with another one. Login (session insert, `KEY SHARE`)
+ * does not conflict with it, and a self-service password change locks only its
+ * own row and no other account afterwards, so neither can close a cycle.
  * =============================================================================
  */
 
@@ -29,7 +35,18 @@ export interface ManagedUser {
   createdAt: string;
 }
 
-export type UserAdminError = 'EMAIL_TAKEN' | 'USER_NOT_FOUND' | 'SELF_DEACTIVATION' | 'SELF_ROLE_CHANGE' | 'LAST_ADMIN';
+export type UserAdminError =
+  | 'EMAIL_TAKEN'
+  | 'USER_NOT_FOUND'
+  | 'SELF_DEACTIVATION'
+  | 'SELF_ROLE_CHANGE'
+  | 'LAST_ADMIN'
+  | 'ACTOR_NOT_ALLOWED';
+
+/** The admin making the change, as checked by the route before the transaction. */
+export interface UserAdminActor {
+  id: string;
+}
 
 export type UserAdminResult = { ok: true; user: ManagedUser } | { ok: false; error: UserAdminError };
 
@@ -58,6 +75,22 @@ function isEmailTaken(error: unknown): boolean {
   return false;
 }
 
+/**
+ * Locks the active ADMIN rows in id order (the first step of the lock order
+ * above) and returns their ids. The acting admin must be one of them: the route
+ * checked the session before the transaction, and the account may have been
+ * deactivated or demoted since (S6).
+ */
+async function lockActiveAdmins(tx: DbExecutor): Promise<string[]> {
+  const rows = await tx
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.role, 'ADMIN'), eq(users.active, true)))
+    .orderBy(asc(users.id))
+    .for('no key update');
+  return rows.map((row) => row.id);
+}
+
 /** Every account, sorted by name. */
 export async function listUsers(db: DbExecutor): Promise<ManagedUser[]> {
   const rows = await db.select().from(users).orderBy(asc(users.name), asc(users.email));
@@ -67,23 +100,27 @@ export async function listUsers(db: DbExecutor): Promise<ManagedUser[]> {
 /** A new active account that must replace its temporary password at the next login (S2). */
 export async function createUser(
   db: DbExecutor,
+  actor: UserAdminActor,
   { name, email, role, temporaryPassword }: CreateUserBody
 ): Promise<UserAdminResult> {
   const passwordHash = await hashPassword(temporaryPassword);
   try {
-    const [row] = await db
-      .insert(users)
-      .values({
-        id: randomUUID(),
-        email: normalizeEmail(email),
-        name,
-        role,
-        passwordHash,
-        active: true,
-        mustChangePassword: true,
-      })
-      .returning();
-    return { ok: true, user: toManagedUser(row) };
+    return await db.transaction(async (tx) => {
+      if (!(await lockActiveAdmins(tx)).includes(actor.id)) return fail('ACTOR_NOT_ALLOWED');
+      const [row] = await tx
+        .insert(users)
+        .values({
+          id: randomUUID(),
+          email: normalizeEmail(email),
+          name,
+          role,
+          passwordHash,
+          active: true,
+          mustChangePassword: true,
+        })
+        .returning();
+      return { ok: true, user: toManagedUser(row) };
+    });
   } catch (error) {
     if (isEmailTaken(error)) return fail('EMAIL_TAKEN');
     throw error;
@@ -95,28 +132,21 @@ export async function createUser(
  * or change the role of their own account, and the last active ADMIN is never
  * deactivated or demoted. Deactivating closes every session of the account.
  *
- * The active ADMIN rows are locked (in id order, before the target row) when
- * the role or the active state may change, so two concurrent changes cannot
- * both see "another admin remains" and leave the club without one.
+ * The active ADMIN rows are locked before the target row, so two concurrent
+ * changes cannot both see "another admin remains" and leave the club without
+ * one. The acting admin is checked against the same locked rows right before
+ * writing: the account guards above keep their specific reasons, and every
+ * refusal leaves the rows unchanged.
  */
 export async function updateUser(
   db: DbExecutor,
-  actor: { id: string },
+  actor: UserAdminActor,
   userId: string,
   patch: UpdateUserBody
 ): Promise<UserAdminResult> {
   try {
     return await db.transaction(async (tx) => {
-      const mayLeaveAdmins = patch.role !== undefined || patch.active !== undefined;
-      const activeAdmins = mayLeaveAdmins
-        ? await tx
-            .select({ id: users.id })
-            .from(users)
-            .where(and(eq(users.role, 'ADMIN'), eq(users.active, true)))
-            .orderBy(asc(users.id))
-            .for('no key update')
-        : [];
-
+      const activeAdmins = await lockActiveAdmins(tx);
       const [target] = await tx.select().from(users).where(eq(users.id, userId)).for('no key update');
       if (!target) return fail('USER_NOT_FOUND');
 
@@ -126,7 +156,8 @@ export async function updateUser(
       if (target.id === actor.id && changingRole) return fail('SELF_ROLE_CHANGE');
 
       const leavesAdmins = target.role === 'ADMIN' && target.active && (deactivating || changingRole);
-      if (leavesAdmins && !activeAdmins.some((admin) => admin.id !== target.id)) return fail('LAST_ADMIN');
+      if (leavesAdmins && !activeAdmins.some((id) => id !== target.id)) return fail('LAST_ADMIN');
+      if (!activeAdmins.includes(actor.id)) return fail('ACTOR_NOT_ALLOWED');
 
       const [row] = await tx
         .update(users)
@@ -155,11 +186,13 @@ export async function updateUser(
  */
 export async function resetUserPassword(
   db: DbExecutor,
+  actor: UserAdminActor,
   userId: string,
   temporaryPassword: string
 ): Promise<UserAdminResult> {
   const passwordHash = await hashPassword(temporaryPassword);
   return db.transaction(async (tx) => {
+    if (!(await lockActiveAdmins(tx)).includes(actor.id)) return fail('ACTOR_NOT_ALLOWED');
     const [row] = await tx
       .update(users)
       .set({ passwordHash, mustChangePassword: true, updatedAt: new Date() })

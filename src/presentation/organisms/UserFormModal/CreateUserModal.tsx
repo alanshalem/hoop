@@ -1,23 +1,18 @@
 'use client';
 
 import React from 'react';
-import { UserRoleSchema, USER_ROLE_LABELS } from '@/core/domain/entities/club.types';
 import { generateTemporaryPassword } from '@/core/application/users/temporary-password';
 import type { ManagedUser } from '@/core/application/users/user-admin';
 import { TextField } from '@/presentation/atoms/TextField/TextField';
-import { SelectField, type SelectFieldOption } from '@/presentation/atoms/SelectField/SelectField';
+import { SelectField } from '@/presentation/atoms/SelectField/SelectField';
 import { FormModalSheet } from '@/presentation/templates/FormModalSheet/FormModalSheet';
 import { useModalForm } from '@/presentation/hooks/useModalForm';
 import { usersApi } from '@/presentation/session/sync-runtime';
 import { reportUserAdminFailure } from './report-failure';
+import { USER_ROLE_OPTIONS } from './role-options';
 import { TemporaryPasswordField } from './TemporaryPasswordField';
 import { CreateUserFormSchema, toUserFormData, userRefusalField, type CreateUserFormData } from './user-form';
 import styles from './UserFormModal.module.css';
-
-export const USER_ROLE_OPTIONS: SelectFieldOption[] = UserRoleSchema.options.map((role) => ({
-  value: role,
-  label: USER_ROLE_LABELS[role],
-}));
 
 const DEFAULTS: CreateUserFormData = { ...toUserFormData(null), temporaryPassword: '' };
 

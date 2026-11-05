@@ -17,9 +17,11 @@ import { updateUser } from '@/server/users/service';
  * `active: false` deactivates the account (it stays listed, cannot log in and every
  * session closes); `active: true` reactivates it.
  * 403 when a present `Origin` is not this host, 415 if not JSON, 401 without a session,
+ * 403 `PASSWORD_CHANGE_REQUIRED` while the caller must change a temporary password,
  * 403 without `MANAGE_USERS`, 400 for a malformed body, 404 `USER_NOT_FOUND`,
  * 409 `EMAIL_TAKEN`, 409 `SELF_DEACTIVATION` / `SELF_ROLE_CHANGE` (the admin's own
- * account), 409 `LAST_ADMIN` (the last active ADMIN cannot be deactivated or demoted).
+ * account), 409 `LAST_ADMIN` (the last active ADMIN cannot be deactivated or demoted),
+ * 403 `ACTOR_NOT_ALLOWED` when the caller stopped being an active admin after the session check.
  */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   if (!isSameOriginRequest(request)) return jsonError(403, AUTH_MESSAGES.forbiddenOrigin);

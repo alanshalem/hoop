@@ -7,9 +7,9 @@ import type { PasswordChangeBody } from './password-schema';
 import { revokeUserSessions, validateSessionToken } from './session';
 import { toPublicUser, type PublicUser } from './users';
 
-export type PasswordChangeResult =
-  | { ok: true; user: PublicUser }
-  | { ok: false; error: 'UNAUTHENTICATED' | 'WRONG_CURRENT_PASSWORD' | 'SAME_PASSWORD' };
+export type PasswordChangeError = 'UNAUTHENTICATED' | 'WRONG_CURRENT_PASSWORD' | 'SAME_PASSWORD';
+
+export type PasswordChangeResult = { ok: true; user: PublicUser } | { ok: false; error: PasswordChangeError };
 
 /**
  * Self-service password change for the owner of `sessionToken` (S3, S5): checks

@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { unstable_rethrow } from 'next/navigation';
 import { AUTH_MESSAGES } from '@/server/auth/messages';
 import { changeOwnPassword } from '@/server/auth/password-change';
+import { passwordChangeErrorResponse } from '@/server/auth/password-change-response';
 import { PasswordChangeBodySchema } from '@/server/auth/password-schema';
 import { SESSION_COOKIE_NAME } from '@/server/auth/session';
 import { getDb } from '@/server/db/client';
@@ -34,11 +35,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!parsed?.success) return jsonError(400, AUTH_MESSAGES.invalidPasswordChangeBody);
 
     const outcome = await changeOwnPassword(getDb(), token, parsed.data);
-    if (outcome.ok) return jsonOk({ user: outcome.user });
-    if (outcome.error === 'UNAUTHENTICATED') return jsonError(401, AUTH_MESSAGES.unauthenticated);
-    const message =
-      outcome.error === 'SAME_PASSWORD' ? AUTH_MESSAGES.samePassword : AUTH_MESSAGES.wrongCurrentPassword;
-    return jsonError(400, message, outcome.error);
+    return outcome.ok ? jsonOk({ user: outcome.user }) : passwordChangeErrorResponse(outcome.error);
   } catch (error) {
     unstable_rethrow(error);
     logServerError('auth/password', error);

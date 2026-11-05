@@ -529,7 +529,7 @@ Campos del formulario, con su mensaje:
 
 ### Usuarios (`/users`)
 
-Las cuentas que inician sesión en Hoop. Solo el administrador (permiso `MANAGE_USERS`) las ve y las cambia; se abre desde **Usuarios** en el riel lateral o, en el teléfono, desde **Usuarios** en el menú de usuario del Dashboard. Los demás roles no ven ese acceso y, si abren la dirección, la pantalla solo dice "Solo el administrador gestiona los usuarios." El servidor aplica la misma regla a cada pedido: sin sesión responde 401 y sin `MANAGE_USERS`, 403.
+Las cuentas que inician sesión en Hoop. Solo el administrador (permiso `MANAGE_USERS`) las ve y las cambia; se abre desde **Usuarios** en el riel lateral o, en el teléfono, desde **Usuarios** en el menú de usuario del Dashboard. Los demás roles no ven ese acceso y, si abren la dirección, la pantalla solo dice "Solo el administrador gestiona los usuarios." El servidor aplica la misma regla a cada pedido: sin sesión responde 401 y sin `MANAGE_USERS`, 403. Un administrador con una contraseña temporal tampoco puede gestionar usuarios hasta cambiarla: el servidor también responde 403.
 
 Cada tarjeta muestra el nombre, el correo y el rol (**Administrador**, **Entrenador principal** o **Asistente planillero**), ordenadas por nombre. Etiquetas:
 
@@ -580,7 +580,7 @@ Cualquier usuario cambia su propia contraseña desde **Cambiar contraseña** en 
 | Las dos nuevas no coinciden                      | "Las contraseñas no coinciden."                                                                                                               |
 | Sin conexión                                     | Aviso "Sin conexión": la contraseña solo se cambia con conexión.                                                                              |
 
-**Cambio obligatorio.** Una cuenta nueva o con la contraseña restablecida entra con una contraseña temporal y la aplicación la lleva a esta pantalla, sin menú: el primer campo se llama **Contraseña temporal**, un texto explica que hay que reemplazarla y la única otra opción es **Cerrar sesión**. Hasta cambiarla, cualquier otra pantalla vuelve aquí y la sincronización no arranca (el servidor la rechaza con 403). Después del cambio la etiqueta **Debe cambiar la contraseña** desaparece, la sincronización arranca y la aplicación sigue a la pantalla que se había pedido (o al Dashboard).
+**Cambio obligatorio.** Una cuenta nueva o con la contraseña restablecida entra con una contraseña temporal y la aplicación la lleva a esta pantalla, sin menú: el primer campo se llama **Contraseña temporal**, un texto explica que hay que reemplazarla y la única otra opción es **Cerrar sesión**. Hasta cambiarla, cualquier otra pantalla vuelve aquí y la sincronización no arranca (el servidor la rechaza con 403, igual que la gestión de usuarios si la cuenta es de un administrador). Después del cambio la etiqueta **Debe cambiar la contraseña** desaparece, la sincronización arranca y la aplicación sigue a la pantalla que se había pedido (o al Dashboard).
 
 ---
 
@@ -914,7 +914,7 @@ npm run db:import-actas -- --csv <planilla.csv> --pdfs <carpeta> --yes       # b
 | `POST /api/auth/login`              | `{ email, password }` en JSON. Responde `{ user }` y crea la cookie de sesión, o 401 con "Email o contraseña incorrectos".                                              |
 | `POST /api/auth/logout`             | Cierra la sesión y borra la cookie. Exige `Content-Type: application/json` (cuerpo `{}`); sin él responde 415.                                                          |
 | `GET /api/auth/me`                  | El usuario de la sesión (`id`, `email`, `name`, `role`, `mustChangePassword`) o 401.                                                                                    |
-| `POST /api/auth/password`           | `{ currentPassword, newPassword }` (nueva de 8 a 256 caracteres). Responde `{ user }` con `mustChangePassword` en `false` y cierra las demás sesiones de la cuenta; 400 con `reason: WRONG_CURRENT_PASSWORD` si la actual no coincide. |
+| `POST /api/auth/password`           | `{ currentPassword, newPassword }` (nueva de 8 a 256 caracteres). Responde `{ user }` con `mustChangePassword` en `false` y cierra las demás sesiones de la cuenta; 400 con `reason: WRONG_CURRENT_PASSWORD` si la actual no coincide y 400 `SAME_PASSWORD` si la nueva es igual a la actual. |
 | `GET /api/users`                    | Solo `MANAGE_USERS`. `{ users: [{ id, email, name, role, active, mustChangePassword, createdAt }] }`, por nombre. Nunca devuelve datos de contraseñas.                  |
 | `POST /api/users`                   | Solo `MANAGE_USERS`. `{ name, email, role, temporaryPassword }` -> 201 `{ user }` (activa y con cambio obligatorio); 409 `EMAIL_TAKEN`.                                  |
 | `PATCH /api/users/[id]`             | Solo `MANAGE_USERS`. `{ name?, email?, role?, active? }` -> `{ user }`; 404 `USER_NOT_FOUND`; 409 `EMAIL_TAKEN`, `SELF_DEACTIVATION`, `SELF_ROLE_CHANGE` o `LAST_ADMIN`. Desactivar cierra las sesiones de la cuenta. |
@@ -922,7 +922,7 @@ npm run db:import-actas -- --csv <planilla.csv> --pdfs <carpeta> --yes       # b
 | `POST /api/sync/push`               | Recibe registros (los partidos con `fieldVersions` opcional: campo -> hora de su último cambio) y jugadas; responde `{ accepted, rejected: [{ id, reason }], cursor }`. |
 | `GET /api/sync/pull?since=<cursor>` | Cambios posteriores al cursor (incluye eliminaciones), de a páginas (`hasMore`). Sin `since`, todo.                                                                     |
 
-Los errores responden `{ error, reason? }`: `error` es el mensaje en español que la aplicación muestra tal cual y `reason`, el código para reaccionar. Mientras la cuenta debe cambiar su contraseña temporal, `push` y `pull` responden 403 con `reason: PASSWORD_CHANGE_REQUIRED`.
+Los errores responden `{ error, reason? }`: `error` es el mensaje en español que la aplicación muestra tal cual y `reason`, el código para reaccionar. Mientras la cuenta debe cambiar su contraseña temporal, `push`, `pull` y todas las rutas de `/api/users` responden 403 con `reason: PASSWORD_CHANGE_REQUIRED`: un administrador en esa situación no puede usar la API de Usuarios hasta cambiar su contraseña. Si quien hace un cambio en `/api/users` dejó de ser un administrador activo después de validar su sesión, el cambio no se aplica y responde 403 con `reason: ACTOR_NOT_ALLOWED`.
 
 Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el esquema del dominio, un `updatedAt` más de 5 minutos adelantado respecto del reloj del servidor, una versión de campo posterior a su `updatedAt`, o una jugada cuyo partido no existe en el servidor ni llega aceptado en el mismo envío), `FORBIDDEN` (el rol no tiene el permiso) y `STALE` (el servidor ya tiene una versión igual o más nueva de todos los campos, o la jugada fue eliminada).
 
@@ -934,7 +934,7 @@ Motivos de rechazo de un cambio en `push`: `INVALID` (datos que no cumplen el es
 - `login`, `logout`, `push`, `POST /api/auth/password` y los cambios de `/api/users` exigen JSON y rechazan con 403 ("Solicitud rechazada: el origen no está permitido.") los pedidos cuyo encabezado `Origin` no coincide con el host del servidor. Detrás de un proxy inverso, el proxy debe enviar `X-Forwarded-Host` (o conservar `Host`).
 - Los permisos de cada cambio se validan en el servidor con la misma matriz de roles que usa la interfaz.
 - Las cuentas no se borran: desactivar una cierra sus sesiones al instante y bloquea su ingreso con el mismo mensaje genérico. Restablecer una contraseña cierra todas las sesiones de la cuenta; cambiar la propia cierra las demás y conserva la actual.
-- Una cuenta con contraseña temporal solo puede cambiarla: el servidor rechaza su sincronización hasta entonces. El último administrador activo no se puede desactivar ni cambiar de rol, y un administrador no puede desactivar ni cambiar el rol de su propia cuenta.
+- Una cuenta con contraseña temporal solo puede cambiarla: el servidor rechaza su sincronización y, si es de un administrador, la gestión de usuarios hasta entonces. Cada cambio de usuarios vuelve a comprobar dentro de su transacción que quien lo hace sigue siendo un administrador activo. El último administrador activo no se puede desactivar ni cambiar de rol, y un administrador no puede desactivar ni cambiar el rol de su propia cuenta.
 - `updatedAt` más de 5 minutos en el futuro se rechaza, para que un reloj adelantado no gane todos los conflictos.
 
 ### Solución de problemas

@@ -21,7 +21,7 @@ import { ResetPasswordModal } from '@/presentation/organisms/UserFormModal/Reset
 import { reportUserAdminFailure } from '@/presentation/organisms/UserFormModal/report-failure';
 import { deactivateUserMessage } from '@/presentation/organisms/UserFormModal/user-form';
 import { useEditModal } from '@/presentation/hooks/useEditModal';
-import { accountFailureMessage } from '@/presentation/session/account-messages';
+import { accountFailureMessage, SERVER_FALLBACK_MESSAGE } from '@/presentation/session/account-messages';
 import { usersApi } from '@/presentation/session/sync-runtime';
 import { useHydrated } from '@/presentation/session/useHydrated';
 import styles from './UsersScreen.module.css';
@@ -54,7 +54,7 @@ function useManagedUsers(enabled: boolean) {
       setLoad({
         status: 'error',
         offline: result.error === 'NETWORK',
-        message: accountFailureMessage(result, 'El servidor no respondió como se esperaba. Inténtalo de nuevo en unos minutos.'),
+        message: accountFailureMessage(result, SERVER_FALLBACK_MESSAGE),
       });
     });
     return () => {

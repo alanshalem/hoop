@@ -9,6 +9,8 @@ const ERROR_RESPONSES: Record<UserAdminError, { status: number; message: string 
   SELF_DEACTIVATION: { status: 409, message: USER_MESSAGES.selfDeactivation },
   SELF_ROLE_CHANGE: { status: 409, message: USER_MESSAGES.selfRoleChange },
   LAST_ADMIN: { status: 409, message: USER_MESSAGES.lastAdmin },
+  // The acting admin was deactivated or demoted after the session check (S6).
+  ACTOR_NOT_ALLOWED: { status: 403, message: USER_MESSAGES.forbidden },
 };
 
 /** The refusal of a user administration change, with its error code as `reason`. */

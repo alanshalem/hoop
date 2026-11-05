@@ -1,9 +1,7 @@
 import type { AccountApiResult } from '@/core/application/auth/auth-session';
 import { useAuthStore } from '@/core/application/stores/useAuthStore';
 import { notify } from '@/presentation/organisms/DialogHost/dialog-store';
-import { accountFailureMessage } from '@/presentation/session/account-messages';
-
-const SERVER_FALLBACK = 'El servidor no respondió como se esperaba. Inténtalo de nuevo en unos minutos.';
+import { accountFailureMessage, SERVER_FALLBACK_MESSAGE } from '@/presentation/session/account-messages';
 
 type Failure = Extract<AccountApiResult<unknown>, { ok: false }>;
 
@@ -24,7 +22,7 @@ export async function reportUserAdminFailure(failure: Failure, title: string): P
   }
   await notify({
     title: failure.error === 'NETWORK' ? 'Sin conexión' : title,
-    message: accountFailureMessage(failure, SERVER_FALLBACK),
+    message: accountFailureMessage(failure, SERVER_FALLBACK_MESSAGE),
     tone: 'warning',
   });
   return failure.reason === 'USER_NOT_FOUND';

@@ -7,8 +7,8 @@ import { SelectField } from '@/presentation/atoms/SelectField/SelectField';
 import { FormModalSheet } from '@/presentation/templates/FormModalSheet/FormModalSheet';
 import { useModalForm } from '@/presentation/hooks/useModalForm';
 import { usersApi } from '@/presentation/session/sync-runtime';
-import { USER_ROLE_OPTIONS } from './CreateUserModal';
 import { reportUserAdminFailure } from './report-failure';
+import { USER_ROLE_OPTIONS } from './role-options';
 import { EditUserFormSchema, toUserFormData, toUserPatch, userRefusalField, type EditUserFormData } from './user-form';
 import styles from './UserFormModal.module.css';
 

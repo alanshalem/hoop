@@ -19,7 +19,7 @@ import { TouchButton } from '@/presentation/atoms/TouchButton/TouchButton';
 import { PageHeader } from '@/presentation/molecules/PageHeader/PageHeader';
 import { notify } from '@/presentation/organisms/DialogHost/dialog-store';
 import { TabletAppShell } from '@/presentation/templates/TabletAppShell/TabletAppShell';
-import { accountFailureMessage } from '@/presentation/session/account-messages';
+import { accountFailureMessage, SERVER_FALLBACK_MESSAGE } from '@/presentation/session/account-messages';
 import { logoutWithConfirmation } from '@/presentation/session/logout';
 import { authApi } from '@/presentation/session/sync-runtime';
 import { useHydrated } from '@/presentation/session/useHydrated';
@@ -32,8 +32,6 @@ const SUCCESS_NOTICE = {
   message: 'Tu nueva contraseña ya está activa. Se cerraron tus sesiones en otros dispositivos; esta sigue abierta.',
   tone: 'success',
 } as const;
-
-const SERVER_FALLBACK = 'El servidor no respondió como se esperaba. Inténtalo de nuevo en unos minutos.';
 
 /**
  * Own password change (S5). While the account must replace a temporary password
@@ -95,7 +93,7 @@ export function PasswordChangeScreen() {
     }
     await notify({
       title: result.error === 'NETWORK' ? 'Sin conexión' : 'No se pudo cambiar la contraseña',
-      message: accountFailureMessage(result, SERVER_FALLBACK),
+      message: accountFailureMessage(result, SERVER_FALLBACK_MESSAGE),
       tone: result.error === 'NETWORK' ? 'warning' : 'danger',
     });
   };

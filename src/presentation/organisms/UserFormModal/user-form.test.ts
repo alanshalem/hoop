@@ -57,6 +57,16 @@ describe('user form schemas (S2, S6)', () => {
     );
   });
 
+  it('accepts an email of up to 254 characters, like the server', () => {
+    const emailOfLength = (length: number) => `${'a'.repeat(length - '@camg.com.ar'.length)}@camg.com.ar`;
+    const base = { name: 'Julio Lamas', role: 'HEAD_COACH' };
+    assert.ok(EditUserFormSchema.safeParse({ ...base, email: emailOfLength(254) }).success);
+    assert.strictEqual(
+      firstMessage(EditUserFormSchema.safeParse({ ...base, email: emailOfLength(255) })),
+      'El email no tiene un formato válido.'
+    );
+  });
+
   it('edits name, email and role without a password', () => {
     assert.deepStrictEqual(EditUserFormSchema.parse(toUserFormData(USER)), {
       name: 'Federico Balbi',

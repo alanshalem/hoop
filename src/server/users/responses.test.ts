@@ -11,6 +11,7 @@ describe('user administration refusals (S6)', () => {
       ['SELF_DEACTIVATION', 409, USER_MESSAGES.selfDeactivation],
       ['SELF_ROLE_CHANGE', 409, USER_MESSAGES.selfRoleChange],
       ['LAST_ADMIN', 409, USER_MESSAGES.lastAdmin],
+      ['ACTOR_NOT_ALLOWED', 403, USER_MESSAGES.forbidden],
     ] as const;
     for (const [reason, status, error] of expected) {
       const response = userAdminErrorResponse(reason);

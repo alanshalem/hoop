@@ -24,6 +24,17 @@ describe('user management guard (S1)', () => {
     }
   });
 
+  it('answers 403 PASSWORD_CHANGE_REQUIRED to an admin who must change the password (S3)', async () => {
+    const response = userManagementRefusal({ ...USER, role: 'ADMIN', mustChangePassword: true });
+    assert.ok(response);
+    assert.strictEqual(response.status, 403);
+    assert.strictEqual(response.headers.get('cache-control'), 'no-store');
+    assert.deepStrictEqual(await response.json(), {
+      error: AUTH_MESSAGES.passwordChangeRequired,
+      reason: 'PASSWORD_CHANGE_REQUIRED',
+    });
+  });
+
   it('lets an admin through', () => {
     assert.strictEqual(userManagementRefusal({ ...USER, role: 'ADMIN' }), null);
   });

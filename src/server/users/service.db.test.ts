@@ -1,74 +1,31 @@
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert';
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray, like } from 'drizzle-orm';
-import type { UserRole } from '@/core/domain/entities/club.types';
+import { and, eq, inArray } from 'drizzle-orm';
 import { authenticateUser } from '../auth/authenticate';
-import { hashPassword, verifyPassword } from '../auth/password';
+import { verifyPassword } from '../auth/password';
 import { createSession, validateSessionToken } from '../auth/session';
 import type { DatabaseConnection } from '../db/client';
-import { sessions, users } from '../db/schema';
+import { users } from '../db/schema';
 import { openTestDatabase } from '../testing/test-database';
 import { createUser, listUsers, resetUserPassword, updateUser, type UserAdminResult } from './service';
+import { createUserFixtures, FIXTURE_PASSWORD as PASSWORD } from './user-fixtures';
 
-const PASSWORD = 'secret-1922';
 const PREFIX = `test-admin-${randomUUID().slice(0, 8)}`;
 
 describe('user administration (database)', () => {
   let connection: DatabaseConnection;
-  let passwordHash: string;
 
   const db = () => connection.db;
-
-  async function insertUser(role: UserRole, overrides: { active?: boolean; name?: string } = {}) {
-    const id = `${PREFIX}-${randomUUID()}`;
-    const row = {
-      id,
-      email: `${id}@test.camg.com.ar`,
-      name: overrides.name ?? `Usuario ${id}`,
-      role,
-      passwordHash,
-      active: overrides.active ?? true,
-    };
-    await db().insert(users).values(row);
-    return { id, email: row.email, name: row.name, role, mustChangePassword: false };
-  }
-
-  async function storedUser(id: string) {
-    const [row] = await db().select().from(users).where(eq(users.id, id));
-    return row;
-  }
-
-  async function sessionCount(userId: string): Promise<number> {
-    return (await db().select().from(sessions).where(eq(sessions.userId, userId))).length;
-  }
-
-  /**
-   * Runs `body` while the given users are the only active admins of the test
-   * database: every other active admin is deactivated and restored afterwards.
-   */
-  async function withOnlyAdmins(ids: string[], body: () => Promise<void>): Promise<void> {
-    const others = await db()
-      .select({ id: users.id })
-      .from(users)
-      .where(and(eq(users.role, 'ADMIN'), eq(users.active, true)));
-    const otherIds = others.map((row) => row.id).filter((id) => !ids.includes(id));
-    if (otherIds.length > 0) await db().update(users).set({ active: false }).where(inArray(users.id, otherIds));
-    try {
-      await body();
-    } finally {
-      if (otherIds.length > 0) await db().update(users).set({ active: true }).where(inArray(users.id, otherIds));
-    }
-  }
+  const fixtures = createUserFixtures(db, PREFIX);
+  const { insertUser, storedUser, sessionCount, withOnlyAdmins } = fixtures;
 
   before(async () => {
     connection = await openTestDatabase();
-    passwordHash = await hashPassword(PASSWORD);
   });
 
   after(async () => {
-    await connection.db.delete(users).where(like(users.id, `${PREFIX}%`));
-    await connection.db.delete(users).where(like(users.email, `${PREFIX}%`));
+    await fixtures.removeAll();
     await connection.pool.end();
   });
 
@@ -111,8 +68,9 @@ describe('user administration (database)', () => {
 
   describe('create (S2, S6)', () => {
     it('creates an active account that must change its temporary password and can log in', async () => {
+      const admin = await insertUser('ADMIN');
       const email = `${PREFIX}-nuevo@test.camg.com.ar`;
-      const result = await createUser(db(), {
+      const result = await createUser(db(), admin, {
         name: 'Usuario Nuevo',
         email,
         role: 'HEAD_COACH',
@@ -137,10 +95,11 @@ describe('user administration (database)', () => {
     });
 
     it('refuses an email already in use, whatever its case, and writes nothing', async () => {
+      const admin = await insertUser('ADMIN');
       const existing = await insertUser('HEAD_COACH');
       const before = (await listUsers(db())).length;
 
-      const result = await createUser(db(), {
+      const result = await createUser(db(), admin, {
         name: 'Duplicado',
         email: existing.email.toUpperCase(),
         role: 'ADMIN',
@@ -193,7 +152,7 @@ describe('user administration (database)', () => {
         ok: false,
         error: 'USER_NOT_FOUND',
       });
-      assert.deepStrictEqual(await resetUserPassword(db(), `${PREFIX}-missing`, 'temporal-1'), {
+      assert.deepStrictEqual(await resetUserPassword(db(), admin, `${PREFIX}-missing`, 'temporal-1'), {
         ok: false,
         error: 'USER_NOT_FOUND',
       });
@@ -237,10 +196,11 @@ describe('user administration (database)', () => {
 
   describe('reset password (S2)', () => {
     it('sets a new temporary password, flags the account and closes every session', async () => {
+      const admin = await insertUser('ADMIN');
       const target = await insertUser('HEAD_COACH');
       const { token } = await createSession(db(), target.id);
 
-      const result = await resetUserPassword(db(), target.id, 'nueva-temporal');
+      const result = await resetUserPassword(db(), admin, target.id, 'nueva-temporal');
       assert.ok(result.ok);
       assert.strictEqual(result.user.mustChangePassword, true);
       assert.strictEqual(await sessionCount(target.id), 0);

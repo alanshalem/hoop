@@ -6,7 +6,8 @@ import { POST } from './route';
 /**
  * Route-level checks for the guards, which answer before the session cookie is
  * read (cookies() needs a Next.js request scope); the change itself is covered
- * by src/server/auth/password-change.db.test.ts.
+ * by src/server/auth/password-change.db.test.ts and its refusals by
+ * src/server/auth/password-change-response.test.ts.
  */
 
 const BODY = JSON.stringify({ currentPassword: 'old-password', newPassword: 'new-password' });
