@@ -150,6 +150,15 @@ describe('stats tour', () => {
     const boxScore = stats.steps.find((step) => step.target === 'stats-boxscore');
     assert.match(`${boxScore?.body}`, /planilla/);
   });
+
+  it('explains the box score attempts and shooting percentages, field goals included', () => {
+    const boxScore = getTour('stats').steps.find((step) => step.target === 'stats-boxscore');
+    const copy = `${boxScore?.body} ${boxScore?.example ?? ''}`;
+    assert.match(copy, /intentados/);
+    assert.match(copy, /porcentaje/);
+    assert.match(copy, /tiros de campo/);
+    assert.match(copy, /errado/);
+  });
 });
 
 describe('live tour', () => {

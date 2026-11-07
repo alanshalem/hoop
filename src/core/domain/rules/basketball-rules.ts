@@ -1,11 +1,11 @@
-import { PlayByPlayEvent } from '../entities/match.types';
+import { PlayByPlayEvent, PlayByPlayEventType } from '../entities/match.types';
 import { getEventPoints } from './event-rules';
 
 /**
  * =============================================================================
  * HOOP - FIBA THRESHOLDS & BOX SCORE
  * Pure, framework-agnostic domain functions: FIBA foul and clock thresholds and
- * the scoring line of the box score (points and made shots).
+ * the scoring line of the box score (points, made and attempted shots).
  * =============================================================================
  */
 
@@ -40,10 +40,12 @@ export const FIBA_OVERTIME_SECONDS = 300;
 
 export interface MadeShots {
   made: number;
+  /** Made plus missed shots. */
+  attempted: number;
 }
 
 /**
- * What the box score shows: points and made shots, the scoring plays the sheet records.
+ * What the box score shows: points plus made and attempted shots, from the shots the sheet records.
  */
 export interface ScoringLine {
   points: number;
@@ -92,22 +94,36 @@ export function isTeamInBonus(teamFoulsInQuarter: number): boolean {
 // BOX SCORE COMPILATION
 // -----------------------------------------------------------------------------
 
-/** The made-shot counter each basket value feeds. */
-const SHOT_BY_POINTS = { 1: 'ft', 2: 'fg2', 3: 'fg3' } as const;
+/** The shot counter each made or missed shot feeds. */
+const SHOT_BY_EVENT: Partial<Record<PlayByPlayEventType, 'ft' | 'fg2' | 'fg3'>> = {
+  FT_MADE: 'ft',
+  FT_MISS: 'ft',
+  FG2_MADE: 'fg2',
+  FG2_MISS: 'fg2',
+  FG3_MADE: 'fg3',
+  FG3_MISS: 'fg3',
+};
 
 function emptyScoringLine(): ScoringLine {
-  return { points: 0, ft: { made: 0 }, fg2: { made: 0 }, fg3: { made: 0 } };
+  return {
+    points: 0,
+    ft: { made: 0, attempted: 0 },
+    fg2: { made: 0, attempted: 0 },
+    fg3: { made: 0, attempted: 0 },
+  };
 }
 
 function addScoringLine(total: ScoringLine, line: ScoringLine): void {
   total.points += line.points;
-  total.ft.made += line.ft.made;
-  total.fg2.made += line.fg2.made;
-  total.fg3.made += line.fg3.made;
+  for (const shot of ['ft', 'fg2', 'fg3'] as const) {
+    total[shot].made += line[shot].made;
+    total[shot].attempted += line[shot].attempted;
+  }
 }
 
 /**
- * Scoring line of a player from the play-by-play: the baskets attributed to them.
+ * Scoring line of a player from the play-by-play: the shots attributed to them.
+ * A miss adds an attempt but no points.
  */
 export function calculatePlayerBoxScore(
   playerId: string,
@@ -116,10 +132,13 @@ export function calculatePlayerBoxScore(
   const line: PlayerBoxScore = { playerId, ...emptyScoringLine() };
   for (const event of events) {
     if (event.playerId !== playerId) continue;
+    const shot = SHOT_BY_EVENT[event.type];
+    if (!shot) continue;
     const points = getEventPoints(event.type);
+    line[shot].attempted += 1;
     if (points === 0) continue;
     line.points += points;
-    line[SHOT_BY_POINTS[points]].made += 1;
+    line[shot].made += 1;
   }
   return line;
 }

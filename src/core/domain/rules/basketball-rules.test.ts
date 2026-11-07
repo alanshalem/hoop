@@ -38,7 +38,7 @@ describe('FIBA Basketball Domain Rules', () => {
   });
 
   describe('Player Box Score (scoring line)', () => {
-    it('counts only the points and made shots of the player', () => {
+    it('counts the points, made and attempted shots of the player', () => {
       const pId = 'player-23';
       const events = [
         makeEvent({ playerId: pId, type: 'FT_MADE' }),
@@ -57,23 +57,24 @@ describe('FIBA Basketball Domain Rules', () => {
         makeEvent({ type: 'FG2_MADE', isOwnTeam: false }),
       ];
 
-      // 1 FT + 2 doubles + 1 triple = 1 + 4 + 3 = 8; misses and other plays are not part of the line.
+      // 1 FT + 2 doubles + 1 triple = 1 + 4 + 3 = 8; misses add attempts but no points,
+      // and other plays, other players and the rival are not part of the line.
       assert.deepStrictEqual(calculatePlayerBoxScore(pId, events), {
         playerId: pId,
         points: 8,
-        ft: { made: 1 },
-        fg2: { made: 2 },
-        fg3: { made: 1 },
+        ft: { made: 1, attempted: 2 },
+        fg2: { made: 2, attempted: 3 },
+        fg3: { made: 1, attempted: 2 },
       });
     });
 
-    it('is all zeros for a player without baskets', () => {
+    it('counts a miss as an attempt without points for a player without baskets', () => {
       assert.deepStrictEqual(calculatePlayerBoxScore('p1', [makeEvent({ playerId: 'p1', type: 'FG2_MISS' })]), {
         playerId: 'p1',
         points: 0,
-        ft: { made: 0 },
-        fg2: { made: 0 },
-        fg3: { made: 0 },
+        ft: { made: 0, attempted: 0 },
+        fg2: { made: 0, attempted: 1 },
+        fg3: { made: 0, attempted: 0 },
       });
     });
   });
@@ -83,8 +84,13 @@ describe('FIBA Basketball Domain Rules', () => {
       const events = [
         makeEvent({ playerId: 'p1', type: 'FG2_MADE' }),
         makeEvent({ playerId: 'p1', type: 'FT_MADE' }),
+        makeEvent({ playerId: 'p1', type: 'FT_MISS' }),
         makeEvent({ playerId: 'p2', type: 'FG3_MADE' }),
+        makeEvent({ playerId: 'p2', type: 'FG2_MISS' }),
+        makeEvent({ playerId: 'p2', type: 'FG3_MISS' }),
         makeEvent({ playerId: 'p9', type: 'FG3_MADE' }),
+        makeEvent({ playerId: 'p9', type: 'FT_MISS' }),
+        makeEvent({ type: 'FG2_MISS', isOwnTeam: false }),
       ];
 
       const { players, teamTotal } = calculateTeamBoxScore('t1', ['p1', 'p2'], events);
@@ -95,9 +101,9 @@ describe('FIBA Basketball Domain Rules', () => {
       assert.deepStrictEqual(teamTotal, {
         teamId: 't1',
         points: 6,
-        ft: { made: 1 },
-        fg2: { made: 1 },
-        fg3: { made: 1 },
+        ft: { made: 1, attempted: 2 },
+        fg2: { made: 1, attempted: 2 },
+        fg3: { made: 1, attempted: 2 },
       });
     });
   });

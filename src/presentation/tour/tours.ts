@@ -335,8 +335,8 @@ const STATS: TourDefinition = {
     {
       target: 'stats-boxscore',
       title: 'Box score',
-      body: 'Puntos de cada convocado y del equipo, con los tiros libres, dobles y triples convertidos que suman las jugadas de puntos de la planilla.',
-      example: 'Ejemplo: un triple convertido cargado en la planilla suma 3 PTS y 1 en 3P.',
+      body: 'Puntos de cada convocado y del equipo, con tiros libres, dobles, triples y tiros de campo convertidos/intentados y su porcentaje, según los tiros cargados en la planilla.',
+      example: 'Ejemplo: un triple convertido y uno errado muestran 3 PTS, 1/2 en 3P y 50% en 3P%.',
     },
   ],
 };

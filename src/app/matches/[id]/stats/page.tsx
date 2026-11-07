@@ -199,7 +199,7 @@ function MatchStats({ match }: { match: Match }) {
           title="Box score"
           icon={BarChart3}
           data-tour="stats-boxscore"
-          description="Puntos de cada convocado según las jugadas de puntos de la planilla: tiros libres, dobles y triples convertidos."
+          description="Puntos de cada convocado según los tiros de la planilla: tiros libres, dobles, triples y tiros de campo convertidos/intentados, con su porcentaje."
         >
           {boxRows.length === 0 ? (
             <p className={styles.note}>No hay jugadores convocados para este partido.</p>
