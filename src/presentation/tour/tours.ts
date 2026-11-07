@@ -278,13 +278,20 @@ const LIVE: TourDefinition = {
       target: 'live-chart-pad',
       roles: RECORD_LIVE,
       title: 'Cargar la planilla',
-      body: 'Elige la categoría, toca el jugador (o Equipo) y después el código. Aparece toda la convocatoria por dorsal. Azul es una acción buena, rojo un error. En Puntos recibidos el paso 1 es tu jugador responsable y eliges 1, 2 o 3 puntos, que se suman al rival. Si el rival tiene plantel cargado, en Puntos recibidos y Acciones ofensivas puedes marcar también al jugador rival (es opcional).',
+      body: 'Elige la categoría, toca el jugador (o Equipo) y después el código. Aparece toda la convocatoria por dorsal. Azul es una acción buena, rojo un error. En Puntos recibidos el paso 1 es tu jugador responsable y eliges 1, 2 o 3 puntos, que se suman al rival. En Acciones ofensivas el resultado es +1, +2 o +3 si convirtió, o Errado 1, 2 o 3 si falló: el tiro errado cuenta como intento de ese jugador. Si el rival tiene plantel cargado, en Puntos recibidos y Acciones ofensivas puedes marcar también al jugador rival (es opcional).',
       example: 'Ejemplo: Pérdidas, #7 Campagna y "Pase malo".',
     },
     {
       target: 'live-chart-sheet',
       title: 'La planilla armada',
       body: 'La grilla por cuarto se arma sola, con los totales de cada cuarto y de cada mitad, como en el papel.',
+    },
+    {
+      target: 'live-own-fouls',
+      roles: RECORD_LIVE,
+      title: 'Faltas de tu equipo',
+      body: 'Falta abre la lista de la convocatoria: toca el jugador que la hizo. Suma a sus faltas y a las faltas de equipo del tablero. Deshacer falta quita la última. Los códigos de falta de la planilla (Buen foul, Mal foul) son notas tácticas y no cuentan como falta.',
+      example: 'Ejemplo: #7 Campagna comete una falta: toca Falta y después #7.',
     },
     {
       target: 'live-rival',

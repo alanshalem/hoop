@@ -12,12 +12,14 @@ import {
 import { selectRivalRoster } from '@/core/application/stores/club-state';
 import { useClubStore } from '@/core/application/stores/useClubStore';
 import {
+  isOwnFoul,
   isRivalFoul,
   type RecordChartEntryInput,
   type TeamSide,
 } from '@/core/application/use-cases/match-use-cases';
 import { useGameClock, type GameClock } from './useGameClock';
 import {
+  countOwnFoulsByPlayer,
   getPeriodEndAction,
   getRosterPlayers,
   getSelectableQuarters,
@@ -80,6 +82,7 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
   const role = useClubStore((state) => state.currentUser.role);
   const recordEvent = useClubStore((state) => state.recordEvent);
   const undoLastRivalFoulInStore = useClubStore((state) => state.undoLastRivalFoul);
+  const undoLastOwnFoulInStore = useClubStore((state) => state.undoLastOwnFoul);
   const recordChartEntryInStore = useClubStore((state) => state.recordChartEntry);
   const undoLastChartEntryInStore = useClubStore((state) => state.undoLastChartEntry);
   const requestTimeout = useClubStore((state) => state.requestTimeout);
@@ -109,6 +112,9 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
     [rosterIds, players]
   );
 
+  const events = match?.events;
+  const ownFoulsByPlayer = useMemo(() => countOwnFoulsByPlayer(events ?? []), [events]);
+
   const quarters = useMemo(
     () => getSelectableQuarters(match?.currentQuarter ?? 'Q1'),
     [match?.currentQuarter]
@@ -119,6 +125,12 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
 
   /** Removes the last rival foul (S15). */
   const undoRivalFoul = () => undoLastRivalFoulInStore(matchId);
+
+  /** A personal foul of an own player: it counts for the player and the team fouls. */
+  const recordOwnFoul = (playerId: string) =>
+    recordEvent(matchId, { type: 'FOUL_PERSONAL', isOwnTeam: true, playerId, clockSeconds: clock.read() });
+
+  const undoOwnFoul = () => undoLastOwnFoulInStore(matchId);
 
   /** `rivalPlayerId` must come from `rivalRoster` (S14). */
   const recordChartEntry = (input: Omit<RecordChartEntryInput, 'clockSeconds'>) =>
@@ -162,6 +174,10 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
     rosterPlayers,
     /** Whether the rival has a foul that "Deshacer falta" can remove. */
     hasRivalFoul: match?.events.some(isRivalFoul) ?? false,
+    /** Whether the own team has a foul that its "Deshacer falta" can remove. */
+    hasOwnFoul: match?.events.some(isOwnFoul) ?? false,
+    /** Fouls of each own player in the whole match, by player id. */
+    ownFoulsByPlayer,
     /** Players of the match rival team (S14); empty when the rival has no roster. */
     rivalRoster,
     role,
@@ -169,6 +185,8 @@ export function useLiveMatchConsole(matchId: string, { onPeriodEnd }: UseLiveMat
     isHalftime: match?.status === 'HALFTIME',
     recordRivalEvent,
     undoRivalFoul,
+    recordOwnFoul,
+    undoOwnFoul,
     recordChartEntry,
     undoChartEntry,
     callTimeout,

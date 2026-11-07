@@ -21,11 +21,19 @@
   flex-shrink: 0;
 }
 
+/* Own and rival fouls, centered together between navigation and closing. */
+.foulGroups {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+
 .rivalGroup {
   display: flex;
   align-items: center;
   gap: var(--space-1-5);
-  margin: 0 auto;
   padding: var(--space-1);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-danger-subtle);
@@ -127,6 +135,14 @@
   flex-shrink: 0;
 }
 
-.rivalGroup + .endGroup {
+.foulGroups + .endGroup {
   margin-left: 0;
+}
+
+.ownGroup {
+  border-color: var(--border-subtle);
+}
+
+.ownLabel {
+  color: var(--text-primary);
 }

@@ -161,6 +161,22 @@ describe('live tour', () => {
     assert.ok(targets.indexOf('live-chart-pad') < targets.indexOf('live-chart-sheet'), 'pad before sheet');
   });
 
+  it('explains own fouls as Falta plus the player, and Deshacer falta', () => {
+    const steps = getTour('live').steps;
+    const own = steps.find((step) => step.target === 'live-own-fouls');
+    assert.ok(own, 'live-own-fouls step');
+    const copy = `${own.title} ${own.body} ${own.example ?? ''}`;
+    assert.match(copy, /jugador/);
+    assert.match(copy, /Deshacer falta/);
+    const targets = steps.map((step) => step.target);
+    assert.ok(targets.indexOf('live-own-fouls') < targets.indexOf('live-rival'), 'own fouls before rival fouls');
+  });
+
+  it('teaches that a missed shot records its value (Errado 1, 2 or 3)', () => {
+    const pad = getTour('live').steps.find((step) => step.target === 'live-chart-pad');
+    assert.match(pad?.body ?? '', /Errado 1, 2 o 3/);
+  });
+
   it('explains the rival toolbar as FALTA plus Deshacer falta, without rival points buttons (S15)', () => {
     const rival = getTour('live').steps.find((step) => step.target === 'live-rival');
     assert.ok(rival, 'live-rival step');

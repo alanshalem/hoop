@@ -35,6 +35,10 @@ describe('chartOutcome (S11, S14)', () => {
       text: 'no convirtió',
       tone: 'missed',
     });
+    assert.deepStrictEqual(chartOutcome({ category: 'OFFENSE', code: 'BAD_SHOT', made: false, points: 3 }), {
+      text: 'no convirtió 3 pts',
+      tone: 'missed',
+    });
     assert.deepStrictEqual(chartOutcome({ category: 'POINTS_ALLOWED', code: 'CUT', points: 3 }), {
       text: '3 pts',
       tone: 'allowed',

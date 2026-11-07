@@ -30,7 +30,7 @@ export interface ChartPadEntryInput {
   code: string;
   playerId?: string;
   points?: ChartPoints;
-  /** OFFENSE only: whether the action ended in a basket. */
+  /** OFFENSE only: whether the action ended in a basket; `points` is the value of the shot either way. */
   made?: boolean;
   /** POINTS_ALLOWED and OFFENSE only: rival player picked in the optional step (S14). */
   rivalPlayerId?: string;
@@ -139,9 +139,9 @@ export const ChartPad: React.FC<ChartPadProps> = ({
     record({ code, points: category === 'POINTS_ALLOWED' ? points : undefined });
   };
 
-  const handleResult = (made: boolean, value?: ChartPoints) => {
+  const handleResult = (made: boolean, value: ChartPoints) => {
     if (pendingCode === null) return;
-    record({ code: pendingCode, made, points: made ? value : undefined });
+    record({ code: pendingCode, made, points: value });
   };
 
   const handleCategory = (value: ChartCategory) => {
@@ -288,14 +288,6 @@ export const ChartPad: React.FC<ChartPadProps> = ({
                 {pendingCode === null ? '3. Resultado: primero elige la acción' : '3. Resultado: ¿convirtió?'}
               </h3>
               <div className={styles.resultGrid} role="group" aria-label="Resultado de la acción ofensiva">
-                <button
-                  type="button"
-                  className={clsx(styles.resultBtn, styles.resultMiss)}
-                  onClick={() => handleResult(false)}
-                  disabled={disabled || pendingCode === null}
-                >
-                  No convirtió
-                </button>
                 {POINT_OPTIONS.map((value) => (
                   <button
                     key={value}
@@ -306,6 +298,18 @@ export const ChartPad: React.FC<ChartPadProps> = ({
                     disabled={disabled || pendingCode === null}
                   >
                     +{value}
+                  </button>
+                ))}
+                {POINT_OPTIONS.map((value) => (
+                  <button
+                    key={`miss-${value}`}
+                    type="button"
+                    className={clsx(styles.resultBtn, styles.resultMiss)}
+                    aria-label={`No convirtió un tiro de ${value === 1 ? '1 punto' : `${value} puntos`}`}
+                    onClick={() => handleResult(false, value)}
+                    disabled={disabled || pendingCode === null}
+                  >
+                    Errado {value}
                   </button>
                 ))}
               </div>

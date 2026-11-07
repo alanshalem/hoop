@@ -54,6 +54,8 @@ export type TeamSide = 'OWN' | 'RIVAL';
 export interface RecordEventInput {
   type: PlayByPlayEventType;
   isOwnTeam: boolean;
+  /** Own player involved (e.g. who committed an own foul); ignored for rival events. */
+  playerId?: string;
   /** Real clock at the moment of the event; also persisted on the match. */
   clockSeconds?: number;
 }
@@ -61,13 +63,14 @@ export interface RecordEventInput {
 /** HALFTIME: the interval after Q2 (FIBA) accepts no plays and no timeouts. */
 export type RecordEventReason = 'MATCH_NOT_LIVE' | 'HALFTIME';
 export type UndoRivalFoulReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'NO_RIVAL_FOULS';
+export type UndoOwnFoulReason = 'MATCH_NOT_LIVE' | 'HALFTIME' | 'NO_OWN_FOULS';
 
 export interface RecordChartEntryInput {
   category: ChartCategory;
   code: string;
   /** Own player involved; omitted for team-level entries. */
   playerId?: string;
-  /** POINTS_ALLOWED: basket allowed (defaults to 2). OFFENSE: points scored, only when `made`. */
+  /** POINTS_ALLOWED: basket allowed (defaults to 2). OFFENSE: value of the shot, made or missed. */
   points?: ChartPoints;
   /** Required for OFFENSE: whether the action ended in a basket (S11). */
   made?: boolean;
@@ -183,6 +186,7 @@ export function recordEvent(
     {
       teamId: input.isOwnTeam ? match.ownTeamId : RIVAL_TEAM_ID,
       isOwnTeam: input.isOwnTeam,
+      ...(input.isOwnTeam && input.playerId ? { playerId: input.playerId } : {}),
       type: input.type,
     },
     ctx
@@ -205,6 +209,21 @@ export function undoLastRivalFoul(match: Match): MatchResult<UndoRivalFoulReason
   return { ok: true, match: withDerivedScoreboard({ ...match, events }) };
 }
 
+/** Own fouls feed the own team fouls and each player's fouls; chart foul codes are not fouls. */
+export function isOwnFoul(event: PlayByPlayEvent): boolean {
+  return event.isOwnTeam && isFoulEvent(event.type);
+}
+
+/** Removes the last own foul; every other event, chart entries included, stays. */
+export function undoLastOwnFoul(match: Match): MatchResult<UndoOwnFoulReason> {
+  const refusal = notLiveReason(match);
+  if (refusal) return { ok: false, reason: refusal };
+  const lastIndex = match.events.findLastIndex(isOwnFoul);
+  if (lastIndex === -1) return { ok: false, reason: 'NO_OWN_FOULS' };
+  const events = match.events.filter((_, i) => i !== lastIndex);
+  return { ok: true, match: withDerivedScoreboard({ ...match, events }) };
+}
+
 /**
  * Only active codes of the club's catalog (the built-in one by default) can be recorded (S9).
  * A rival player must belong to `rivalRoster`, the match rival roster, when it is given (S14).
@@ -222,10 +241,9 @@ export function recordChartEntry(
   if (!chartCode || chartCode.archived) return { ok: false, reason: 'INVALID_CHART_CODE' };
   const isPointsAllowed = input.category === 'POINTS_ALLOWED';
   const isOffense = input.category === 'OFFENSE';
-  // Offensive actions always carry their result: made with its points, or missed without points (S11).
+  // Offensive actions always carry their result and the value of the shot, made or missed (S11).
   if (isOffense) {
-    if (input.made === undefined) return { ok: false, reason: 'INVALID_CHART_RESULT' };
-    if (input.made !== (input.points !== undefined)) return { ok: false, reason: 'INVALID_CHART_RESULT' };
+    if (input.made === undefined || input.points === undefined) return { ok: false, reason: 'INVALID_CHART_RESULT' };
   } else {
     if (input.made !== undefined) return { ok: false, reason: 'INVALID_CHART_RESULT' };
     if (!isPointsAllowed && input.points !== undefined) return { ok: false, reason: 'INVALID_CHART_CODE' };
@@ -240,8 +258,14 @@ export function recordChartEntry(
     input.clockSeconds === undefined ? match : setClock(match, input.clockSeconds);
   let chart = buildChartEntry(input, isPointsAllowed, isOffense);
   let scored = clocked;
-  // Points allowed go to the rival and made offensive actions to the own team, as a real scoring play (S12).
-  const scoringType = chart.points !== undefined ? SCORING_PLAY_BY_POINTS[chart.points] : undefined;
+  // Points allowed go to the rival and made offensive actions to the own team, as a real scoring play (S12);
+  // a missed offensive action is recorded as the matching missed attempt of the shooter.
+  const scoringType =
+    chart.points === undefined
+      ? undefined
+      : chart.made === false
+        ? MISSED_PLAY_BY_POINTS[chart.points]
+        : SCORING_PLAY_BY_POINTS[chart.points];
   if (scoringType) {
     const scoreEventId = `${ctx.id}-score`;
     const ownTeamScores = isOffense;
@@ -277,6 +301,12 @@ const SCORING_PLAY_BY_POINTS: Record<ChartPoints, PlayByPlayEventType> = {
   3: 'FG3_MADE',
 };
 
+const MISSED_PLAY_BY_POINTS: Record<ChartPoints, PlayByPlayEventType> = {
+  1: 'FT_MISS',
+  2: 'FG2_MISS',
+  3: 'FG3_MISS',
+};
+
 /** Removes the events at `index` plus everything linked to it through a chart entry's scoring play. */
 function withoutLinked(match: Match, index: number): Match {
   const target = match.events[index];
@@ -292,7 +322,7 @@ function buildChartEntry(input: RecordChartEntryInput, isPointsAllowed: boolean,
   const base: ChartEntry = { category: input.category, code: input.code };
   if (input.rivalPlayerId !== undefined) base.rivalPlayerId = input.rivalPlayerId;
   if (isPointsAllowed) return { ...base, points: input.points ?? DEFAULT_CHART_POINTS };
-  if (isOffense) return input.made ? { ...base, made: true, points: input.points } : { ...base, made: false };
+  if (isOffense) return { ...base, made: input.made, points: input.points };
   return base;
 }
 

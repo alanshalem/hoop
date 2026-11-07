@@ -43,6 +43,7 @@ import type {
   StartMatchResult,
   TeamSide,
   UndoChartReason,
+  UndoOwnFoulReason,
   UndoRivalFoulReason,
 } from '@/core/application/use-cases/match-use-cases';
 import { CLUB_PROFILE } from '@/core/domain/club-profile';
@@ -138,6 +139,8 @@ export interface ClubStoreState extends ClubDataState {
   ) => MatchResult<RecordEventReason> | MatchNotFound;
   /** Removes the last rival foul (S15). */
   undoLastRivalFoul: (matchId: string) => MatchResult<UndoRivalFoulReason> | MatchNotFound;
+  /** Removes the last own foul. */
+  undoLastOwnFoul: (matchId: string) => MatchResult<UndoOwnFoulReason> | MatchNotFound;
   recordChartEntry: (
     matchId: string,
     input: RecordChartEntryInput
@@ -358,6 +361,8 @@ export const useClubStore = create<ClubStoreState>()(
           runMatchUseCase(matchId, (m) => matchUseCases.recordEvent(m, input, eventContext())),
 
         undoLastRivalFoul: (matchId) => runMatchUseCase(matchId, matchUseCases.undoLastRivalFoul),
+
+        undoLastOwnFoul: (matchId) => runMatchUseCase(matchId, matchUseCases.undoLastOwnFoul),
 
         recordChartEntry: (matchId, input) =>
           runMatchUseCase(matchId, (m) =>

@@ -157,6 +157,7 @@ describe('offensive result on the sheet (S11)', () => {
   it('marks made actions with their points and missed ones with +0', () => {
     assert.strictEqual(chartEntryResult({ made: true, points: 3 }), '+3');
     assert.strictEqual(chartEntryResult({ made: false }), '+0');
+    assert.strictEqual(chartEntryResult({ made: false, points: 3 }), '+0');
     assert.strictEqual(chartEntryResult({ points: 2 }), '');
   });
 
@@ -168,6 +169,10 @@ describe('offensive result on the sheet (S11)', () => {
     assert.strictEqual(
       chartEntryTitle('OFFENSE', { eventId: 'e2', code: 'GOOD_SHOT', made: false }, playersById),
       'Buen lanzamiento (no convirtió) · Equipo'
+    );
+    assert.strictEqual(
+      chartEntryTitle('OFFENSE', { eventId: 'e3', code: 'GOOD_SHOT', made: false, points: 2 }, playersById),
+      'Buen lanzamiento (no convirtió, 2 pts) · Equipo'
     );
   });
 });

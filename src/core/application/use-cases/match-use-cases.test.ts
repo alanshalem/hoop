@@ -12,6 +12,7 @@ import {
   startThirdQuarter,
   recordChartEntry,
   undoLastChartEntry,
+  undoLastOwnFoul,
   undoLastRivalFoul,
 } from './match-use-cases';
 import type { Match } from '@/core/domain/entities/match.types';
@@ -57,6 +58,26 @@ describe('recordEvent', () => {
     assert.strictEqual(next.events[0].quarterTimeRemainingSeconds, 312);
     assert.strictEqual(next.events[0].teamId, 'rival-team');
     assert.strictEqual(next.awayFoulsQuarter, 1, 'rival team fouls feed the bonus lights');
+  });
+
+  it('records an own foul for the given player and counts it as a team foul', () => {
+    const { match: next } = expectOk(
+      recordEvent(makeMatch(), { type: 'FOUL_PERSONAL', isOwnTeam: true, playerId: 'p1' }, ctx)
+    );
+    assert.deepStrictEqual(
+      { type: next.events[0].type, isOwnTeam: next.events[0].isOwnTeam, teamId: next.events[0].teamId, playerId: next.events[0].playerId },
+      { type: 'FOUL_PERSONAL', isOwnTeam: true, teamId: 'team-own', playerId: 'p1' }
+    );
+    assert.strictEqual(next.homeFoulsQuarter, 1, 'own team plays at home');
+    assert.strictEqual(next.awayFoulsQuarter, 0);
+  });
+
+  it('keeps no player on rival events', () => {
+    const { match: next } = expectOk(
+      recordEvent(makeMatch(), { type: 'FOUL_PERSONAL', isOwnTeam: false, playerId: 'p1' }, ctx)
+    );
+    assert.strictEqual(next.events[0].playerId, undefined);
+    assert.strictEqual(next.awayFoulsQuarter, 1);
   });
 
   it('rejects events when the match is not live', () => {
@@ -120,6 +141,33 @@ describe('undoLastRivalFoul (S15)', () => {
       ok: false,
       reason: 'HALFTIME',
     });
+  });
+});
+
+describe('undoLastOwnFoul', () => {
+  it('removes only the last own foul, re-derives the team fouls and keeps every other event', () => {
+    const firstFoul = makeEvent({ type: 'FOUL_PERSONAL', isOwnTeam: true, playerId: 'p1' });
+    const lastFoul = makeEvent({ type: 'FOUL_TECHNICAL', isOwnTeam: true, playerId: 'p2' });
+    const rivalFoul = makeEvent({ type: 'FOUL_PERSONAL', isOwnTeam: false });
+    const chartFoul = makeEvent({ type: 'CHART', playerId: 'p1', chart: { category: 'DEFENSE', code: 'BAD_FOUL' } });
+    const match = makeMatch({ events: [firstFoul, lastFoul, rivalFoul, chartFoul], homeFoulsQuarter: 2, awayFoulsQuarter: 1 });
+    const { match: next } = expectOk(undoLastOwnFoul(match));
+    assert.deepStrictEqual(next.events, [firstFoul, rivalFoul, chartFoul]);
+    assert.strictEqual(next.homeFoulsQuarter, 1);
+    assert.strictEqual(next.awayFoulsQuarter, 1);
+    assert.strictEqual(match.events.length, 4, 'input match is not mutated');
+  });
+
+  it('reports NO_OWN_FOULS when the own team has no foul, even with rival fouls', () => {
+    assert.deepStrictEqual(undoLastOwnFoul(makeMatch()), { ok: false, reason: 'NO_OWN_FOULS' });
+    const match = makeMatch({ events: [makeEvent({ type: 'FOUL_PERSONAL', isOwnTeam: false })] });
+    assert.deepStrictEqual(undoLastOwnFoul(match), { ok: false, reason: 'NO_OWN_FOULS' });
+  });
+
+  it('refuses when the match is not live or at halftime', () => {
+    const events = [makeEvent({ type: 'FOUL_PERSONAL', isOwnTeam: true, playerId: 'p1' })];
+    assert.deepStrictEqual(undoLastOwnFoul(makeMatch({ status: 'FINISHED', events })), { ok: false, reason: 'MATCH_NOT_LIVE' });
+    assert.deepStrictEqual(undoLastOwnFoul(makeMatch({ status: 'HALFTIME', events })), { ok: false, reason: 'HALFTIME' });
   });
 });
 
@@ -243,19 +291,34 @@ describe('recordChartEntry offensive result (S11)', () => {
     assert.strictEqual(next.homeScore, 3, 'made offensive points reach the scoreboard (S12)');
   });
 
-  it('records a missed offensive action without points', () => {
-    const { match: next } = expectOk(
-      recordChartEntry(makeMatch(), { category: 'OFFENSE', code: 'GOOD_SHOT', made: false }, ctx)
-    );
-    assert.deepStrictEqual(next.events[0].chart, { category: 'OFFENSE', code: 'GOOD_SHOT', made: false });
+  it('records a missed offensive action with its shot value as a missed attempt for the shooter', () => {
+    for (const [points, type] of [[1, 'FT_MISS'], [2, 'FG2_MISS'], [3, 'FG3_MISS']] as const) {
+      const { match: next } = expectOk(
+        recordChartEntry(makeMatch(), { category: 'OFFENSE', code: 'GOOD_SHOT', playerId: 'p1', made: false, points }, ctx)
+      );
+      const [play, entry] = next.events;
+      assert.deepStrictEqual(
+        { type: play.type, isOwnTeam: play.isOwnTeam, teamId: play.teamId, playerId: play.playerId, id: play.id },
+        { type, isOwnTeam: true, teamId: 'team-own', playerId: 'p1', id: 'ev-new-score' }
+      );
+      assert.deepStrictEqual(entry.chart, { category: 'OFFENSE', code: 'GOOD_SHOT', made: false, points, scoreEventId: 'ev-new-score' });
+      assert.deepStrictEqual([next.homeScore, next.awayScore], [0, 0], 'a miss scores nothing');
+    }
   });
 
-  it('refuses an offensive action without result, made without points or missed with points', () => {
+  it('undoing a missed offensive action removes its missed attempt', () => {
+    const { match: missed } = expectOk(
+      recordChartEntry(makeMatch(), { category: 'OFFENSE', code: 'BAD_SHOT', made: false, points: 3 }, ctx)
+    );
+    assert.deepStrictEqual(expectOk(undoLastChartEntry(missed)).match.events, []);
+  });
+
+  it('refuses an offensive action without result, or without the points of the shot, made or missed', () => {
     const match = makeMatch();
     for (const input of [
       { category: 'OFFENSE', code: 'GOOD_SHOT' },
       { category: 'OFFENSE', code: 'GOOD_SHOT', made: true },
-      { category: 'OFFENSE', code: 'GOOD_SHOT', made: false, points: 2 },
+      { category: 'OFFENSE', code: 'GOOD_SHOT', made: false },
     ] as const) {
       assert.deepStrictEqual(recordChartEntry(match, input, ctx), { ok: false, reason: 'INVALID_CHART_RESULT' });
     }
@@ -323,9 +386,8 @@ describe('scoring chart entries update the scoreboard (S12)', () => {
     assert.strictEqual(next.homeScore, 0);
   });
 
-  it('records no scoring play for missed actions or categories without points', () => {
+  it('records no scoring play for categories without points', () => {
     for (const input of [
-      { category: 'OFFENSE', code: 'GOOD_SHOT', made: false },
       { category: 'TURNOVER', code: 'BAD_PASS' },
       { category: 'DEFENSE', code: 'STEAL' },
     ] as const) {
@@ -378,7 +440,7 @@ describe('rival player on chart entries (S14, L18)', () => {
   });
 
   it('stores the rival player on offensive actions, made or missed', () => {
-    for (const result of [{ made: false }, { made: true, points: 2 }] as const) {
+    for (const result of [{ made: false, points: 2 }, { made: true, points: 2 }] as const) {
       const { match: next } = expectOk(
         recordChartEntry(
           makeMatch(),

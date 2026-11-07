@@ -86,7 +86,8 @@ export function buildChartSheet(events: readonly PlayByPlayEvent[]): ChartSheet 
     if (!isChartEvent(event)) continue;
     const row = byCategory.get(event.chart.category);
     if (!row) continue;
-    const points = event.chart.points ?? 0;
+    // A missed offensive action keeps the value of the shot, but scores nothing.
+    const points = event.chart.made === false ? 0 : (event.chart.points ?? 0);
     const cell = row.cells[event.quarter];
     cell.entries.push({
       eventId: event.id,

@@ -62,7 +62,10 @@ export function ownPlayerTag(playerId: string | undefined, playersById: Readonly
 /** Result of an offensive action or points of a basket allowed; nothing for the other categories. */
 export function chartOutcome(chart: ChartEntry): ChartOutcome | undefined {
   if (chart.made === true) return { text: `+${chart.points ?? 0}`, tone: 'made' };
-  if (chart.made === false) return { text: 'no convirtió', tone: 'missed' };
+  if (chart.made === false) {
+    const text = chart.points !== undefined ? `no convirtió ${formatChartPoints(chart.points)}` : 'no convirtió';
+    return { text, tone: 'missed' };
+  }
   if (chart.category === 'POINTS_ALLOWED' && chart.points !== undefined) {
     return { text: formatChartPoints(chart.points), tone: 'allowed' };
   }

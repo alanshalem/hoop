@@ -23,6 +23,7 @@ import { ChartPad, type ChartPadEntryInput } from '@/presentation/organisms/Char
 import { ChartSheetTable } from '@/presentation/organisms/ChartSheetTable/ChartSheetTable';
 import { useScreenTour } from '@/presentation/tour/useScreenTour';
 import { ConsoleToolbar } from './ConsoleToolbar';
+import { OwnFoulPicker } from './OwnFoulPicker';
 import {
   REFUSAL_MESSAGES,
   TIMEOUT_PERIOD_LABELS,
@@ -46,6 +47,8 @@ export function LiveConsole({ matchId }: { matchId: string }) {
   const live = useLiveMatchConsole(matchId, { onPeriodEnd: (action) => void handlePeriodEnd(action) });
 
   const [sheetTab, setSheetTab] = useState<SheetTab>('entry');
+  /** The own "Falta" waits for the player who committed it. */
+  const [ownFoulPickerOpen, setOwnFoulPickerOpen] = useState(false);
 
   const { match, teams, clock } = live;
   // Never interrupt a running clock: the tour waits until it is paused (or is replayed explicitly).
@@ -108,6 +111,17 @@ export function LiveConsole({ matchId }: { matchId: string }) {
   const handleRivalFoul = () => {
     const result = live.recordRivalEvent('FOUL_PERSONAL');
     if (!result.ok) void notifyRefusal(result.reason);
+  };
+
+  const handleOwnFoul = (playerId: string) => {
+    const result = live.recordOwnFoul(playerId);
+    setOwnFoulPickerOpen(false);
+    if (!result.ok) void notifyRefusal(result.reason);
+  };
+
+  const handleUndoOwnFoul = () => {
+    const result = live.undoOwnFoul();
+    if (!result.ok) void notifyRefusal(result.reason, 'Nada para deshacer');
   };
 
   const handleUndoRivalFoul = () => {
@@ -223,14 +237,28 @@ export function LiveConsole({ matchId }: { matchId: string }) {
 
       <ConsoleToolbar
         matchId={match.id}
+        ownName={match.ownTeamName}
         rivalName={match.rivalTeamName}
         readOnly={readOnly}
         recordingLocked={live.isHalftime}
+        hasOwnFoul={live.hasOwnFoul}
+        ownFoulPickerOpen={ownFoulPickerOpen}
+        onOwnFoul={() => setOwnFoulPickerOpen((open) => !open)}
+        onUndoOwnFoul={handleUndoOwnFoul}
         hasRivalFoul={live.hasRivalFoul}
         onRivalFoul={handleRivalFoul}
         onUndoRivalFoul={handleUndoRivalFoul}
         onFinish={() => void finishMatchFlow()}
       />
+
+      {ownFoulPickerOpen && !readOnly && !live.isHalftime && (
+        <OwnFoulPicker
+          players={live.rosterPlayers}
+          foulsByPlayer={live.ownFoulsByPlayer}
+          onPick={handleOwnFoul}
+          onClose={() => setOwnFoulPickerOpen(false)}
+        />
+      )}
 
       {live.isHalftime && (
         <div className={styles.halftimeBanner} role="status">

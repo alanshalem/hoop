@@ -439,9 +439,10 @@
 }
 
 /* Step 3 (OFFENSE): result of the action (S11). */
+/* Made shots (+1/+2/+3) on the first row, misses of the same values below. */
 .resultGrid {
   display: grid;
-  grid-template-columns: 1.6fr repeat(3, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-2);
 }
 

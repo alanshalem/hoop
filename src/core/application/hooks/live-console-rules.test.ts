@@ -1,7 +1,21 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { makePlayer } from '@/core/testing/fixtures';
-import { getPeriodEndAction, getRosterPlayers, getSelectableQuarters } from './live-console-rules';
+import { makeEvent, makePlayer } from '@/core/testing/fixtures';
+import { countOwnFoulsByPlayer, getPeriodEndAction, getRosterPlayers, getSelectableQuarters } from './live-console-rules';
+
+describe('countOwnFoulsByPlayer', () => {
+  it('counts every own foul per player across the match, ignoring rival fouls, team fouls and chart foul codes', () => {
+    const counts = countOwnFoulsByPlayer([
+      makeEvent({ type: 'FOUL_PERSONAL', isOwnTeam: true, playerId: 'p1', quarter: 'Q1' }),
+      makeEvent({ type: 'FOUL_TECHNICAL', isOwnTeam: true, playerId: 'p1', quarter: 'Q3' }),
+      makeEvent({ type: 'FOUL_PERSONAL', isOwnTeam: true, playerId: 'p2' }),
+      makeEvent({ type: 'FOUL_PERSONAL', isOwnTeam: true }),
+      makeEvent({ type: 'FOUL_PERSONAL', isOwnTeam: false }),
+      makeEvent({ type: 'CHART', isOwnTeam: true, playerId: 'p2', chart: { category: 'DEFENSE', code: 'BAD_FOUL' } }),
+    ]);
+    assert.deepStrictEqual(Object.fromEntries(counts), { p1: 2, p2: 1 });
+  });
+});
 
 describe('getSelectableQuarters', () => {
   it('offers only regulation quarters before the 4th quarter', () => {

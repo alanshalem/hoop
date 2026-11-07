@@ -172,4 +172,17 @@ describe('offensive points on the sheet (S11)', () => {
     ]);
     assert.deepStrictEqual(offense.total, { count: 2, points: 3 });
   });
+
+  it('keeps the shot value of a missed action on its entry without adding it to the points', () => {
+    const made = makeEvent({ quarter: 'Q1', type: 'CHART', playerId: 'p1', chart: { category: 'OFFENSE', code: 'LAYUP', made: true, points: 2 } });
+    const missed = makeEvent({ quarter: 'Q1', type: 'CHART', playerId: 'p2', chart: { category: 'OFFENSE', code: 'BAD_SHOT', made: false, points: 3 } });
+    const offense = buildChartSheet([made, missed]).rows.find((r) => r.category === 'OFFENSE')!;
+    assert.deepStrictEqual(offense.cells.Q1.points, 2);
+    assert.deepStrictEqual(offense.cells.Q1.entries.map((e) => [e.code, e.made, e.points]), [
+      ['LAYUP', true, 2],
+      ['BAD_SHOT', false, 3],
+    ]);
+    assert.deepStrictEqual(offense.firstHalf, { count: 2, points: 2 });
+    assert.deepStrictEqual(offense.total, { count: 2, points: 2 });
+  });
 });

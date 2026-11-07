@@ -46,7 +46,7 @@ export function chartEntryResult(entry: Pick<ChartSheetEntry, 'made' | 'points'>
 
 function describePoints(entry: ChartSheetEntry): string | undefined {
   if (entry.made === true) return `convirtió, ${formatChartPoints(entry.points ?? 0)}`;
-  if (entry.made === false) return 'no convirtió';
+  if (entry.made === false) return entry.points !== undefined ? `no convirtió, ${formatChartPoints(entry.points)}` : 'no convirtió';
   return entry.points !== undefined ? formatChartPoints(entry.points) : undefined;
 }
 

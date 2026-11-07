@@ -33,11 +33,14 @@ export const DEFAULT_CHART_POINTS: ChartPoints = 2;
 export const ChartEntrySchema = z.object({
   category: ChartCategorySchema,
   code: z.string().min(1, 'Chart code is required'),
-  /** POINTS_ALLOWED: points of the basket allowed. OFFENSE: points scored when `made`. */
+  /**
+   * POINTS_ALLOWED: points of the basket allowed. OFFENSE: value of the shot, made or
+   * missed (entries recorded before misses carried it have none).
+   */
   points: ChartPointsSchema.optional(),
   /** Only for OFFENSE: whether the action ended in a basket (S11). */
   made: z.boolean().optional(),
-  /** Scoring play recorded with this entry, so the points reach the scoreboard (S12). */
+  /** Play recorded with this entry: the scoring play (S12), or the missed attempt of an offensive miss. */
   scoreEventId: z.string().min(1).optional(),
   /** POINTS_ALLOWED and OFFENSE only: rival player involved, from the match rival roster (S14). */
   rivalPlayerId: z.string().min(1).optional(),

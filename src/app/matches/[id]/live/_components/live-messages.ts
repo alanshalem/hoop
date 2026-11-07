@@ -5,6 +5,7 @@ import type {
   RecordEventReason,
   RequestTimeoutResult,
   UndoChartReason,
+  UndoOwnFoulReason,
   UndoRivalFoulReason,
 } from '@/core/application/use-cases/match-use-cases';
 
@@ -12,6 +13,7 @@ import type {
 export type ConsoleRefusal =
   | RecordEventReason
   | UndoRivalFoulReason
+  | UndoOwnFoulReason
   | RecordChartReason
   | UndoChartReason
   | Extract<RequestTimeoutResult, { ok: false }>['reason']
@@ -26,8 +28,9 @@ export const REFUSAL_MESSAGES: Record<ConsoleRefusal, string> = {
   NOT_END_OF_FIRST_HALF: 'El entretiempo solo empieza al terminar el 2.º cuarto.',
   NOT_HALFTIME: 'El partido no está en el entretiempo.',
   NO_RIVAL_FOULS: 'No hay faltas del rival para deshacer.',
+  NO_OWN_FOULS: 'No hay faltas de tu equipo para deshacer.',
   INVALID_CHART_CODE: 'El código no corresponde a esa categoría de la planilla.',
-  INVALID_CHART_RESULT: 'Elige si la acción ofensiva convirtió y cuántos puntos.',
+  INVALID_CHART_RESULT: 'Elige si la acción ofensiva convirtió o no y de cuántos puntos fue el tiro.',
   INVALID_RIVAL_PLAYER: 'El jugador rival no pertenece al plantel de este rival.',
   NO_CHART_ENTRIES: 'No hay entradas de la planilla para deshacer.',
   NO_TIMEOUTS_LEFT: 'No quedan tiempos muertos en este período.',

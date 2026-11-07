@@ -1,5 +1,6 @@
 import type { Player } from '@/core/domain/entities/club.types';
-import type { Quarter } from '@/core/domain/entities/match.types';
+import type { PlayByPlayEvent, Quarter } from '@/core/domain/entities/match.types';
+import { isFoulEvent } from '@/core/domain/rules/event-rules';
 import { getNextQuarter, isOvertime, QUARTER_SEQUENCE } from '@/core/domain/rules/game-clock';
 
 /**
@@ -8,6 +9,16 @@ import { getNextQuarter, isOvertime, QUARTER_SEQUENCE } from '@/core/domain/rule
  * Period navigation and roster decisions for the live console (pure).
  * =============================================================================
  */
+
+/** Fouls of each own player in the whole match (FOUL_* events only; chart foul codes are notes). */
+export function countOwnFoulsByPlayer(events: readonly PlayByPlayEvent[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const event of events) {
+    if (!event.isOwnTeam || !event.playerId || !isFoulEvent(event.type)) continue;
+    counts.set(event.playerId, (counts.get(event.playerId) ?? 0) + 1);
+  }
+  return counts;
+}
 
 /**
  * Q1-Q4 always; overtimes unlock one at a time from the 4th quarter on.

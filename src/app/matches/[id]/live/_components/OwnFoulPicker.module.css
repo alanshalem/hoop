@@ -1,0 +1,85 @@
+.picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1-5) var(--space-3);
+  background-color: var(--color-warning-subtle);
+  border-bottom: 1px solid var(--color-warning);
+  flex-shrink: 0;
+}
+
+.title {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-display);
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.players {
+  display: flex;
+  gap: var(--space-1-5);
+  min-width: 0;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.playerBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: var(--touch-lg);
+  min-height: var(--touch-lg);
+  padding: var(--space-1) var(--space-2);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-1);
+  color: var(--text-primary);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.playerBtn:active {
+  transform: scale(0.97);
+}
+
+/* At the FIBA foul-trouble threshold the player is one foul from leaving the game. */
+.foulTrouble {
+  border-color: var(--color-danger);
+}
+
+.dorsal {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-display);
+  line-height: 1;
+}
+
+.name {
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.fouls {
+  min-height: 1em;
+  font-size: var(--text-xs);
+  line-height: 1;
+  color: var(--color-danger);
+}
+
+.closeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-1);
+  color: var(--text-primary);
+  cursor: pointer;
+}
